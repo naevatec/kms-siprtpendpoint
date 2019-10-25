@@ -1,0 +1,166 @@
+{
+  "remoteClasses": [
+    {
+      "name": "SipRtpEndpoint",
+      "extends": "BaseRtpEndpoint",
+      "doc": "Endpoint that provides bidirectional content delivery capabilities with remote networked peers through RTP or SRTP protocol. An :rom:cls:`RtpEndpoint` contains paired sink and source :rom:cls:`MediaPad` for audio and video. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`.
+      </p>
+      <p>
+      In order to establish an RTP/SRTP communication, peers engage in an SDP negotiation process, where one of the peers (the offerer) sends an offer, while the other peer (the offeree) responds with an answer. This endpoint can function in both situations
+      <ul style='list-style-type:circle'>
+        <li>
+          As offerer: The negotiation process is initiated by the media server
+          <ul>
+            <li>KMS generates the SDP offer through the generateOffer method. This offer must then be sent to the remote peer (the offeree) through the signaling channel, for processing.</li>
+            <li>The remote peer process the Offer, and generates an Answer to this offer. The Answer is sent back to the media server.</li>
+            <li>Upon receiving the Answer, the endpoint must invoke the processAnswer method.</li>
+          </ul>
+        </li>
+        <li>
+          As offeree: The negotiation process is initiated by the remote peer
+          <ul>
+            <li>The remote peer, acting as offerer, generates an SDP offer and sends it to the WebRTC endpoint in Kurento.</li>
+            <li>The endpoint will process the Offer invoking the processOffer method. The result of this method will be a string, containing an SDP Answer.</li>
+            <li>The SDP Answer must be sent back to the offerer, so it can be processed.</li>
+          </ul>
+        </li>
+      </ul>
+      </p>
+      <p>
+      In case of unidirectional connections (i.e. only one peer is going to send media), the process is more simple, as only the emitter needs to process an SDP. On top of the information about media codecs and types, the SDP must contain the IP of the remote peer, and the port where it will be listening. This way, the SDP can be mangled without needing to go through the exchange process, as the receiving peer does not need to process any answer.
+      </p>
+      <p>
+      The user can set some bandwidth limits that will be used during the negotiation process.
+      The default bandwidth range of the endpoint is 100kbps-500kbps, but it can be changed separately for input/output directions and for audio/video streams.
+      <ul style='list-style-type:circle'>
+        <li>
+          Input bandwidth control mechanism: Configuration interval used to inform remote peer the range of bitrates that can be pushed into this RtpEndpoint object. These values are announced in the SDP.
+          <ul>
+            <li>
+              setMaxVideoRecvBandwidth: sets Max bitrate limits expected for received video stream.
+            </li>
+            <li>
+              setMaxAudioRecvBandwidth: sets Max bitrate limits expected for received audio stream.
+            </li>
+          </ul>
+        </li>
+        <li>
+          Output bandwidth control mechanism: Configuration interval used to control bitrate of the output video stream sent to remote peer. Remote peers can also announce bandwidth limitation in their SDPs (through the b=<modifier>:<value> tag). Kurento will always enforce bitrate limitations specified by the remote peer over internal configurations.
+          <ul>
+            <li>
+              setMaxVideoSendBandwidth: sets Max bitrate limits for video sent to remote peer.
+            </li>
+            <li>
+              setMinVideoSendBandwidth: sets Min bitrate limits for audio sent to remote peer.
+            </li>
+          </ul>
+        </li>
+      </ul>
+      All bandwidth control parameters must be changed before the SDP negotiation takes place, and can't be modified afterwards.
+      TODO: What happens if the b=as tag form the SDP has a lower value than the one set in setMinVideoSendBandwidth?
+      </p>
+      <p>
+      Take into consideration that setting a too high upper limit for the output bandwidth can be a reason for the local network connection to be overflooded.
+      </p>
+      ",
+      "constructor":
+        {
+          "doc": "Builder for the :rom:cls:`SipRtpEndpoint`",
+          "params": [
+            {
+              "name": "mediaPipeline",
+              "doc": "the :rom:cls:`MediaPipeline` to which the endpoint belongs",
+              "type": "MediaPipeline"
+            },
+            {
+              "name": "crypto",
+              "doc": "SDES-type param. If present, this parameter indicates that the communication will be encrypted. By default no encryption is used.",
+              "type": "SDES",
+              "optional": true,
+              "defaultValue": {}
+            },
+            {
+              "name": "useIpv6",
+              "doc": "This configures the endpoint to use IPv6 instead of IPv4.",
+              "type": "boolean",
+              "optional": true,
+              "defaultValue": false
+            }
+          ]
+        },
+      "events": [
+        "OnKeySoftLimit"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "OnKeySoftLimit",
+      "doc": "Fired when encryption is used and any stream reached the soft key usage limit, which means it will expire soon.",
+      "extends": "Media",
+      "properties": [
+        {
+          "name": "mediaType",
+          "doc": "The media stream",
+          "type": "MediaType"
+        }
+      ]
+    }
+  ],
+  "complexTypes": [
+    {
+      "name": "CryptoSuite",
+      "typeFormat": "ENUM",
+      "doc": "Describes the encryption and authentication algorithms",
+      "values": [
+        "AES_128_CM_HMAC_SHA1_32",
+        "AES_128_CM_HMAC_SHA1_80",
+        "AES_256_CM_HMAC_SHA1_32",
+        "AES_256_CM_HMAC_SHA1_80"
+      ]
+    },
+    {
+      "typeFormat": "REGISTER",
+      "name": "SDES",
+      "doc": "Security Descriptions for Media Streams",
+      "properties": [
+        {
+          "name": "key",
+          "doc": "<p>Master key and salt (plain text)</p>
+          <p>
+          This field provides the the cryptographic master key appended with the master salt, in plain text format. This allows to provide a key that is composed of readable ASCII characters.
+          </p>
+          <p>
+          The expected length of the key (as provided to this parameter) is determined by the crypto-suite for which the key applies (30 characters for AES_CM_128, 46 characters for AES_CM_256). If the length does not match the expected value, the key will be considered invalid.
+          </p>
+          <p>
+          If no key is provided, a random one will be generated using the `getrandom` system call.
+          </p>",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "keyBase64",
+          "doc": "<p>Master key and salt (base64 encoded)</p>
+          <p>
+          This field provides the cryptographic master key appended with the master salt, encoded in base64. This allows to provide a binary key that is not limited to the ASCII character set.
+          </p>
+          <p>
+          The expected length of the key (after being decoded from base64) is determined by the crypto-suite for which the key applies (30 bytes for AES_CM_128, 46 bytes for AES_CM_256). If the length does not match the expected value, the key will be considered invalid.
+          </p>
+          <p>
+          If no key is provided, a random one will be generated using the `getrandom` system call.
+          </p>",
+          "type": "String",
+          "optional": true
+        },
+        {
+          "name": "crypto",
+          "doc": "Selects the cryptographic suite to be used. For available values, please see the CryptoSuite enum.",
+          "type": "CryptoSuite",
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

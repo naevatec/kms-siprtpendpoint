@@ -1,0 +1,43 @@
+Source: kms-datachannel-adapter
+Maintainer: NaevaTec <info@naevatec.com>
+Priority: optional
+Build-Depends: debhelper (>= 9),
+ cmake,
+ pkg-config,
+ kms-core-dev (>= 6.7.0),
+ kms-elements-dev (>= 6.7.0),
+ kms-filters-dev (>= 6.7.0),
+Standards-Version: 4.0.0
+Homepage: www.kurento.org
+Vcs-Browser: https://
+Vcs-Git: https://
+
+Package: kms-datachannel-adapter
+Architecture: any
+Section: libs
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ kms-core (>= 6.11.0),
+ kms-elements (>= 6.11.0),
+ kms-filters (>= 6.11.0)
+Breaks: kms-platedetector-6.0
+Replaces: kms-platedetector-6.0
+Description: Kurento Datachannel adapter
+
+Package: kms-datachannel-adapter-dev
+Architecture: any
+Section: libdevel
+Depends: kms-datachannel-adapter (= ${binary:Version}),
+ kms-core-dev (>= 6.11.0),
+ kms-elements-dev (>= 6.11.0),
+ kms-filters-dev (>= 6.11.0),
+Breaks: kms-platedetector-6.0-dev
+Replaces: kms-platedetector-6.0-dev
+Description: Kurento Datachannel adapter - Development files
+
+Package: kms-datachannel-adapter-dbg
+Architecture: any
+Section: debug
+Depends: kms-datachannel-adapter (= ${binary:Version})
+Breaks: kms-datachannel-adapter-6.0-dbg
+Replaces: kms-datachannel-adapter-6.0-dbg
+Description: Kurento Datachannel adapter - Debug symbols

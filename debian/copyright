@@ -1,0 +1,10 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: kms-datachannel-adapter
+Upstream-Contact: NaevaTec <info@naevatec.com>
+Source: https://
+
+Files: *
+Copyright: Copyright 2019 NaevaTec (www.naevatec.com)
+License: Apache-2.0
+ On Debian systems, the full text of the Apache License, Version 2.0
+ can be found in the file '/usr/share/common-licenses/Apache-2.0'.
