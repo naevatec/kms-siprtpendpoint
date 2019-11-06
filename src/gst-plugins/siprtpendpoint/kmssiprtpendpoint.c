@@ -41,7 +41,7 @@ GST_DEBUG_CATEGORY_STATIC (kms_sip_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
 
 #define kms_sip_rtp_endpoint_parent_class parent_class
-G_DEFINE_TYPE (KmsSipRtpEndpoint, kms_siprtp_endpoint, KMS_TYPE_BASE_RTP_ENDPOINT);
+G_DEFINE_TYPE (KmsSipRtpEndpoint, kms_sip_rtp_endpoint, KMS_TYPE_BASE_RTP_ENDPOINT);
 
 #define DEFAULT_USE_SDES FALSE
 #define DEFAULT_MASTER_KEY NULL
@@ -177,20 +177,20 @@ get_auth_cipher_from_crypto (SrtpCryptoSuite crypto, guint * auth,
 {
   switch (crypto) {
     case KMS_SDES_EXT_AES_CM_128_HMAC_SHA1_32:
-      *auth = KMS_SRTP_AUTH_HMAC_SHA1_32;
-      *cipher = KMS_SRTP_CIPHER_AES_CM_128;
+      *auth = KMS_SIP_SRTP_AUTH_HMAC_SHA1_32;
+      *cipher = KMS_SIP_SRTP_CIPHER_AES_CM_128;
       return TRUE;
     case KMS_SDES_EXT_AES_CM_128_HMAC_SHA1_80:
-      *auth = KMS_SRTP_AUTH_HMAC_SHA1_80;
-      *cipher = KMS_SRTP_CIPHER_AES_CM_128;
+      *auth = KMS_SIP_SRTP_AUTH_HMAC_SHA1_80;
+      *cipher = KMS_SIP_SRTP_CIPHER_AES_CM_128;
       return TRUE;
     case KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_32:
-      *auth = KMS_SRTP_AUTH_HMAC_SHA1_32;
-      *cipher = KMS_SRTP_CIPHER_AES_CM_256;
+      *auth = KMS_SIP_SRTP_AUTH_HMAC_SHA1_32;
+      *cipher = KMS_SIP_SRTP_CIPHER_AES_CM_256;
       return TRUE;
     case KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_80:
-      *auth = KMS_SRTP_AUTH_HMAC_SHA1_80;
-      *cipher = KMS_SRTP_CIPHER_AES_CM_256;
+      *auth = KMS_SIP_SRTP_AUTH_HMAC_SHA1_80;
+      *cipher = KMS_SIP_SRTP_CIPHER_AES_CM_256;
       return TRUE;
     default:
       *auth = *cipher = 0;
@@ -199,7 +199,7 @@ get_auth_cipher_from_crypto (SrtpCryptoSuite crypto, guint * auth,
 }
 
 static gboolean
-kms_rtp_endpoint_set_local_srtp_connection_key (KmsSipRtpEndpoint * self,
+kms_sip_rtp_endpoint_set_local_srtp_connection_key (KmsSipRtpEndpoint * self,
     const gchar * media, SdesKeys * sdes_keys)
 {
   SrtpCryptoSuite crypto;
@@ -224,7 +224,7 @@ kms_rtp_endpoint_set_local_srtp_connection_key (KmsSipRtpEndpoint * self,
     return FALSE;
   }
 
-  kms_srtp_connection_set_key (KMS_SRTP_CONNECTION (sdes_keys->conn),
+  kms_sip_srtp_connection_set_key (KMS_SIP_SRTP_CONNECTION (sdes_keys->conn),
       key, auth, cipher, TRUE);
   g_free (key);
 
@@ -267,7 +267,7 @@ kms_sip_rtp_endpoint_set_remote_srtp_connection_key (KmsSipRtpEndpoint * self,
     goto end;
   }
 
-  kms_srtp_connection_set_key (KMS_SRTP_CONNECTION (sdes_keys->conn), rem_key,
+  kms_sip_srtp_connection_set_key (KMS_SIP_SRTP_CONNECTION (sdes_keys->conn), rem_key,
       auth, cipher, FALSE);
 
   done = TRUE;
@@ -281,7 +281,7 @@ end:
 }
 
 static void
-conn_soft_limit_cb (KmsSrtpConnection * conn, gpointer user_data)
+conn_soft_limit_cb (KmsSipSrtpConnection * conn, gpointer user_data)
 {
   SdesExtData *data = (SdesExtData *) user_data;
   KmsSipRtpEndpoint *self = data->rtpep;
@@ -297,7 +297,7 @@ kms_sip_rtp_endpoint_get_connection (KmsSipRtpEndpoint * self, KmsSdpSession * s
     KmsRtpBaseConnection *conn;
     SdesExtData *data;
 
-    conn = kms_srtp_session_get_connection (KMS_SRTP_SESSION (sess), handler);
+    conn = kms_sip_srtp_session_get_connection (KMS_SIP_SRTP_SESSION (sess), handler);
 
     data = sdes_ext_data_new (self, gst_sdp_media_get_media (media));
 
@@ -382,7 +382,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
   g_object_get (self, "use-ipv6", &use_ipv6, NULL);
   if (self->priv->use_sdes) {
     *sess =
-        KMS_SDP_SESSION (kms_srtp_session_new (base_sdp, id, manager,
+        KMS_SDP_SESSION (kms_sip_srtp_session_new (base_sdp, id, manager,
             use_ipv6));
   } else {
     *sess =
@@ -405,10 +405,10 @@ get_max_key_size (SrtpCryptoSuite crypto)
   switch (crypto) {
     case KMS_SDES_EXT_AES_CM_128_HMAC_SHA1_32:
     case KMS_SDES_EXT_AES_CM_128_HMAC_SHA1_80:
-      return KMS_SRTP_CIPHER_AES_CM_128_SIZE;
+      return KMS_SIP_SRTP_CIPHER_AES_CM_128_SIZE;
     case KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_32:
     case KMS_SDES_EXT_AES_256_CM_HMAC_SHA1_80:
-      return KMS_SRTP_CIPHER_AES_CM_256_SIZE;
+      return KMS_SIP_SRTP_CIPHER_AES_CM_256_SIZE;
     default:
       return 0;
   }
@@ -428,7 +428,7 @@ enhanced_g_value_copy (const GValue * src, GValue * dest)
 static gboolean
 kms_sip_rtp_endpoint_create_new_key (KmsSipRtpEndpoint * self, guint tag, GValue * key)
 {
-  if (self->priv->crypto == KMS_SIP_RTP_SDES_CRYPTO_SUITE_NONE) {
+  if (self->priv->crypto == KMS_RTP_SDES_CRYPTO_SUITE_NONE) {
     return FALSE;
   }
 
@@ -751,7 +751,7 @@ kms_sip_rtp_endpoint_configure_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
     return TRUE;
   }
 
-  media->port = kms_sip_rtp_base_connection_get_rtp_port (conn);
+  media->port = kms_rtp_base_connection_get_rtp_port (conn);
 
   attr_len = gst_sdp_media_attributes_len (media);
   for (a = 0; a < attr_len; a++) {
@@ -979,7 +979,7 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
       const gchar *media_str = gst_sdp_media_get_media (media);
       GST_INFO_OBJECT (self, "COMEDIA: Media '%s' doesn't use COMEDIA", media_str);
       port = gst_sdp_media_get_port (media);
-      kms_sip_rtp_base_connection_set_remote_info (conn,
+      kms_rtp_base_connection_set_remote_info (conn,
           media_con->address, port, port + 1);
       /* TODO: get rtcp port from attr if it exists */
     }
@@ -1009,13 +1009,13 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
       }
       g_free (tmp_b64);
 
-      if (key_data_size != KMS_SRTP_CIPHER_AES_CM_128_SIZE
-          && key_data_size != KMS_SRTP_CIPHER_AES_CM_256_SIZE)
+      if (key_data_size != KMS_SIP_SRTP_CIPHER_AES_CM_128_SIZE
+          && key_data_size != KMS_SIP_SRTP_CIPHER_AES_CM_256_SIZE)
       {
         GST_ERROR_OBJECT (self,
             "Bad Base64-decoded master key size: got %lu, expected %lu or %lu",
-            key_data_size, KMS_SRTP_CIPHER_AES_CM_128_SIZE,
-            KMS_SRTP_CIPHER_AES_CM_256_SIZE);
+            key_data_size, KMS_SIP_SRTP_CIPHER_AES_CM_128_SIZE,
+            KMS_SIP_SRTP_CIPHER_AES_CM_256_SIZE);
         break;
       }
 
@@ -1026,7 +1026,7 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
     case PROP_CRYPTO_SUITE:
       self->priv->crypto = g_value_get_enum (value);
       self->priv->use_sdes =
-          self->priv->crypto != KMS_SIP_RTP_SDES_CRYPTO_SUITE_NONE;
+          self->priv->crypto != KMS_RTP_SDES_CRYPTO_SUITE_NONE;
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1166,12 +1166,12 @@ gboolean
 kms_sip_rtp_endpoint_plugin_init (GstPlugin * plugin)
 {
   return gst_element_register (plugin, PLUGIN_NAME, GST_RANK_NONE,
-      KMS_TYPE_RTP_ENDPOINT);
+      KMS_TYPE_SIP_RTP_ENDPOINT);
 }
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     kmssiprtpendpoint,
-    "Kurento rtp endpoint",
+    "Kurento SIP rtp endpoint",
     kms_sip_rtp_endpoint_plugin_init, VERSION, GST_LICENSE_UNKNOWN,
     "Kurento Elements", "http://kurento.com/")

@@ -25,6 +25,7 @@ namespace kurento
 {
 
 class MediaPipeline;
+
 class SipRtpEndpointImpl;
 
 void Serialize (std::shared_ptr<SipRtpEndpointImpl> &object,

@@ -36,7 +36,7 @@ G_BEGIN_DECLS
 #define KMS_SIP_RTP_ENDPOINT_CAST(obj) ((KmsSipRtpEndpoint*)(obj))
 typedef struct _KmsSipRtpEndpoint KmsSipRtpEndpoint;
 typedef struct _KmsSipRtpEndpointClass KmsSipRtpEndpointClass;
-typedef struct _KmsSipRtpEndpointPrivate KmsRtSippEndpointPrivate;
+typedef struct _KmsSipRtpEndpointPrivate KmsSipRtpEndpointPrivate;
 
 #define KMS_SIP_RTP_ENDPOINT_LOCK(elem) \
   (g_rec_mutex_lock (&KMS_SIP_RTP_ENDPOINT_CAST ((elem))->media_mutex))

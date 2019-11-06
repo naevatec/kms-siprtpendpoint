@@ -19,25 +19,25 @@
 #  include <config.h>
 #endif
 
-#include "kmsrtpsession.h"
+#include "kmssiprtpsession.h"
 
-#define GST_DEFAULT_NAME "kmsrtpsession"
-#define GST_CAT_DEFAULT kms_rtp_session_debug
+#define GST_DEFAULT_NAME "kmssiprtpsession"
+#define GST_CAT_DEFAULT kms_sip_rtp_session_debug
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
-#define kms_rtp_session_parent_class parent_class
-G_DEFINE_TYPE (KmsRtpSession, kms_rtp_session, KMS_TYPE_BASE_RTP_SESSION);
+#define kms_sip_rtp_session_parent_class parent_class
+G_DEFINE_TYPE (KmsSipRtpSession, kms_sip_rtp_session, KMS_TYPE_BASE_RTP_SESSION);
 
-KmsRtpSession *
-kms_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
+KmsSipRtpSession *
+kms_sip_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
     KmsIRtpSessionManager * manager, gboolean use_ipv6)
 {
   GObject *obj;
-  KmsRtpSession *self;
+  KmsSipRtpSession *self;
 
-  obj = g_object_new (KMS_TYPE_RTP_SESSION, NULL);
-  self = KMS_RTP_SESSION (obj);
-  KMS_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor
+  obj = g_object_new (KMS_TYPE_SIP_RTP_SESSION, NULL);
+  self = KMS_SIP_RTP_SESSION (obj);
+  KMS_SIP_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor
       (self, ep, id, manager, use_ipv6);
 
   return self;
@@ -46,7 +46,7 @@ kms_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
 /* Connection management begin */
 
 KmsRtpBaseConnection *
-kms_rtp_session_get_connection (KmsRtpSession * self,
+kms_sip_rtp_session_get_connection (KmsSipRtpSession * self,
     KmsSdpMediaHandler * handler)
 {
   KmsBaseRtpSession *base_rtp_sess = KMS_BASE_RTP_SESSION (self);
@@ -61,12 +61,12 @@ kms_rtp_session_get_connection (KmsRtpSession * self,
 }
 
 static KmsIRtpConnection *
-kms_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
+kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
     const GstSDPMedia * media, const gchar * name, guint16 min_port,
     guint16 max_port)
 {
-  KmsRtpConnection *conn = kms_rtp_connection_new (min_port, max_port,
-      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6);
+  KmsSipRtpConnection *conn = kms_sip_rtp_connection_new (min_port, max_port,
+      KMS_SIP_RTP_SESSION (base_rtp_sess)->use_ipv6);
 
   return KMS_I_RTP_CONNECTION (conn);
 }
@@ -74,7 +74,7 @@ kms_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
 /* Connection management end */
 
 static void
-kms_rtp_session_post_constructor (KmsRtpSession * self,
+kms_sip_rtp_session_post_constructor (KmsSipRtpSession * self,
     KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager,
     gboolean use_ipv6)
 {
@@ -82,18 +82,18 @@ kms_rtp_session_post_constructor (KmsRtpSession * self,
 
   self->use_ipv6 = use_ipv6;
   KMS_BASE_RTP_SESSION_CLASS
-      (kms_rtp_session_parent_class)->post_constructor (base_rtp_session, ep,
+      (kms_sip_rtp_session_parent_class)->post_constructor (base_rtp_session, ep,
       id, manager);
 }
 
 static void
-kms_rtp_session_init (KmsRtpSession * self)
+kms_sip_rtp_session_init (KmsSipRtpSession * self)
 {
   /* nothing to do */
 }
 
 static void
-kms_rtp_session_class_init (KmsRtpSessionClass * klass)
+kms_sip_rtp_session_class_init (KmsSipRtpSessionClass * klass)
 {
   GstElementClass *gstelement_class = GST_ELEMENT_CLASS (klass);
   KmsBaseRtpSessionClass *base_rtp_session_class;
@@ -101,15 +101,15 @@ kms_rtp_session_class_init (KmsRtpSessionClass * klass)
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
       GST_DEFAULT_NAME);
 
-  klass->post_constructor = kms_rtp_session_post_constructor;
+  klass->post_constructor = kms_sip_rtp_session_post_constructor;
 
   base_rtp_session_class = KMS_BASE_RTP_SESSION_CLASS (klass);
   /* Connection management */
-  base_rtp_session_class->create_connection = kms_rtp_session_create_connection;
+  base_rtp_session_class->create_connection = kms_sip_rtp_session_create_connection;
 
   gst_element_class_set_details_simple (gstelement_class,
-      "RtpSession",
+      "SipRtpSession",
       "Generic",
-      "Base bin to manage elements related with a RTP session.",
-      "Miguel París Díaz <mparisdiaz@gmail.com>");
+      "Base bin to manage elements related with a SIP RTP session.",
+      "Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>");
 }

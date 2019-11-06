@@ -26,7 +26,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_SIP_RTP_CONNECTION_GET_PRIVATE(obj) (   \
   G_TYPE_INSTANCE_GET_PRIVATE (                 \
     (obj),                                      \
-    KMS_TYPE_RTP_CONNECTION,                    \
+    KMS_TYPE_SIP_RTP_CONNECTION,                    \
     KmsSipRtpConnectionPrivate                     \
   )                                             \
 )
@@ -65,7 +65,7 @@ G_DEFINE_TYPE_WITH_CODE (KmsSipRtpConnection, kms_sip_rtp_connection,
         kms_sip_rtp_connection_interface_init));
 
 static guint
-kms_sip_rtp_connection_get_rtp_port (KmsSipRtpBaseConnection * base_conn)
+kms_sip_rtp_connection_get_rtp_port (KmsRtpBaseConnection * base_conn)
 {
   KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (base_conn);
 
@@ -224,7 +224,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
   KmsSipRtpConnectionPrivate *priv;
   GSocketFamily socket_family;
 
-  obj = g_object_new (KMS_TYPE_RTP_CONNECTION, NULL);
+  obj = g_object_new (KMS_TYPE_SIP_RTP_CONNECTION, NULL);
   conn = KMS_SIP_RTP_CONNECTION (obj);
   priv = conn->priv;
 
@@ -234,7 +234,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
     socket_family = G_SOCKET_FAMILY_IPV4;
   }
 
-  if (!kms_sip_rtp_connection_get_rtp_rtcp_sockets
+  if (!kms_rtp_connection_get_rtp_rtcp_sockets
       (&priv->rtp_socket, &priv->rtcp_socket, min_port, max_port,
           socket_family)) {
     GST_ERROR_OBJECT (obj, "Cannot get ports");
@@ -267,14 +267,14 @@ kms_sip_rtp_connection_enable_latency_stats (KmsRtpBaseConnection * base)
   KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (base);
   GstPad *pad;
 
-  kms_sip_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsrc, "src",
+  kms_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsrc, "src",
       base->src_probe);
   pad = gst_element_get_static_pad (self->priv->rtp_udpsrc, "src");
   base->src_probe = kms_stats_add_buffer_latency_meta_probe (pad, FALSE,
       0 /* No matter type at this point */ );
   g_object_unref (pad);
 
-  kms_sip_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsink, "sink",
+  kms_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsink, "sink",
       base->sink_probe);
   pad = gst_element_get_static_pad (self->priv->rtp_udpsink, "sink");
   base->sink_probe = kms_stats_add_buffer_latency_notification_probe (pad,
@@ -287,11 +287,11 @@ kms_sip_rtp_transport_disable_latency_notification (KmsRtpBaseConnection * base)
 {
   KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (base);
 
-  kms_sip_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsrc, "src",
+  kms_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsrc, "src",
       base->src_probe);
   base->src_probe = 0UL;
 
-  kms_sip_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsink, "sink",
+  kms_rtp_base_connection_remove_probe (base, self->priv->rtp_udpsink, "sink",
       base->sink_probe);
   base->sink_probe = 0UL;
 }
@@ -300,9 +300,9 @@ static void
 kms_sip_rtp_connection_collect_latency_stats (KmsIRtpConnection * obj,
     gboolean enable)
 {
-  KmsRtpBaseConnection *base = KMS_SIP_RTP_BASE_CONNECTION (obj);
+  KmsRtpBaseConnection *base = KMS_RTP_BASE_CONNECTION (obj);
 
-  KMS_SIP_RTP_BASE_CONNECTION_LOCK (base);
+  KMS_RTP_BASE_CONNECTION_LOCK (base);
 
   if (enable) {
     kms_sip_rtp_connection_enable_latency_stats (base);
@@ -310,9 +310,9 @@ kms_sip_rtp_connection_collect_latency_stats (KmsIRtpConnection * obj,
     kms_sip_rtp_transport_disable_latency_notification (base);
   }
 
-  kms_sip_rtp_base_connection_collect_latency_stats (obj, enable);
+  kms_rtp_base_connection_collect_latency_stats (obj, enable);
 
-  KMS_SIP_RTP_BASE_CONNECTION_UNLOCK (base);
+  KMS_RTP_BASE_CONNECTION_UNLOCK (base);
 }
 
 static void
@@ -385,6 +385,6 @@ kms_sip_rtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
   iface->request_rtp_src = kms_sip_rtp_connection_request_rtp_src;
   iface->request_rtcp_sink = kms_sip_rtp_connection_request_rtcp_sink;
   iface->request_rtcp_src = kms_sip_rtp_connection_request_rtcp_src;
-  iface->set_latency_callback = kms_sip_rtp_base_connection_set_latency_callback;
+  iface->set_latency_callback = kms_rtp_base_connection_set_latency_callback;
   iface->collect_latency_stats = kms_sip_rtp_connection_collect_latency_stats;
 }

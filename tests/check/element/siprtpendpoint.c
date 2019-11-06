@@ -22,7 +22,8 @@
 
 #include <kmstestutils.h>
 
-#include <commons/kmselementpadtype.h>
+// TODO: this include should be taken from kms-core, when integrating this on kms-elements
+#include "kmselementpadtype.h"
 
 #define KMS_VIDEO_PREFIX "video_src_"
 #define KMS_AUDIO_PREFIX "audio_src_"

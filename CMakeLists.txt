@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 
-project("kms-datachannel-adapter")
+project("kms-siprtpendpoint")
 message(STATUS "CMake project: ${PROJECT_NAME}")
 
 # Test configuration
@@ -63,6 +63,7 @@ pkg_check_modules(GSTREAMER_BASE REQUIRED gstreamer-base-1.5>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.5>=${GST_REQUIRED})
 pkg_check_modules(GSTREAMER_CHECK REQUIRED gstreamer-check-1.5>=${GST_REQUIRED})
 pkg_check_modules(KMSCORE REQUIRED kmscore)
+pkg_check_modules(KMS_ELEMENTS REQUIRED kmselements)
 pkg_check_modules(KMSGSTCOMMONS REQUIRED kmsgstcommons)
 pkg_check_modules(OPENCV REQUIRED opencv>=${OPENCV_REQUIRED})
 

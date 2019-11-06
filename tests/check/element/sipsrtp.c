@@ -17,7 +17,8 @@
 #include <gst/check/gstcheck.h>
 #include <gst/check/gstharness.h>
 #include <gst/rtp/gstrtpbuffer.h>
-#include <commons/constants.h>
+// TODO: this include should be taken from kms-core, when integrating this on kms-elements
+#include "constants.h"
 
 /* Test based on jitterbuffer tests */
 

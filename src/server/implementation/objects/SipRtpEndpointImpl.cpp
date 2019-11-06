@@ -126,9 +126,9 @@ SipRtpEndpointImpl::postConstructor ()
   handlerOnKeySoftLimit = register_signal_handler (G_OBJECT (element),
                           "key-soft-limit",
                           std::function <void (GstElement *, gchar *) >
-                          (std::bind (&RtpEndpointImpl::onKeySoftLimit, this,
+                          (std::bind (&SipRtpEndpointImpl::onKeySoftLimit, this,
                                       std::placeholders::_2) ),
-                          std::dynamic_pointer_cast<RtpEndpointImpl>
+                          std::dynamic_pointer_cast<SipRtpEndpointImpl>
                           (shared_from_this() ) );
 }
 
@@ -164,10 +164,10 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
                                       std::shared_ptr<MediaPipeline> mediaPipeline,
                                       std::shared_ptr<SDES> crypto, bool useIpv6) const
 {
-  return new RtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6);
+  return new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6);
 }
 
-SipRtpEndpointImpl::StaticConstructor RtpEndpointImpl::staticConstructor;
+SipRtpEndpointImpl::StaticConstructor SipRtpEndpointImpl::staticConstructor;
 
 SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
 {
