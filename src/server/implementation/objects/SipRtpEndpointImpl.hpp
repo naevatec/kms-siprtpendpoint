@@ -44,6 +44,13 @@ public:
 
   sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
 
+  std::string generateOffer () override;
+  std::string processOffer (const std::string &offer) override;
+  std::string processAnswer (const std::string &answer) override;
+  std::string getLocalSessionDescriptor () override;
+  std::string getRemoteSessionDescriptor () override;
+
+
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
   virtual bool connect (const std::string &eventType,

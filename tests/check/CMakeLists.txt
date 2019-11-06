@@ -20,6 +20,9 @@ target_link_libraries(kmstestutils
   ${GSTREAMER_PBUTILS_LIBRARIES}
 )
 
+
+
+
 include(TestHelpers)
 set(TEST_VARIABLES
   "GST_PLUGIN_PATH=${CMAKE_BINARY_DIR}"

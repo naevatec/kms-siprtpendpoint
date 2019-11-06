@@ -175,4 +175,36 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
                            GST_DEFAULT_NAME);
 }
 
+
+/*--------------------- Implementation of SipRtpEndpoint specific features ---------------------------------*/
+
+std::string SipRtpEndpointImpl::generateOffer ()
+{
+	return NULL;
+}
+
+std::string SipRtpEndpointImpl::processOffer (const std::string &offer)
+{
+	return NULL;
+}
+
+std::string SipRtpEndpointImpl::processAnswer (const std::string &answer)
+{
+	return NULL;
+}
+
+std::string SipRtpEndpointImpl::getLocalSessionDescriptor ()
+{
+	return NULL;
+}
+
+std::string SipRtpEndpointImpl::getRemoteSessionDescriptor ()
+{
+	return NULL;
+}
+
+
+
+
+
 } /* kurento */

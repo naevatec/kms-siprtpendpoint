@@ -55,5 +55,10 @@ target_link_libraries(test_sipsrtp
                       ${gstreamer-1.5_LIBRARIES}
                       ${gstreamer-rtp-1.5_LIBRARIES}
                       ${gstreamer-check-1.5_LIBRARIES}
-                      ${KmsGstCommons_LIBRARIES})
+                      ${KmsGstCommons_LIBRARIES}
+                      ${KMSCORE_LIBRARIES}
+  					  ${KMS_ELEMENTS_LIBRARIES}
+                      ${KMSGSTCOMMONS_LIBRARIES}
+                      ${GSTREAMER_LIBRARIES}
+                      ${GSTREAMER_VIDEO_LIBRARIES})
 
