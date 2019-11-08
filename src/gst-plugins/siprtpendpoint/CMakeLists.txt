@@ -19,10 +19,10 @@ add_library(siprtpendpoint MODULE ${SIPRTP_SOURCES})
 
 include_directories(AFTER ~/kms-omni-build/kms-elements/src/gst-plugins/rtpendpoint)
 
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message(STATUS "dir='${dir}'")
-endforeach()
+#get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+#foreach(dir ${dirs})
+#  message(STATUS "dir='${dir}'")
+#endforeach()
 
 # This target uses 'setenv()', which is a POSIX.1-2001 extension
 target_compile_definitions(siprtpendpoint PRIVATE _POSIX_C_SOURCE=200112L)

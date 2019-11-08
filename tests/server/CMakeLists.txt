@@ -8,11 +8,22 @@ set(VALGRIND_TEST_VARIABLES
 list(APPEND SUPPRESSIONS
   "${CMAKE_CURRENT_SOURCE_DIR}/valgrind.supp")
 
+if (Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+
+    message("Boost VERSION: ${Boost_VERSION}")
+    message("Boost INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}")
+    message("Boost Boost_LIBRARY_DIRS: ${Boost_LIBRARY_DIRS}")
+    message("Boost LIBRARIES: ${Boost_SYSTEM_LIBRARY}")
+endif ()
+
+
 add_test_program(test_constructors constructors.cpp)
 if(TARGET ${LIBRARY_NAME}module)
   add_dependencies(test_constructors ${LIBRARY_NAME}module)
 endif()
-add_dependencies(test_constructors ${LIBRARY_NAME}plugins)
+add_dependencies(test_constructors kmssiprtpmodule)
+#add_dependencies(test_constructors ${LIBRARY_NAME}plugins)
 set_property(TARGET test_constructors
   PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../..
@@ -30,6 +41,8 @@ target_link_libraries(test_constructors
   ${LIBRARY_NAME}impl
   ${KMSCORE_LIBRARIES}
   ${glibmm-2.0_LIBRARIES}
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
 )
 
 # add_test_program(test_webrtc_endpoint webRtcEndpoint.cpp)
@@ -53,9 +66,9 @@ target_link_libraries(test_constructors
 #   ${glibmm-2.4_LIBRARIES}
 # )
 
-add_test_program(test_rtp_endpoint rtpEndpoint.cpp)
-add_dependencies(test_rtp_endpoint kmselementsplugins)
-set_property(TARGET test_rtp_endpoint
+add_test_program(test_sip_rtp_endpoint sipRtpEndpoint.cpp)
+add_dependencies(test_sip_rtp_endpoint kmssiprtpmodule)
+set_property(TARGET test_sip_rtp_endpoint
   PROPERTY INCLUDE_DIRECTORIES
     ${KmsJsonRpc_INCLUDE_DIRS}
     ${sigc++-2.0_INCLUDE_DIRS}
@@ -67,8 +80,10 @@ set_property(TARGET test_rtp_endpoint
     ${KMSCORE_INCLUDE_DIRS}
     ${gstreamer-1.5_INCLUDE_DIRS}
 )
-target_link_libraries(test_rtp_endpoint
+target_link_libraries(test_sip_rtp_endpoint
   ${LIBRARY_NAME}impl
   ${KMSCORE_LIBRARIES}
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
 )
 

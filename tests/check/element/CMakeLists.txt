@@ -6,7 +6,8 @@ endif()
 
 
 add_test_program(test_siprtpendpoint siprtpendpoint.c)
-add_dependencies(test_siprtpendpoint ${LIBRARY_NAME}plugins)
+#add_dependencies(test_siprtpendpoint ${LIBRARY_NAME}plugins)
+add_dependencies(test_siprtpendpoint ${LIBRARY_NAME}module)
 target_include_directories(test_siprtpendpoint PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR}/..
                            ${KmsGstCommons_INCLUDE_DIRS}
@@ -16,10 +17,13 @@ target_link_libraries(test_siprtpendpoint
                       ${gstreamer-1.5_LIBRARIES}
                       ${gstreamer-sdp-1.5_LIBRARIES}
                       ${gstreamer-check-1.5_LIBRARIES}
-                      ${KmsGstCommons_LIBRARIES})
+                      ${KmsGstCommons_LIBRARIES}
+                      ${KMSCORE_LIBRARIES}
+                      kmstestutils)
 
 add_test_program(test_siprtpendpoint_audio siprtpendpoint_audio.c)
-add_dependencies(test_siprtpendpoint_audio ${LIBRARY_NAME}plugins)
+#add_dependencies(test_siprtpendpoint_audio ${LIBRARY_NAME}plugins)
+add_dependencies(test_siprtpendpoint_audio ${LIBRARY_NAME}module)
 target_include_directories(test_siprtpendpoint_audio PRIVATE
                            ${CMAKE_CURRENT_SOURCE_DIR}/..
                            ${KmsGstCommons_INCLUDE_DIRS}
@@ -45,7 +49,8 @@ target_link_libraries(test_siprtpendpoint_audio
 
 
 add_test_program(test_sipsrtp sipsrtp.c)
-add_dependencies(test_sipsrtp ${LIBRARY_NAME}plugins)
+#add_dependencies(test_sipsrtp ${LIBRARY_NAME}plugins)
+add_dependencies(test_sipsrtp ${LIBRARY_NAME}module)
 target_include_directories(test_sipsrtp PRIVATE
                            ${gstreamer-1.5_INCLUDE_DIRS}
                            ${gstreamer-rtp-1.5_INCLUDE_DIRS}
@@ -60,5 +65,7 @@ target_link_libraries(test_sipsrtp
   					  ${KMS_ELEMENTS_LIBRARIES}
                       ${KMSGSTCOMMONS_LIBRARIES}
                       ${GSTREAMER_LIBRARIES}
-                      ${GSTREAMER_VIDEO_LIBRARIES})
-
+                      ${GSTREAMER_VIDEO_LIBRARIES}
+                      ${GSTREAMER_CHECK_LIBRARIES}
+                       kmstestutils)
+                      
