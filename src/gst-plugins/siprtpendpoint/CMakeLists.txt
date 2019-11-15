@@ -28,12 +28,18 @@ include_directories(AFTER ~/kms-omni-build/kms-elements/src/gst-plugins/rtpendpo
 target_compile_definitions(siprtpendpoint PRIVATE _POSIX_C_SOURCE=200112L)
 
 target_link_libraries(siprtpendpoint
+  /usr/lib/x86_64-linux-gnu/gstreamer-1.5/librtpendpoint.so
   ${KMSCORE_LIBRARIES}
   ${KMS_ELEMENTS_LIBRARIES}
   ${KMSGSTCOMMONS_LIBRARIES}
   ${GSTREAMER_LIBRARIES}
   ${GSTREAMER_VIDEO_LIBRARIES}
 )
+
+foreach(lib ${KMS_ELEMENTS_LIBRARIES})
+  message(STATUS "lib='${lib}'")
+endforeach()
+  
 
 install(
   TARGETS siprtpendpoint

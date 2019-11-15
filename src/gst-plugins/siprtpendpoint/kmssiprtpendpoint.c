@@ -1093,10 +1093,10 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
 
   gstelement_class = GST_ELEMENT_CLASS (klass);
   gst_element_class_set_details_simple (gstelement_class,
-      "RtpEndpoint",
-      "RTP/Stream/RtpEndpoint",
-      "Rtp Endpoint element",
-      "José Antonio Santos Cadenas <santoscadenas@kurento.com>");
+      "SipRtpEndpoint",
+      "SIP RTP/Stream/RtpEndpoint",
+      "Sip Rtp Endpoint element",
+      "Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>");
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, PLUGIN_NAME, 0, PLUGIN_NAME);
 
   base_sdp_endpoint_class = KMS_BASE_SDP_ENDPOINT_CLASS (klass);

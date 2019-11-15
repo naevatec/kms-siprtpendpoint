@@ -16,12 +16,13 @@
  */
 #include <gst/gst.h>
 #include "MediaPipeline.hpp"
+#include <PassThroughImpl.hpp>
 #include <SipRtpEndpointImplFactory.hpp>
-#include "SipRtpEndpointImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
 #include <gst/gst.h>
 #include <CryptoSuite.hpp>
+#include <FacadeRtpEndpointImpl.hpp>
 #include <SDES.hpp>
 #include <SignalHandler.hpp>
 #include <memory>
@@ -32,6 +33,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define GST_DEFAULT_NAME "KurentoSipRtpEndpointImpl"
 
 #define FACTORY_NAME "siprtpendpoint"
+//#define FACTORY_NAME "rtpendpoint"
 
 /* In theory the Master key can be shorter than the maximum length, but
  * the GStreamer's SRTP plugin enforces using the maximum length possible
@@ -132,6 +134,27 @@ SipRtpEndpointImpl::postConstructor ()
                           (shared_from_this() ) );
 }
 
+MediaObjectImpl *
+SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf,
+                                      std::shared_ptr<MediaPipeline> mediaPipeline,
+                                      std::shared_ptr<SDES> crypto, bool useIpv6) const
+{
+  // Here we have made a real special construct to deal with Kurento object system to inreface with
+  // an implementation of and object composed of others.
+  // When Kurento compiles the interface of a remote object generates an schema to execute the
+  // methods in the remote object that the client demands. This consist of implementing the
+  // invoke mnethod for the Impl class in the generated sources (so that it cannot be changed)
+  // and also chains its execution to base classes
+  // Here we need to implement a "fake" class that resembles the interface we defined
+  // but that in fact is composed of other objects.
+  // SO, in fact we createObject a different class that acts as Facade of this
+  // and that needs to implement all methods from this object interface and surely
+  // delegate on this class (or other depending on the funtionality).
+  return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6);
+}
+
+
+
 void
 SipRtpEndpointImpl::onKeySoftLimit (gchar *media)
 {
@@ -158,15 +181,6 @@ SipRtpEndpointImpl::onKeySoftLimit (gchar *media)
         e.what ());
   }
 }
-
-MediaObjectImpl *
-SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf,
-                                      std::shared_ptr<MediaPipeline> mediaPipeline,
-                                      std::shared_ptr<SDES> crypto, bool useIpv6) const
-{
-  return new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6);
-}
-
 SipRtpEndpointImpl::StaticConstructor SipRtpEndpointImpl::staticConstructor;
 
 SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
@@ -174,36 +188,6 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
   GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
                            GST_DEFAULT_NAME);
 }
-
-
-/*--------------------- Implementation of SipRtpEndpoint specific features ---------------------------------*/
-
-std::string SipRtpEndpointImpl::generateOffer ()
-{
-	return NULL;
-}
-
-std::string SipRtpEndpointImpl::processOffer (const std::string &offer)
-{
-	return NULL;
-}
-
-std::string SipRtpEndpointImpl::processAnswer (const std::string &answer)
-{
-	return NULL;
-}
-
-std::string SipRtpEndpointImpl::getLocalSessionDescriptor ()
-{
-	return NULL;
-}
-
-std::string SipRtpEndpointImpl::getRemoteSessionDescriptor ()
-{
-	return NULL;
-}
-
-
 
 
 

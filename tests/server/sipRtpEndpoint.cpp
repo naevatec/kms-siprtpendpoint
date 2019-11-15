@@ -20,8 +20,8 @@
 
 #include <boost/test/included/unit_test.hpp>
 #include <MediaPipelineImpl.hpp>
-#include <objects/RtpEndpointImpl.hpp>
-#include <IceCandidate.hpp>
+#include <objects/SipRtpEndpointImpl.hpp>
+//#include <IceCandidate.hpp>
 #include <mutex>
 #include <condition_variable>
 #include <ModuleManager.hpp>
@@ -74,7 +74,7 @@ GF::~GF()
   MediaSet::deleteMediaSet();
 }
 
-static std::shared_ptr <RtpEndpointImpl>
+static std::shared_ptr <SipRtpEndpointImpl>
 createRtpEndpoint (bool useIpv6)
 {
   std::shared_ptr <kurento::MediaObjectImpl> rtpEndpoint;
@@ -87,11 +87,11 @@ createRtpEndpoint (bool useIpv6)
                   config, "",
                   constructorParams );
 
-  return std::dynamic_pointer_cast <RtpEndpointImpl> (rtpEndpoint);
+  return std::dynamic_pointer_cast <SipRtpEndpointImpl> (rtpEndpoint);
 }
 
 static void
-releaseRtpEndpoint (std::shared_ptr<RtpEndpointImpl> &ep)
+releaseRtpEndpoint (std::shared_ptr<SipRtpEndpointImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -128,8 +128,8 @@ media_state_changes_impl (bool useIpv6)
   std::mutex mtx;
   std::unique_lock<std::mutex> lck (mtx);
 
-  std::shared_ptr <RtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <RtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <SipRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <SipRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
 
   src->connect (rtpEpOfferer);
@@ -180,8 +180,8 @@ media_state_changes_ipv6 ()
 static void
 connection_state_changes_impl (bool useIpv6)
 {
-  std::shared_ptr <RtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <RtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <SipRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <SipRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;

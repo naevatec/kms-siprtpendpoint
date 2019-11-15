@@ -14,11 +14,13 @@
  * limitations under the License.
  *
  */
-#ifndef __SIP_RTP_ENDPOINT_IMPL_HPP__
-#define __SIP_RTP_ENDPOINT_IMPL_HPP__
+#ifndef __REUSABLE_RTP_ENDPOINT_IMPL_HPP__
+#define __REUSABLE_RTP_ENDPOINT_IMPL_HPP__
 
 #include "BaseRtpEndpointImpl.hpp"
 #include "SipRtpEndpoint.hpp"
+#include "PassThroughImpl.hpp"
+#include <jsonrpc/JsonSerializer.hpp>
 #include <EventHandler.hpp>
 
 namespace kurento
@@ -31,25 +33,19 @@ class SipRtpEndpointImpl;
 void Serialize (std::shared_ptr<SipRtpEndpointImpl> &object,
                 JsonSerializer &serializer);
 
+// TODO: SipRtpEndpoint can inherit from RtpEndpoint, but we need to add a protected constructor to RtpEndpointImpl that allows us to specify the FACTORY_NAME  for GStreamer element
 class SipRtpEndpointImpl : public BaseRtpEndpointImpl, public virtual SipRtpEndpoint
 {
 
 public:
 
-  SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
+	SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                    std::shared_ptr<MediaPipeline> mediaPipeline,
                    std::shared_ptr<SDES> crypto, bool useIpv6);
 
   virtual ~SipRtpEndpointImpl ();
 
   sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
-
-  std::string generateOffer () override;
-  std::string processOffer (const std::string &offer) override;
-  std::string processAnswer (const std::string &answer) override;
-  std::string getLocalSessionDescriptor () override;
-  std::string getRemoteSessionDescriptor () override;
-
 
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
