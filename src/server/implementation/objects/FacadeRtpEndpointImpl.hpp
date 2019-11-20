@@ -62,6 +62,9 @@ public:
   std::shared_ptr<RembParams> getRembParams () override;
   void setRembParams (std::shared_ptr<RembParams> rembParams)override;
 
+  sigc::signal<void, MediaStateChanged> getSignalMediaStateChanged ();
+  sigc::signal<void, ConnectionStateChanged> getSignalConnectionStateChanged ();
+
 
   /*---------------- Overloaded methods from SDP Endpoint ---------------*/
   int getMaxVideoRecvBandwidth () override;

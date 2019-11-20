@@ -58,9 +58,10 @@ public:
 
   virtual void Serialize (JsonSerializer &serializer) override;
 
-protected:
   virtual void postConstructor () override;
 
+
+protected:
 private:
 
   gulong handlerOnKeySoftLimit = 0;

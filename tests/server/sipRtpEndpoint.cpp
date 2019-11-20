@@ -20,7 +20,7 @@
 
 #include <boost/test/included/unit_test.hpp>
 #include <MediaPipelineImpl.hpp>
-#include <objects/SipRtpEndpointImpl.hpp>
+#include <objects/FacadeRtpEndpointImpl.hpp>
 //#include <IceCandidate.hpp>
 #include <mutex>
 #include <condition_variable>
@@ -50,7 +50,7 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("../../src/server:../../..");
+  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -74,7 +74,7 @@ GF::~GF()
   MediaSet::deleteMediaSet();
 }
 
-static std::shared_ptr <SipRtpEndpointImpl>
+static std::shared_ptr <FacadeRtpEndpointImpl>
 createRtpEndpoint (bool useIpv6)
 {
   std::shared_ptr <kurento::MediaObjectImpl> rtpEndpoint;
@@ -83,15 +83,15 @@ createRtpEndpoint (bool useIpv6)
   constructorParams ["mediaPipeline"] = mediaPipelineId;
   constructorParams ["useIpv6"] = useIpv6;
 
-  rtpEndpoint = moduleManager.getFactory ("RtpEndpoint")->createObject (
+  rtpEndpoint = moduleManager.getFactory ("SipRtpEndpoint")->createObject (
                   config, "",
                   constructorParams );
 
-  return std::dynamic_pointer_cast <SipRtpEndpointImpl> (rtpEndpoint);
+  return std::dynamic_pointer_cast <FacadeRtpEndpointImpl> (rtpEndpoint);
 }
 
 static void
-releaseRtpEndpoint (std::shared_ptr<SipRtpEndpointImpl> &ep)
+releaseRtpEndpoint (std::shared_ptr<FacadeRtpEndpointImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -128,13 +128,13 @@ media_state_changes_impl (bool useIpv6)
   std::mutex mtx;
   std::unique_lock<std::mutex> lck (mtx);
 
-  std::shared_ptr <SipRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <SipRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
 
   src->connect (rtpEpOfferer);
 
-  rtpEpAnswerer->signalMediaStateChanged.connect ([&] (
+  rtpEpAnswerer->getSignalMediaStateChanged ().connect ([&] (
   MediaStateChanged event) {
     std::shared_ptr <MediaState> state = event.getNewState();
     BOOST_CHECK (state->getValue() == MediaState::CONNECTED);
@@ -180,14 +180,14 @@ media_state_changes_ipv6 ()
 static void
 connection_state_changes_impl (bool useIpv6)
 {
-  std::shared_ptr <SipRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <SipRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
   std::unique_lock<std::mutex> lck (mtx);
 
-  rtpEpAnswerer->signalConnectionStateChanged.connect ([&] (
+  rtpEpAnswerer->getSignalConnectionStateChanged().connect ([&] (
   ConnectionStateChanged event) {
     conn_state_changed = true;
     cv.notify_one();
@@ -250,7 +250,7 @@ connection_state_changes_ipv6 ()
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
-  test_suite *test = BOOST_TEST_SUITE ( "WebRtcEndpoint" );
+  test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15);
   test->add (BOOST_TEST_CASE ( &connection_state_changes ), 0, /* timeout */ 15);

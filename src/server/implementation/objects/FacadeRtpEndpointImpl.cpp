@@ -63,6 +63,7 @@ FacadeRtpEndpointImpl::postConstructor ()
 {
   ComposedObjectImpl::postConstructor ();
 
+  rtp_ep->postConstructor();
   this->linkMediaElement(rtp_ep, rtp_ep);
 }
 
@@ -80,29 +81,35 @@ FacadeRtpEndpointImpl::StaticConstructor::StaticConstructor()
 
 std::string FacadeRtpEndpointImpl::generateOffer ()
 {
-	if(false)
-		return std::string();
-	return std::string();
+	try {
+		return this->rtp_ep->generateOffer();
+	} catch (kurento::KurentoException& e) {
+		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
+		throw e;
+	} catch (std::exception& e1) {
+		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
+		throw e1;
+	}
 }
 
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
-	return NULL;
+	return this->rtp_ep->processOffer(offer);
 }
 
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 {
-	return NULL;
+	return this->rtp_ep->processAnswer(answer);
 }
 
 std::string FacadeRtpEndpointImpl::getLocalSessionDescriptor ()
 {
-	return NULL;
+	return this->rtp_ep->getLocalSessionDescriptor();
 }
 
 std::string FacadeRtpEndpointImpl::getRemoteSessionDescriptor ()
 {
-	return NULL;
+	return this->rtp_ep->getRemoteSessionDescriptor();
 }
 
 
@@ -153,6 +160,17 @@ void FacadeRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParam
 {
 	this->rtp_ep->setRembParams (rembParams);
 }
+sigc::signal<void, MediaStateChanged> FacadeRtpEndpointImpl::getSignalMediaStateChanged ()
+{
+	return this->rtp_ep->signalMediaStateChanged;
+}
+
+sigc::signal<void, ConnectionStateChanged> FacadeRtpEndpointImpl::getSignalConnectionStateChanged ()
+{
+	return this->rtp_ep->signalConnectionStateChanged;
+}
+
+
 
 
 /*---------------- Overloaded methods from SDP Endpoint ---------------*/

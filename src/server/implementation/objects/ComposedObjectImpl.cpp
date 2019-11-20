@@ -81,6 +81,7 @@ ComposedObjectImpl::StaticConstructor::StaticConstructor()
 
 void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc, std::shared_ptr<MediaElement> linkSink)
 {
+	GST_DEBUG ("Linking object to facade");
 	linkMutex.lock();
 
 	// Unlink source and sink from previous composed object
@@ -112,6 +113,8 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 
 void ComposedObjectImpl::connect (std::shared_ptr<MediaElement> sink)
 {
+	GST_DEBUG ("Connecting (A+V+D) facade to sink");
+
   // Until mediaDescriptions are really used, we just connect audio an video
   this->sinkPt->connect(sink, std::make_shared<MediaType>(MediaType::AUDIO), DEFAULT,
           DEFAULT);
@@ -123,6 +126,7 @@ void ComposedObjectImpl::connect (std::shared_ptr<MediaElement> sink)
 void ComposedObjectImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType)
 {
+	GST_DEBUG ("Connecting (%s) facade to sink", mediaType->getString().c_str());
   this->sinkPt->connect (sink, mediaType, DEFAULT, DEFAULT);
 }
 
@@ -130,11 +134,15 @@ void ComposedObjectImpl::connect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType,
                                 const std::string &sourceMediaDescription)
 {
+	GST_DEBUG ("Connecting (%s) facade (%s) to sink", mediaType->getString().c_str(), sourceMediaDescription.c_str());
+
    this->sinkPt->connect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 
 void ComposedObjectImpl::disconnect (std::shared_ptr<MediaElement> sink)
 {
+	GST_DEBUG ("Disconnecting (A+V+D) facade from sink");
+
   // Until mediaDescriptions are really used, we just connect audio an video
   this->sinkPt->disconnect(sink, std::make_shared<MediaType>(MediaType::AUDIO), DEFAULT,
           DEFAULT);
@@ -146,6 +154,7 @@ void ComposedObjectImpl::disconnect (std::shared_ptr<MediaElement> sink)
 void ComposedObjectImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType)
 {
+	GST_DEBUG ("Disconnecting (%s) facade to sink", mediaType->getString().c_str());
 	this->sinkPt->disconnect (sink, mediaType, DEFAULT, DEFAULT);
 }
 
@@ -153,6 +162,7 @@ void ComposedObjectImpl::disconnect (std::shared_ptr<MediaElement> sink,
                                 std::shared_ptr<MediaType> mediaType,
                                 const std::string &sourceMediaDescription)
 {
+	GST_DEBUG ("Connecting (%s) facade (%s) to sink", mediaType->getString().c_str(), sourceMediaDescription.c_str());
 	this->sinkPt->disconnect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 

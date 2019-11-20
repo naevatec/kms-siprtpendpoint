@@ -21,6 +21,8 @@
 #include "SipRtpEndpoint.hpp"
 #include <MediaObjectImpl.hpp>
 #include <KurentoException.hpp>
+#include <MediaElement.hpp>
+#include <MediaPipelineImpl.hpp>
 #include <jsonrpc/JsonSerializer.hpp>
 #include <MediaSet.hpp>
 #include <gst/gst.h>
@@ -40,9 +42,9 @@ testSipRtpEndpoint (kurento::ModuleManager &moduleManager,
     moduleManager.getFactory ("SipRtpEndpoint")->createObject (config, "",
         w.JsonValue);
   std::shared_ptr <kurento::SipRtpEndpoint> siprtp = std::dynamic_pointer_cast<kurento::SipRtpEndpoint > (object);
-  siprtp->generateOffer();
   kurento::MediaSet::getMediaSet()->release (object);
 }
+
 
 int
 main (int argc, char **argv)
@@ -54,7 +56,7 @@ main (int argc, char **argv)
 
   kurento::ModuleManager moduleManager;
 
-  moduleManager.loadModulesFromDirectories ("./src/server");
+  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build");
   //moduleManager.loadModulesFromDirectories ("../../src/server:../../..");
 
   mediaPipeline = moduleManager.getFactory ("MediaPipeline")->createObject (
