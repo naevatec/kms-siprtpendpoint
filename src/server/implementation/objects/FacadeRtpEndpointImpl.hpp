@@ -149,6 +149,10 @@ private:
 
   std::shared_ptr<SipRtpEndpointImpl> rtp_ep;
 
+  std::shared_ptr<SDES> cryptoCache;
+
+  bool useIpv6Cache;
+
   class StaticConstructor
   {
   public:

@@ -48,7 +48,7 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
                                   std::shared_ptr<MediaPipeline> mediaPipeline,
                                   std::shared_ptr<SDES> crypto, bool useIpv6)
   : ComposedObjectImpl (conf,
-                         std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline))
+                         std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline)), cryptoCache (crypto), useIpv6Cache (useIpv6)
 {
   rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6));
 }
@@ -84,8 +84,17 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 	try {
 		return this->rtp_ep->generateOffer();
 	} catch (kurento::KurentoException& e) {
-		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
-		throw e;
+		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
+			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+
+			newEndpoint->postConstructor();
+			this->linkMediaElement(newEndpoint, newEndpoint);
+			rtp_ep = newEndpoint;
+			return this->generateOffer();
+		} else {
+			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
+			throw e;
+		}
 	} catch (std::exception& e1) {
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
@@ -94,7 +103,24 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
-	return this->rtp_ep->processOffer(offer);
+	try {
+		return this->rtp_ep->processOffer(offer);
+	} catch (kurento::KurentoException& e) {
+		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
+			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+
+			newEndpoint->postConstructor();
+			this->linkMediaElement(newEndpoint, newEndpoint);
+			rtp_ep = newEndpoint;
+			return this->processOffer(offer);
+		} else {
+			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
+			throw e;
+		}
+	} catch (std::exception& e1) {
+		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
+		throw e1;
+	}
 }
 
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
