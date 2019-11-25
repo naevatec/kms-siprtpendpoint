@@ -86,11 +86,13 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+			std::string offer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
+			offer = newEndpoint->generateOffer();
 			rtp_ep = newEndpoint;
-			return this->generateOffer();
+			return offer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -108,11 +110,13 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+			std::string answer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
+			answer = newEndpoint->processOffer(offer);
 			rtp_ep = newEndpoint;
-			return this->processOffer(offer);
+			return answer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -125,7 +129,26 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 {
-	return this->rtp_ep->processAnswer(answer);
+	try {
+		return this->rtp_ep->processAnswer(answer);
+	} catch (kurento::KurentoException& e) {
+		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
+			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint ();
+			std::string result;
+
+			newEndpoint->postConstructor();
+			this->linkMediaElement(newEndpoint, newEndpoint);
+			result = newEndpoint->processAnswer(answer);
+			rtp_ep = newEndpoint;
+			return result;
+		} else {
+			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
+			throw e;
+		}
+	} catch (std::exception& e1) {
+		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
+		throw e1;
+	}
 }
 
 std::string FacadeRtpEndpointImpl::getLocalSessionDescriptor ()

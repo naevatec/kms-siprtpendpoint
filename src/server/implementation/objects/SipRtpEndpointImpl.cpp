@@ -189,6 +189,10 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
                            GST_DEFAULT_NAME);
 }
 
-
+std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint ()
+{
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint;
+	return std::shared_ptr<SipRtpEndpointImpl>(NULL);
+}
 
 } /* kurento */

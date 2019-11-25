@@ -47,6 +47,8 @@ public:
 
   sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
 
+  std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint ();
+
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
   virtual bool connect (const std::string &eventType,

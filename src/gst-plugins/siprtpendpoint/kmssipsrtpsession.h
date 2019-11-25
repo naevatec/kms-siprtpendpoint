@@ -19,7 +19,7 @@
 #define __KMS_SIP_SRTP_SESSION_H__
 
 #include <gst/gst.h>
-#include <commons/kmsbasertpsession.h>
+#include <kmssrtpsession.h>
 #include "kmssipsrtpconnection.h"
 
 G_BEGIN_DECLS
@@ -44,20 +44,15 @@ typedef struct _KmsSipSrtpSessionClass KmsSipSrtpSessionClass;
 
 struct _KmsSipSrtpSession
 {
-  KmsBaseRtpSession parent;
+  KmsSrtpSession parent;
 
   gboolean use_ipv6;
 };
 
 struct _KmsSipSrtpSessionClass
 {
-  KmsBaseRtpSessionClass parent_class;
+  KmsSrtpSessionClass parent_class;
 
-  /* private */
-  /* virtual methods */
-  void (*post_constructor) (KmsSipSrtpSession * self, KmsBaseSdpEndpoint * ep,
-                            guint id, KmsIRtpSessionManager * manager,
-                            gboolean use_ipv6);
 };
 
 GType kms_sip_srtp_session_get_type (void);

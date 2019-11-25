@@ -15,11 +15,11 @@
  *
  */
 
-#ifndef __KMS_RTP_SESSION_H__
-#define __KMS_RTP_SESSION_H__
+#ifndef __KMS_SIP_RTP_SESSION_H__
+#define __KMS_SIP_RTP_SESSION_H__
 
 #include <gst/gst.h>
-#include <commons/kmsbasertpsession.h>
+#include <kmsrtpsession.h>
 #include "kmssiprtpconnection.h"
 
 G_BEGIN_DECLS
@@ -44,19 +44,14 @@ typedef struct _KmsSipRtpSessionClass KmsSipRtpSessionClass;
 
 struct _KmsSipRtpSession
 {
-  KmsBaseRtpSession parent;
+  KmsRtpSession parent;
 
   gboolean use_ipv6;
 };
 
 struct _KmsSipRtpSessionClass
 {
-  KmsBaseRtpSessionClass parent_class;
-
-  /* private */
-  /* virtual methods */
-  void (*post_constructor) (KmsSipRtpSession * self, KmsBaseSdpEndpoint * ep,
-                            guint id, KmsIRtpSessionManager * manager, gboolean use_ipv6);
+  KmsRtpSessionClass parent_class;
 };
 
 GType kms_sip_rtp_session_get_type (void);
@@ -66,4 +61,4 @@ KmsSipRtpSession * kms_sip_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id, K
 KmsRtpBaseConnection * kms_sip_rtp_session_get_connection (KmsSipRtpSession * self, KmsSdpMediaHandler * handler);
 
 G_END_DECLS
-#endif /* __KMS_RTP_SESSION_H__ */
+#endif /* __KMS_SIP_RTP_SESSION_H__ */

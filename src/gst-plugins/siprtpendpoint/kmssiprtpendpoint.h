@@ -19,7 +19,7 @@
 
 #include <gio/gio.h>
 #include <gst/gst.h>
-#include <commons/kmsbasertpendpoint.h>
+#include <kmsrtpendpoint.h>
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */
@@ -45,17 +45,21 @@ typedef struct _KmsSipRtpEndpointPrivate KmsSipRtpEndpointPrivate;
 
 struct _KmsSipRtpEndpoint
 {
-  KmsBaseRtpEndpoint parent;
+  KmsRtpEndpoint parent;
 
   KmsSipRtpEndpointPrivate *priv;
 };
 
 struct _KmsSipRtpEndpointClass
 {
-  KmsBaseRtpEndpointClass parent_class;
 
-  /* signals */
-  void (*key_soft_limit) (KmsSipRtpEndpoint *obj, gchar *media);
+	KmsRtpEndpointClass parent_class;
+
+
+//  KmsBaseRtpEndpointClass parent_class;
+//
+//  /* signals */
+//  void (*key_soft_limit) (KmsSipRtpEndpoint *obj, gchar *media);
 };
 
 GType kms_sip_rtp_endpoint_get_type (void);

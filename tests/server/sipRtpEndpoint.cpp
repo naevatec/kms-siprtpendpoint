@@ -415,10 +415,13 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &connection_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &connection_state_changes_ipv6 ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
 
+  if (false) {
+	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
+	  test->add (BOOST_TEST_CASE ( &connection_state_changes_ipv6 ), 0, /* timeout */ 15000);
+	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
+
+  }
   return test;
 }
