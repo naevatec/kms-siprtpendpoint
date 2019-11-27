@@ -133,11 +133,13 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		return this->rtp_ep->processAnswer(answer);
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
-			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint ();
+			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache);
 			std::string result;
+			std::string unusedOffer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
+			unusedOffer = newEndpoint->generateOffer();
 			result = newEndpoint->processAnswer(answer);
 			rtp_ep = newEndpoint;
 			return result;

@@ -23,8 +23,9 @@
 #include "kmssiprtpendpoint.h"
 #include "kmssiprtpsession.h"
 #include "kmssipsrtpsession.h"
-#include <kmsrtpbaseconnection.h>
-//#include <commons/constants.h>
+#include <commons/kmsbasesdpendpoint.h>
+//#include <kmsrtpbaseconnection.h>
+#include <commons/constants.h>
 //#include <commons/kmsbasertpendpoint.h>
 //#include <commons/sdp_utils.h>
 //#include <commons/sdpagent/kmssdprtpsavpfmediahandler.h>
@@ -86,9 +87,21 @@ G_DEFINE_TYPE (KmsSipRtpEndpoint, kms_sip_rtp_endpoint, KMS_TYPE_RTP_ENDPOINT);
 //  GHashTable *signal_ids; // GHashTable<RTPSession*, int>
 //};
 
+typedef struct _KmsSipRtpEndpointCloneData KmsSipRtpEndpointCloneData;
+
+
+struct _KmsSipRtpEndpointCloneData
+{
+	guint32 audio_ssrc;
+	guint32 video_ssrc;
+
+};
+
 struct _KmsSipRtpEndpointPrivate
 {
   gboolean *use_sdes_cache;
+
+  GList *sessionData;
 
 //  gboolean use_sdes;
 //  GHashTable *sdes_keys;
@@ -100,16 +113,16 @@ struct _KmsSipRtpEndpointPrivate
 //  KmsComedia comedia;
 };
 
-///* Signals and args */
-//enum
-//{
-//  /* signals */
-//  SIGNAL_KEY_SOFT_LIMIT,
-//
-//  LAST_SIGNAL
-//};
-//
-//static guint obj_signals[LAST_SIGNAL] = { 0 };
+/* Signals and args */
+enum
+{
+  /* signals */
+  SIGNAL_CLONE_TO_NEW_EP,
+
+  LAST_SIGNAL
+};
+
+static guint obj_signals[LAST_SIGNAL] = { 0 };
 //
 //enum
 //{
@@ -120,6 +133,75 @@ struct _KmsSipRtpEndpointPrivate
 //};
 
 static KmsBaseSdpEndpointClass *base_sdp_endpoint_type;
+
+
+/*----------- Session cloning ---------------*/
+
+static void
+kms_sip_rtp_endpoint_clone_rtp_session (GstElement * rtpbin, guint sessionId, guint32 ssrc, gchar *rtpbin_pad_name)
+{
+	GObject *rtpSession;
+    GstPad *pad;
+
+	/* Create RtpSession requesting the pad */
+	pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
+	g_object_unref (pad);
+
+	g_signal_emit_by_name (rtpbin, "get-internal-session", sessionId, &rtpSession);
+	if (rtpSession != NULL) {
+		g_object_set (rtpSession, "internal-ssrc", ssrc, NULL);
+	}
+
+	g_object_unref(rtpSession);
+
+}
+static GstElement*
+kms_sip_rtp_endpoint_get_rtpbin (KmsSipRtpEndpoint * self)
+{
+	GstElement *result = NULL;
+	GList* rtpEndpointChildren = GST_BIN_CHILDREN(GST_BIN(self));
+
+	while (rtpEndpointChildren != NULL) {
+		gchar* objectName = gst_element_get_name  (GST_ELEMENT(rtpEndpointChildren->data));
+
+		if (g_str_has_prefix (objectName, "rtpbin")) {
+			result = GST_ELEMENT(rtpEndpointChildren->data);
+			g_free (objectName);
+			break;
+		}
+		g_free (objectName);
+		rtpEndpointChildren = rtpEndpointChildren->next;
+	}
+	return result;
+}
+
+static void
+kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** sess)
+{
+	GstElement *rtpbin = kms_sip_rtp_endpoint_get_rtpbin (self);
+	GList *sessionToClone = self->priv->sessionData;
+
+	if (rtpbin != NULL) {
+
+		// TODO: Multisession seems not used on RTPEndpoint, anyway we are doing something probably incorrect
+		// once multisession is used, that is to assume that creation order of sessions are maintained among all
+		// endpoints, and so order can be used to correlate internal rtp sessions.
+		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (sess);
+		guint32 ssrc;
+
+		/* TODO: think about this when multiple audio/video medias */
+		// Audio
+		ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->audio_ssrc;
+		ses->local_audio_ssrc = ssrc;
+		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, AUDIO_RTP_SESSION, ssrc, AUDIO_RTPBIN_SEND_RTP_SINK);
+
+		// Video
+		ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->video_ssrc;
+		ses->local_video_ssrc = ssrc;
+		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, VIDEO_RTP_SESSION, ssrc, VIDEO_RTPBIN_SEND_RTP_SINK);
+	}
+}
+
 
 //static void
 //sdes_ext_data_destroy (SdesExtData * edata)
@@ -411,6 +493,11 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 //  (KMS_RTP_ENDPOINT_CLASS
 //      (kms_sip_rtp_endpoint_parent_class)->parent_class)->
 //	  ->create_session_internal (base_sdp, id, sess);
+
+  if (self->priv->sessionData != NULL) {
+	  kms_sip_rtp_endpoint_clone_session (self, sess);
+  }
+
 }
 
 /* Internal session management end */
@@ -737,6 +824,8 @@ kms_sip_rtp_endpoint_create_media_handler (KmsBaseSdpEndpoint * base_sdp,
 //  KMS_ELEMENT_UNLOCK (self);
 //}
 
+
+
 /* Configure media SDP begin */
 static gboolean
 kms_sip_rtp_endpoint_configure_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
@@ -892,6 +981,49 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
 
 }
 
+static KmsSipRtpEndpointCloneData*
+kms_sip_rtp_endpoint_create_clone_data (guint32 ssrcAudio, guint32 ssrcVideo)
+{
+	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
+
+	data->audio_ssrc = ssrcAudio;
+	data->video_ssrc = ssrcVideo;
+
+	return data;
+}
+
+static void
+kms_sip_rtp_endpoint_free_clone_data (GList *data)
+{
+	g_list_free_full (data, g_free);
+}
+
+static void
+kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint *cloned)
+{
+	GHashTable * sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT(self));
+	GList *sessionKeys = g_hash_table_get_keys (sessions);
+	gint i;
+	GList *sessionsData = NULL;
+
+	for (i = 0; i < g_hash_table_size(sessions); i++) {
+		gpointer sesKey = sessionKeys->data;
+		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
+		guint32 localAudioSsrc = ses->local_audio_ssrc;
+		guint32 localVIdeoSsrc = ses->local_video_ssrc;
+		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (localAudioSsrc, localVIdeoSsrc);
+
+		sessionsData = g_list_append (sessionsData, (gpointer)data);
+	}
+
+	KMS_ELEMENT_LOCK (cloned);
+	if (cloned->priv->sessionData != NULL) {
+		kms_sip_rtp_endpoint_free_clone_data (cloned->priv->sessionData);
+	}
+	cloned->priv->sessionData = sessionsData;
+	KMS_ELEMENT_UNLOCK (cloned);
+}
+
 static void
 kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
@@ -978,6 +1110,9 @@ kms_sip_rtp_endpoint_finalize (GObject * object)
   if (self->priv->use_sdes_cache != NULL)
 	  g_free (self->priv->use_sdes_cache);
 
+  if (self->priv->sessionData != NULL)
+	  g_list_free (self->priv->sessionData);
+
 //  g_free (self->priv->master_key);
 //  g_hash_table_unref (self->priv->sdes_keys);
 //
@@ -1021,6 +1156,15 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
 
   base_sdp_endpoint_class->configure_media = kms_sip_rtp_endpoint_configure_media;
 
+  klass->clone_to_new_ep = kms_sip_rtp_endpoint_clone_to_new_ep;
+
+  obj_signals[SIGNAL_CLONE_TO_NEW_EP] =
+      g_signal_new ("clone-to-new-ep",
+      G_TYPE_FROM_CLASS (klass),
+      G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
+      G_STRUCT_OFFSET (KmsSipRtpEndpointClass, clone_to_new_ep), NULL, NULL,
+      NULL, G_TYPE_NONE, 1, G_TYPE_POINTER);
+
 //  g_object_class_install_property (gobject_class, PROP_USE_SDES,
 //      g_param_spec_boolean ("use-sdes",
 //          "Use SDES", "Set if Session Description Protocol Decurity"
@@ -1060,8 +1204,10 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
   //  create_session_internal just need to skip session creation if already created.
   // TODO: When integrate on kms-elements get rid off this hack changing kms_rtp_endpoint_create_session_internal
   GType type =   g_type_parent  (g_type_parent (G_TYPE_FROM_CLASS (klass)));
-  gpointer typePointer = g_type_class_peek(type);
-  base_sdp_endpoint_type = (KmsBaseSdpEndpointClass*)typePointer;
+  // TODO: This introduces a memory leak, this is reserved and never freed, but it is just a pointer (64 bits)
+  //       A possible alternative would be to implement the class_finalize method
+  gpointer typePointer = g_type_class_ref(type);
+  base_sdp_endpoint_type = KMS_BASE_SDP_ENDPOINT_CLASS(typePointer);
 }
 
 /* TODO: not add abs-send-time extmap */
@@ -1072,6 +1218,7 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
   self->priv = KMS_SIP_RTP_ENDPOINT_GET_PRIVATE (self);
 
   self->priv->use_sdes_cache = NULL;
+  self->priv->sessionData = NULL;
 
 //  self->priv->sdes_keys = g_hash_table_new_full (g_str_hash, g_str_equal,
 //      g_free, (GDestroyNotify) kms_ref_struct_unref);

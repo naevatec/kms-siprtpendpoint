@@ -47,7 +47,9 @@ public:
 
   sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
 
-  std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint ();
+  std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint (const boost::property_tree::ptree &conf,
+          std::shared_ptr<MediaPipeline> mediaPipeline,
+          std::shared_ptr<SDES> crypto, bool useIpv6);
 
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
@@ -68,6 +70,8 @@ private:
 
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
+
+  std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp);
 
   class StaticConstructor
   {

@@ -189,10 +189,23 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
                            GST_DEFAULT_NAME);
 }
 
-std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint ()
+std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (const boost::property_tree::ptree &conf,
+        std::shared_ptr<MediaPipeline> mediaPipeline,
+        std::shared_ptr<SDES> crypto, bool useIpv6)
 {
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint;
-	return std::shared_ptr<SipRtpEndpointImpl>(NULL);
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6));
+
+	this->cloneToNewEndpoint (newEndpoint);
+	return newEndpoint;
 }
+
+std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp)
+{
+	g_signal_emit_by_name (element, "clone-to-new-ep", newEp->element);
+
+	return newEp;
+}
+
+
 
 } /* kurento */

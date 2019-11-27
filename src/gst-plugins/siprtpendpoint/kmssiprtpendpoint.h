@@ -57,9 +57,9 @@ struct _KmsSipRtpEndpointClass
 
 
 //  KmsBaseRtpEndpointClass parent_class;
-//
-//  /* signals */
-//  void (*key_soft_limit) (KmsSipRtpEndpoint *obj, gchar *media);
+
+  /* signals */
+  void (*clone_to_new_ep) (KmsSipRtpEndpoint *obj, KmsSipRtpEndpoint *cloned);
 };
 
 GType kms_sip_rtp_endpoint_get_type (void);
