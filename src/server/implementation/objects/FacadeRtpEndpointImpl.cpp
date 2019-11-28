@@ -81,17 +81,21 @@ FacadeRtpEndpointImpl::StaticConstructor::StaticConstructor()
 
 std::string FacadeRtpEndpointImpl::generateOffer ()
 {
+	std::string offer;
+
 	try {
-		return this->rtp_ep->generateOffer();
+		offer =  this->rtp_ep->generateOffer();
+		GST_DEBUG("GenerateOffer: \n%s", offer.c_str());
+		return offer;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
-			std::string offer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
 			offer = newEndpoint->generateOffer();
 			rtp_ep = newEndpoint;
+			GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
 			return offer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
@@ -105,17 +109,20 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
+	std::string answer;
 	try {
-		return this->rtp_ep->processOffer(offer);
+		answer = this->rtp_ep->processOffer(offer);
+		GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
+		return answer;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
-			std::string answer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
 			answer = newEndpoint->processOffer(offer);
 			rtp_ep = newEndpoint;
+			GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
 			return answer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
@@ -129,19 +136,24 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 {
+	std::string result;
+
 	try {
-		return this->rtp_ep->processAnswer(answer);
+		result = this->rtp_ep->processAnswer(answer);
+		GST_DEBUG ("ProcessAnswer: \n%s", result.c_str());
+		return result;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache);
-			std::string result;
 			std::string unusedOffer;
 
 			newEndpoint->postConstructor();
 			this->linkMediaElement(newEndpoint, newEndpoint);
 			unusedOffer = newEndpoint->generateOffer();
+			GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
 			result = newEndpoint->processAnswer(answer);
 			rtp_ep = newEndpoint;
+			GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
 			return result;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
