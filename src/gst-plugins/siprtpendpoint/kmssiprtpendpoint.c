@@ -186,7 +186,7 @@ kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** s
 		// TODO: Multisession seems not used on RTPEndpoint, anyway we are doing something probably incorrect
 		// once multisession is used, that is to assume that creation order of sessions are maintained among all
 		// endpoints, and so order can be used to correlate internal rtp sessions.
-		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (sess);
+		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (*sess);
 		guint32 ssrc;
 
 		/* TODO: think about this when multiple audio/video medias */
