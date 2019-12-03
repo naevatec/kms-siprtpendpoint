@@ -18,45 +18,50 @@
 #ifndef __KMS_SIP_SRTP_CONNECTION_H__
 #define __KMS_SIP_SRTP_CONNECTION_H__
 
-#include "kmsrtpbaseconnection.h"
+#include "kmssrtpconnection.h"
+#include <gio/gio.h>
+#include <gst/sdp/gstsdpmessage.h>
 
 G_BEGIN_DECLS
 
-#define KMS_TYPE_SIP_SRTP_CONNECTION \
-  (kms_sip_srtp_connection_get_type())
-#define KMS_SIP_SRTP_CONNECTION(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnection))
-#define KMS_SIP_SRTP_CONNECTION_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_CAST((klass),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnectionClass))
-#define KMS_IS_SIP_SRTP_CONNECTION(obj) \
-  (G_TYPE_CHECK_INSTANCE_TYPE((obj),KMS_TYPE_SIP_SRTP_CONNECTION))
-#define KMS_IS_SIP_SRTP_CONNECTION_CLASS(klass) \
-  (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SIP_SRTP_CONNECTION))
-#define KMS_SIP_SRTP_CONNECTION_CAST(obj) ((KmsSipSrtpConnection*)(obj))
+//#define KMS_TYPE_SIP_SRTP_CONNECTION
+//  (kms_sip_srtp_connection_get_type())
+//#define KMS_SIP_SRTP_CONNECTION(obj)
+//  (G_TYPE_CHECK_INSTANCE_CAST((obj),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnection))
+//#define KMS_SIP_SRTP_CONNECTION_CLASS(klass)
+//  (G_TYPE_CHECK_CLASS_CAST((klass),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnectionClass))
+//#define KMS_IS_SIP_SRTP_CONNECTION(obj)
+//  (G_TYPE_CHECK_INSTANCE_TYPE((obj),KMS_TYPE_SIP_SRTP_CONNECTION))
+//#define KMS_IS_SIP_SRTP_CONNECTION_CLASS(klass)
+//  (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SIP_SRTP_CONNECTION))
+//#define KMS_SIP_SRTP_CONNECTION_CAST(obj) ((KmsSipSrtpConnection*)(obj))
+//
+//typedef struct _KmsSipSrtpConnectionPrivate KmsSipSrtpConnectionPrivate;
+//typedef struct _KmsSipSrtpConnection KmsSipSrtpConnection;
+//typedef struct _KmsSipSrtpConnectionClass KmsSipSrtpConnectionClass;
+//
+//struct _KmsSipSrtpConnection
+//{
+//  KmsRtpConnection parent;
+//
+//  KmsSipSrtpConnectionPrivate *priv;
+//};
+//
+//struct _KmsSipSrtpConnectionClass
+//{
+//  KmsRtpConnectionClass parent_class;
+//
+////  /* signals */
+////  void (*key_soft_limit) (KmsSipSrtpConnection *conn);
+//};
+//
+//GType kms_sip_srtp_connection_get_type (void);
 
-typedef struct _KmsSipSrtpConnectionPrivate KmsSipSrtpConnectionPrivate;
-typedef struct _KmsSipSrtpConnection KmsSipSrtpConnection;
-typedef struct _KmsSipSrtpConnectionClass KmsSipSrtpConnectionClass;
+KmsSrtpConnection *kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port,
+    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock);
 
-struct _KmsSipSrtpConnection
-{
-  KmsRtpBaseConnection parent;
-
-  KmsSipSrtpConnectionPrivate *priv;
-};
-
-struct _KmsSipSrtpConnectionClass
-{
-  KmsRtpBaseConnectionClass parent_class;
-
-  /* signals */
-  void (*key_soft_limit) (KmsSipSrtpConnection *conn);
-};
-
-GType kms_sip_srtp_connection_get_type (void);
-
-KmsSipSrtpConnection *kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6);
-void kms_sip_srtp_connection_set_key (KmsSipSrtpConnection *conn, const gchar *key, guint auth, guint cipher, gboolean local);
+void kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp);
+void kms_sip_srtp_connection_set_key (KmsSrtpConnection *conn, const gchar *key, guint auth, guint cipher, gboolean local);
 
 G_END_DECLS
 #endif /* __KMS_SIP_RTP_CONNECTION_H__ */

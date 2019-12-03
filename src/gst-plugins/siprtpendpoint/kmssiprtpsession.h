@@ -41,17 +41,24 @@ typedef struct _KmsIRtpSessionManager KmsIRtpSessionManager;
 
 typedef struct _KmsSipRtpSession KmsSipRtpSession;
 typedef struct _KmsSipRtpSessionClass KmsSipRtpSessionClass;
+typedef struct _KmsSipRtpSessionPrivate KmsSipRtpSessionPrivate;
 
 struct _KmsSipRtpSession
 {
   KmsRtpSession parent;
 
   gboolean use_ipv6;
+
+  KmsSipRtpSessionPrivate *priv;
 };
 
 struct _KmsSipRtpSessionClass
 {
   KmsRtpSessionClass parent_class;
+
+  /* signals */
+  void (*clone_connections) (KmsSipRtpSession *self, GHashTable *conns);
+
 };
 
 GType kms_sip_rtp_session_get_type (void);

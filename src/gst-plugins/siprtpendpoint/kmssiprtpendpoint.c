@@ -95,6 +95,7 @@ struct _KmsSipRtpEndpointCloneData
 	guint32 audio_ssrc;
 	guint32 video_ssrc;
 
+	GHashTable *conns;
 };
 
 struct _KmsSipRtpEndpointPrivate
@@ -175,6 +176,22 @@ kms_sip_rtp_endpoint_get_rtpbin (KmsSipRtpEndpoint * self)
 	return result;
 }
 
+//static void
+//kms_sip_rtp_endpoint_clone_connections (GHashTable * origConns, KmsBaseRtpSession *clonedSes)
+//{
+//	GList *keys = g_hash_table_get_keys (origConns);
+//
+//	while (keys != NULL) {
+//		gpointer *key = keys->data;
+//		KmsIRtpConnection *conn = KMS_I_RTP_CONNECTION(g_hash_table_lookup (origConns, key));
+//
+//		GST_DEBUG("key %p, conn %p", key, conn);
+//		g_hash_table_insert (clonedSes->conns, key, conn);
+//		keys  = keys->next;
+//	}
+//
+//}
+
 static void
 kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** sess)
 {
@@ -186,19 +203,29 @@ kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** s
 		// TODO: Multisession seems not used on RTPEndpoint, anyway we are doing something probably incorrect
 		// once multisession is used, that is to assume that creation order of sessions are maintained among all
 		// endpoints, and so order can be used to correlate internal rtp sessions.
-		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (*sess);
+		KmsBaseRtpSession *clonedSes = KMS_BASE_RTP_SESSION (*sess);
+		KmsSipRtpSession *clonedSipSes = KMS_SIP_RTP_SESSION (*sess);
+		//GHashTable *origConns = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->conns;
 		guint32 ssrc;
 
 		/* TODO: think about this when multiple audio/video medias */
 		// Audio
+		//      Clone SSRC
 		ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->audio_ssrc;
-		ses->local_audio_ssrc = ssrc;
+		clonedSes->local_audio_ssrc = ssrc;
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, AUDIO_RTP_SESSION, ssrc, AUDIO_RTPBIN_SEND_RTP_SINK);
 
 		// Video
+		//        Clone SSRC
 		ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->video_ssrc;
-		ses->local_video_ssrc = ssrc;
+		clonedSes->local_video_ssrc = ssrc;
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, VIDEO_RTP_SESSION, ssrc, VIDEO_RTPBIN_SEND_RTP_SINK);
+
+		KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(clonedSipSes))->clone_connections (clonedSipSes,
+				((KmsSipRtpEndpointCloneData*)sessionToClone->data)->conns);
+
+		////       Clone sockets
+		//kms_sip_rtp_endpoint_clone_connections (origConns, clonedSes);
 	}
 }
 
@@ -982,12 +1009,13 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
 }
 
 static KmsSipRtpEndpointCloneData*
-kms_sip_rtp_endpoint_create_clone_data (guint32 ssrcAudio, guint32 ssrcVideo)
+kms_sip_rtp_endpoint_create_clone_data (guint32 ssrcAudio, guint32 ssrcVideo, GHashTable *conns)
 {
 	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
 
 	data->audio_ssrc = ssrcAudio;
 	data->video_ssrc = ssrcVideo;
+	data->conns = g_hash_table_ref(conns);
 
 	return data;
 }
@@ -995,6 +1023,15 @@ kms_sip_rtp_endpoint_create_clone_data (guint32 ssrcAudio, guint32 ssrcVideo)
 static void
 kms_sip_rtp_endpoint_free_clone_data (GList *data)
 {
+	GList *it = data;
+
+	while (it != NULL) {
+		KmsSipRtpEndpointCloneData* data = (KmsSipRtpEndpointCloneData*) it->data;
+
+		if (data->conns != NULL)
+			g_hash_table_unref(data->conns);
+	}
+
 	g_list_free_full (data, g_free);
 }
 
@@ -1011,7 +1048,7 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
 		guint32 localAudioSsrc = ses->local_audio_ssrc;
 		guint32 localVIdeoSsrc = ses->local_video_ssrc;
-		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (localAudioSsrc, localVIdeoSsrc);
+		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (localAudioSsrc, localVIdeoSsrc, ses->conns);
 
 		sessionsData = g_list_append (sessionsData, (gpointer)data);
 	}
@@ -1111,7 +1148,7 @@ kms_sip_rtp_endpoint_finalize (GObject * object)
 	  g_free (self->priv->use_sdes_cache);
 
   if (self->priv->sessionData != NULL)
-	  g_list_free (self->priv->sessionData);
+	  kms_sip_rtp_endpoint_free_clone_data(self->priv->sessionData);
 
 //  g_free (self->priv->master_key);
 //  g_hash_table_unref (self->priv->sdes_keys);
