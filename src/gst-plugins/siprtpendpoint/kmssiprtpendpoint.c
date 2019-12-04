@@ -1028,8 +1028,11 @@ kms_sip_rtp_endpoint_free_clone_data (GList *data)
 	while (it != NULL) {
 		KmsSipRtpEndpointCloneData* data = (KmsSipRtpEndpointCloneData*) it->data;
 
-		if (data->conns != NULL)
+		if (data->conns != NULL) {
 			g_hash_table_unref(data->conns);
+			data->conns = NULL;
+		}
+		it = it->next;
 	}
 
 	g_list_free_full (data, g_free);
