@@ -1,6 +1,6 @@
-kms-siprtpendpoint (0.0.1~rc1.18.04~20191204234901.gbpd131b3) UNRELEASED; urgency=medium
+kms-siprtpendpoint (0.0.1~rc1.18.04~20191205140738.gbp89f14a) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @d131b3f70fa21c72998aca5a7c5a5b31e47b68cf **
+  ** SNAPSHOT build @89f14ac4d713cf69b4de49a7e8bab5987fa8381a **
 
   [ root ]
   * UNRELEASED
@@ -8,7 +8,22 @@ kms-siprtpendpoint (0.0.1~rc1.18.04~20191204234901.gbpd131b3) UNRELEASED; urgenc
   * UNRELEASED
   * UNRELEASED
 
- -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 05 Dec 2019 00:49:06 +0100
+  [ Saul Pablo Labajo Izquierdo ]
+  * Started to integrate kurento buildpackage
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 05 Dec 2019 15:07:45 +0100
 
 kms-datachannel-adapter (0.0.1~rc1) testing; urgency=medium
 

@@ -140,7 +140,7 @@ kms_sip_rtp_session_finalize (GObject *object)
   KmsSipRtpSession *self = KMS_SIP_RTP_SESSION(object);
 
   if (self->priv->conns != NULL) {
-	  g_object_unref (self->priv->conns);
+	  g_hash_table_unref (self->priv->conns);
   }
 }
 

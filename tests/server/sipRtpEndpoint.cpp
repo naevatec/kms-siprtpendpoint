@@ -30,10 +30,12 @@
 #include <MediaElementImpl.hpp>
 #include <ConnectionState.hpp>
 #include <MediaState.hpp>
-#include <SDES.hpp>
-#include <CryptoSuite.hpp>
+//#include <SDES.hpp>
+//#include <CryptoSuite.hpp>
 
 #include <sigc++/connection.h>
+
+#include <RegisterParent.hpp>
 
 using namespace kurento;
 using namespace boost::unit_test;
@@ -54,7 +56,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:./build-Debug/src/server");
+//  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -183,6 +186,7 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
   releaseTestSrc (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
+
 }
 
 static void
