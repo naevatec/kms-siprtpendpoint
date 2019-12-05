@@ -65,20 +65,6 @@ kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
 
 /* Connection management begin */
 
-//KmsRtpBaseConnection *
-//kms_sip_srtp_session_get_connection (KmsSipSrtpSession * self,
-//    KmsSdpMediaHandler * handler)
-//{
-//  KmsBaseRtpSession *base_rtp_sess = KMS_BASE_RTP_SESSION (self);
-//  KmsIRtpConnection *conn;
-//
-//  conn = kms_base_rtp_session_get_connection (base_rtp_sess, handler);
-//  if (conn == NULL) {
-//    return NULL;
-//  }
-//
-//  return KMS_RTP_BASE_CONNECTION (conn);
-//}
 
 static KmsIRtpConnection *
 kms_sip_srtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,

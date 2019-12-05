@@ -56,8 +56,6 @@ struct _KmsSipRtpEndpointClass
 	KmsRtpEndpointClass parent_class;
 
 
-//  KmsBaseRtpEndpointClass parent_class;
-
   /* signals */
   void (*clone_to_new_ep) (KmsSipRtpEndpoint *obj, KmsSipRtpEndpoint *cloned);
 };
