@@ -30,6 +30,8 @@
 #include <MediaElementImpl.hpp>
 #include <ConnectionState.hpp>
 #include <MediaState.hpp>
+#include <SDES.hpp>
+#include <CryptoSuite.hpp>
 
 #include <sigc++/connection.h>
 
@@ -52,7 +54,7 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:./build-Debug/src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -76,14 +78,30 @@ GF::~GF()
   MediaSet::deleteMediaSet();
 }
 
+#define CRYPTOKEY "00108310518720928b30d38f41149351559761969b71d79f8218a39259a7"
+
+//static std::shared_ptr<SDES> getCrypto ()
+//{
+//	std::shared_ptr<kurento::SDES> crypto = std::make_shared<kurento::SDES>(new kurento::SDES());
+//	std::shared_ptr<kurento::CryptoSuite> cryptoSuite = std::make_shared<kurento::CryptoSuite> (new kurento::CryptoSuite (kurento::CryptoSuite::AES_128_CM_HMAC_SHA1_80));
+//
+//	crypto->setCrypto(cryptoSuite);
+//	crypto->setKey(CRYPTOKEY);
+//	return crypto;
+//}
+
+
 static std::shared_ptr <FacadeRtpEndpointImpl>
-createRtpEndpoint (bool useIpv6)
+createRtpEndpoint (bool useIpv6, bool useCrypto)
 {
   std::shared_ptr <kurento::MediaObjectImpl> rtpEndpoint;
   Json::Value constructorParams;
 
   constructorParams ["mediaPipeline"] = mediaPipelineId;
   constructorParams ["useIpv6"] = useIpv6;
+//  if (useCrypto) {
+//	  constructorParams ["crypto"] = getCrypto ()->;
+//  }
 
   rtpEndpoint = moduleManager.getFactory ("SipRtpEndpoint")->createObject (
                   config, "",
@@ -123,15 +141,15 @@ releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
 }
 
 static void
-media_state_changes_impl (bool useIpv6)
+media_state_changes_impl (bool useIpv6, bool useCrypto)
 {
   std::atomic<bool> media_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
   std::unique_lock<std::mutex> lck (mtx);
 
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
 
   src->connect (rtpEpOfferer);
@@ -171,21 +189,21 @@ static void
 media_state_changes ()
 {
   BOOST_TEST_MESSAGE ("Start test: media_state_changes");
-  media_state_changes_impl (false);
+  media_state_changes_impl (false, false);
 }
 
 static void
 media_state_changes_ipv6 ()
 {
   BOOST_TEST_MESSAGE ("Start test: media_state_changes_ipv6");
-  media_state_changes_impl (true);
+  media_state_changes_impl (true, false);
 }
 
 static void
-reconnection_generate_offer_state_changes_impl (bool useIpv6)
+reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 {
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
@@ -246,10 +264,10 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6)
 
 
 static void
-reconnection_process_offer_state_changes_impl (bool useIpv6)
+reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 {
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
@@ -310,11 +328,11 @@ reconnection_process_offer_state_changes_impl (bool useIpv6)
 }
 
 static void
-reconnection_process_answer_state_changes_impl (bool useIpv6)
+reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
 {
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer2 = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer2 = createRtpEndpoint (useIpv6, useCrypto);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
@@ -383,10 +401,10 @@ reconnection_process_answer_state_changes_impl (bool useIpv6)
 
 
 static void
-connection_state_changes_impl (bool useIpv6)
+connection_state_changes_impl (bool useIpv6, bool useCrypto)
 {
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6);
-  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
   std::atomic<bool> conn_state_changed (false);
   std::condition_variable cv;
   std::mutex mtx;
@@ -442,56 +460,56 @@ static void
 connection_state_changes ()
 {
   BOOST_TEST_MESSAGE ("Start test: connection_state_changes");
-  connection_state_changes_impl (false);
+  connection_state_changes_impl (false, false);
 }
 
 static void
 connection_state_changes_ipv6 ()
 {
   BOOST_TEST_MESSAGE ("Start test: connection_state_changes_ipv6");
-  connection_state_changes_impl (true);
+  connection_state_changes_impl (true, false);
 }
 
 static void
 reconnection_generate_offer_state_changes()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_generate_offer_state_changes");
-	  reconnection_generate_offer_state_changes_impl (false);
+	  reconnection_generate_offer_state_changes_impl (false, false);
 }
 
 static void
 reconnection_generate_offer_state_changes_ipv6()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_generate_offer_state_changes_ipv6");
-	  reconnection_generate_offer_state_changes_impl (true);
+	  reconnection_generate_offer_state_changes_impl (true, false);
 }
 
 static void
 reconnection_process_offer_state_changes()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_offer_state_changes");
-	  reconnection_process_offer_state_changes_impl (false);
+	  reconnection_process_offer_state_changes_impl (false, false);
 }
 
 static void
 reconnection_process_offer_state_changes_ipv6()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_offer_state_changes_ipv6");
-	  reconnection_process_offer_state_changes_impl (true);
+	  reconnection_process_offer_state_changes_impl (true, false);
 }
 
 static void
 reconnection_process_answer_state_changes()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_offer_state_changes");
-	  reconnection_process_answer_state_changes_impl (false);
+	  reconnection_process_answer_state_changes_impl (false, false);
 }
 
 static void
 reconnection_process_answer_state_changes_ipv6()
 {
 	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_offer_state_changes_ipv6");
-	  reconnection_process_answer_state_changes_impl (true);
+	  reconnection_process_answer_state_changes_impl (true, false);
 }
 
 

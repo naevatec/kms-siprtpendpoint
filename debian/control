@@ -1,4 +1,4 @@
-Source: kms-datachannel-adapter
+Source: kms-siprtpendpoint
 Maintainer: NaevaTec <info@naevatec.com>
 Priority: optional
 Build-Depends: debhelper (>= 9),
@@ -12,32 +12,28 @@ Homepage: www.kurento.org
 Vcs-Browser: https://
 Vcs-Git: https://
 
-Package: kms-datachannel-adapter
+Package: kms-siprtpendpoint
 Architecture: any
 Section: libs
 Depends: ${shlibs:Depends}, ${misc:Depends},
  kms-core (>= 6.11.0),
  kms-elements (>= 6.11.0),
  kms-filters (>= 6.11.0)
-Breaks: kms-platedetector-6.0
-Replaces: kms-platedetector-6.0
-Description: Kurento Datachannel adapter
+Description: Kurento SipRtpEndpoint
 
-Package: kms-datachannel-adapter-dev
+Package: kms-siprtpendpoint-dev
 Architecture: any
 Section: libdevel
-Depends: kms-datachannel-adapter (= ${binary:Version}),
+Depends: kms-siprtpendpoint (= ${binary:Version}),
  kms-core-dev (>= 6.11.0),
  kms-elements-dev (>= 6.11.0),
  kms-filters-dev (>= 6.11.0),
-Breaks: kms-platedetector-6.0-dev
-Replaces: kms-platedetector-6.0-dev
-Description: Kurento Datachannel adapter - Development files
+Description: Kurento SipRtpEndpoint - Development files
 
-Package: kms-datachannel-adapter-dbg
+Package: kms-siprtpendpoint-dbg
 Architecture: any
 Section: debug
-Depends: kms-datachannel-adapter (= ${binary:Version})
-Breaks: kms-datachannel-adapter-6.0-dbg
-Replaces: kms-datachannel-adapter-6.0-dbg
-Description: Kurento Datachannel adapter - Debug symbols
+Depends: kms-siprtpendpoint (= ${binary:Version})
+Breaks: kms-siprtpendpoint-6.0-dbg
+Replaces: kms-siprtpendpoint-6.0-dbg
+Description: Kurento SipRtpEndpoint - Debug symbols
