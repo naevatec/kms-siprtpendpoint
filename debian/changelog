@@ -1,6 +1,6 @@
-kms-siprtpendpoint (0.0.1~rc1.18.04~20191205150609.gbpf0c482) UNRELEASED; urgency=medium
+kms-siprtpendpoint (0.0.1~rc1.18.04~20191205151356.gbp846107) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @f0c4824fcd958c75ec8cb664c779857e9e475d3f **
+  ** SNAPSHOT build @8461078d3a5f2518764fdb8bac04d96caa092e87 **
 
   [ root ]
   * UNRELEASED
@@ -29,7 +29,10 @@ kms-siprtpendpoint (0.0.1~rc1.18.04~20191205150609.gbpf0c482) UNRELEASED; urgenc
   [ root ]
   * UNRELEASED
 
- -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 05 Dec 2019 16:06:14 +0100
+  [ Saul Pablo Labajo Izquierdo ]
+  * code cleanup
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 05 Dec 2019 16:14:01 +0100
 
 kms-datachannel-adapter (0.0.1~rc1) testing; urgency=medium
 
