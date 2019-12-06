@@ -22,6 +22,8 @@
 #include <BaseRtpEndpointImpl.hpp>
 #include <EventHandler.hpp>
 #include <SipRtpEndpointImpl.hpp>
+#include <sigc++/connection.h>
+
 
 namespace kurento
 {
@@ -146,6 +148,12 @@ protected:
   virtual void postConstructor () override;
 
 private:
+
+
+  sigc::connection connRtp;
+  sigc::connection connEpIn;
+  sigc::connection connEpOut;
+
 
   std::shared_ptr<SipRtpEndpointImpl> rtp_ep;
 

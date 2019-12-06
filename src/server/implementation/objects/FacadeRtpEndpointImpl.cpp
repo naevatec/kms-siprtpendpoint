@@ -18,6 +18,7 @@
 #include "MediaPipeline.hpp"
 #include "ComposedObjectImpl.hpp"
 #include <PassThroughImpl.hpp>
+#include <MediaElementImpl.hpp>
 #include <SipRtpEndpointImplFactory.hpp>
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
@@ -27,6 +28,9 @@
 #include <SDES.hpp>
 #include <memory>
 #include <string>
+#include <MediaFlowInStateChange.hpp>
+#include <MediaFlowState.hpp>
+
 
 #define GST_CAT_DEFAULT kurento_sip_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -65,6 +69,35 @@ FacadeRtpEndpointImpl::postConstructor ()
 
   rtp_ep->postConstructor();
   this->linkMediaElement(rtp_ep, rtp_ep);
+
+  connRtp = std::dynamic_pointer_cast<MediaElementImpl>(rtp_ep)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  GST_DEBUG("Media Flowing In");
+	  	  	  }
+  	  	  }
+  );
+
+  connEpIn = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  GST_DEBUG("Media Flowing In");
+	  	  	  }
+  	  	  }
+  );
+
+  connEpOut = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  GST_DEBUG("Media Flowing In");
+	  	  	  }
+  	  	  }
+  );
+
+
 }
 
 
@@ -270,38 +303,44 @@ std::vector<std::shared_ptr<ElementConnectionData>>
 FacadeRtpEndpointImpl::getSourceConnections ()
 {
 	// TODO Verify this behaviour
-	return this->rtp_ep->getSourceConnections();
+	//return this->rtp_ep->getSourceConnections();
+	return this->srcPt->getSourceConnections();
 }
 std::vector<std::shared_ptr<ElementConnectionData>>
 FacadeRtpEndpointImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType)
 {
 	// TODO: Verifiy this behaviour
-	return this->rtp_ep->getSourceConnections(mediaType);
+	//return this->rtp_ep->getSourceConnections(mediaType);
+	return this->srcPt->getSourceConnections(mediaType);
 }
 std::vector<std::shared_ptr<ElementConnectionData>>
 FacadeRtpEndpointImpl::getSourceConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
 	// TODO: Verify this behaviour
-	return this->rtp_ep->getSourceConnections(mediaType, description);
+	//return this->rtp_ep->getSourceConnections(mediaType, description);
+	return this->srcPt->getSourceConnections(mediaType, description);
 }
 std::vector<std::shared_ptr<ElementConnectionData>>
 FacadeRtpEndpointImpl::getSinkConnections () {
 	// TODO Verify this behaviour
-	return this->rtp_ep->getSinkConnections();
+	//return this->rtp_ep->getSinkConnections();
+	return this->sinkPt->getSinkConnections();
 }
 std::vector<std::shared_ptr<ElementConnectionData>> FacadeRtpEndpointImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType)
 {
 	//  TODO: verify this behviour
-	return this->rtp_ep->getSinkConnections(mediaType);
+	//return this->rtp_ep->getSinkConnections(mediaType);
+	return this->sinkPt->getSinkConnections(mediaType);
 }
 std::vector<std::shared_ptr<ElementConnectionData>> FacadeRtpEndpointImpl::getSinkConnections (
       std::shared_ptr<MediaType> mediaType, const std::string &description)
 {
 	// TODO: Verify this behaviour
-	return this->rtp_ep->getSinkConnections(mediaType, description);
+	//return this->rtp_ep->getSinkConnections(mediaType, description);
+	return this->sinkPt->getSinkConnections(mediaType, description);
 }
 void FacadeRtpEndpointImpl::setAudioFormat (std::shared_ptr<AudioCaps> caps)
 {

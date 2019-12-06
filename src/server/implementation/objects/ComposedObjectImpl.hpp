@@ -64,11 +64,11 @@ public:
 
 protected:
   virtual void postConstructor () override;
+  std::shared_ptr<PassThroughImpl> sinkPt;
+  std::shared_ptr<PassThroughImpl> srcPt;
 
 private:
 
-  std::shared_ptr<PassThroughImpl> sinkPt;
-  std::shared_ptr<PassThroughImpl> srcPt;
   GstElement* origElem;
   std::shared_ptr<MediaElement> linkedSource;
   std::shared_ptr<MediaElement> linkedSink;
