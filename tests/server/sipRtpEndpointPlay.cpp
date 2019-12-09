@@ -66,8 +66,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-//  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+//  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -422,6 +422,8 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  std::string answer2 = rtpEpAnswerer->processOffer (offer2);
 	  BOOST_TEST_MESSAGE ("answer2: " + answer2);
 
+	  rtpEpOfferer2->processAnswer(answer2);
+
 	  // Second stream
 	  cv2.wait (lck2, [&] () {
 	    return media_state_changed2.load();
@@ -602,11 +604,9 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  if (false) {
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  }
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 15000);
 
   if (false) {
