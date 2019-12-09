@@ -64,6 +64,8 @@ kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * 
 		//  so that they are not released on previoues endpoint finalization
 		g_object_set (conn->priv->rtp_udpsink, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtcp_udpsink, "close-socket", FALSE, NULL);
+		g_object_set (conn->priv->rtp_udpsrc, "close-socket", FALSE, NULL);
+		g_object_set (conn->priv->rtcp_udpsrc, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtp_udpsink, "socket", NULL);
 	    g_object_set (conn->priv->rtp_udpsrc, "socket", NULL);
 		g_object_set (conn->priv->rtcp_udpsink, "socket", NULL);
@@ -125,6 +127,12 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	      "sync", FALSE, "async", FALSE, NULL);
 	  g_object_set (priv->rtcp_udpsrc, "socket", priv->rtcp_socket,
 	      "auto-multicast", FALSE, NULL);
+
+
+//	  g_object_set (priv->rtp_udpsink, "close-socket", FALSE, NULL);
+//	  g_object_set (priv->rtcp_udpsink, "close-socket", FALSE, NULL);
+//	  g_object_set (priv->rtp_udpssrc, "close-socket", FALSE, NULL);
+//	  g_object_set (priv->rtcp_udpsrc, "close-socket", FALSE, NULL);
 
 	  kms_i_rtp_connection_connected_signal (KMS_I_RTP_CONNECTION (conn));
 

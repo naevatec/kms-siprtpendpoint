@@ -115,6 +115,8 @@ void ComposedObjectImpl::connect (std::shared_ptr<MediaElement> sink)
 {
 	GST_DEBUG ("Connecting (A+V+D) facade to sink");
 
+	// TODO: signals emitted from sinkPt due to connection changes should be
+	// elevated to be re-emitted from this Composed Object
   // Until mediaDescriptions are really used, we just connect audio an video
   this->sinkPt->connect(sink, std::make_shared<MediaType>(MediaType::AUDIO), DEFAULT,
           DEFAULT);
