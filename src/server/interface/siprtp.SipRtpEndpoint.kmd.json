@@ -3,64 +3,32 @@
     {
       "name": "SipRtpEndpoint",
       "extends": "BaseRtpEndpoint",
-      "doc": "Endpoint that provides bidirectional content delivery capabilities with remote networked peers through RTP or SRTP protocol. An :rom:cls:`RtpEndpoint` contains paired sink and source :rom:cls:`MediaPad` for audio and video. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`.
+      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of SIP 183 like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`.
       </p>
       <p>
-      In order to establish an RTP/SRTP communication, peers engage in an SDP negotiation process, where one of the peers (the offerer) sends an offer, while the other peer (the offeree) responds with an answer. This endpoint can function in both situations
+      The API and methods to establish a RTP/SRTP communication are exactly the same as in :rom:cls:`RtpEndpoint`
+      <p>
+      Unlike :rom:cls:`RtpEndpoint` this endpoint allows calling the SDP negotiation methods `generateOffer`, `processOffer` and `processOffer`
+      at any time regardless of the status of any previous SDP negotiation.
+      </p>
+      When any of the SDP negotiation methods are called and no previous negotiation has been made, the same rules that apply to 
+      :rom:cls:`RtpEndpoint` will applpy now.
+      </p>
+      <p>
+      If any of the SDP negotiation methods are called and a previous negotiation were initiated (it does not matter if it is completed and media flowing or not)
+      the previous media is discarded and new media will be established according to the new SDP (offer or answer) exchanged.
+      </p>
+      <p>
+      More specifically:
       <ul style='list-style-type:circle'>
-        <li>
-          As offerer: The negotiation process is initiated by the media server
-          <ul>
-            <li>KMS generates the SDP offer through the generateOffer method. This offer must then be sent to the remote peer (the offeree) through the signaling channel, for processing.</li>
-            <li>The remote peer process the Offer, and generates an Answer to this offer. The Answer is sent back to the media server.</li>
-            <li>Upon receiving the Answer, the endpoint must invoke the processAnswer method.</li>
-          </ul>
-        </li>
-        <li>
-          As offeree: The negotiation process is initiated by the remote peer
-          <ul>
-            <li>The remote peer, acting as offerer, generates an SDP offer and sends it to the WebRTC endpoint in Kurento.</li>
-            <li>The endpoint will process the Offer invoking the processOffer method. The result of this method will be a string, containing an SDP Answer.</li>
-            <li>The SDP Answer must be sent back to the offerer, so it can be processed.</li>
-          </ul>
-        </li>
+        <li>`generateOffer`, if this method is called with a previous negotiation initiated or even completed, the old media will be discarded and a new SDP offer will be generated. much like it would be done with a new RtpEndpoint. Ports and SSRC may change. Codecs will usually not change</li>
+        <li>`processOffer`, much like the previous one, if a previous negotiation was initiated or even completed, media will be discarded, ports and ssrcs may also change as it will be answering to a different SDP offer</li>
+        <li>`processAnswer`, similar to the previous this has some subtelties, as we are processing a new answer, original offer is maintained, this implies that ports, ssrcs and codecs offered by this endpoint are preserved. This implies that this new answer must be generated as a response to the original offer</li>
       </ul>
-      </p>
-      <p>
-      In case of unidirectional connections (i.e. only one peer is going to send media), the process is more simple, as only the emitter needs to process an SDP. On top of the information about media codecs and types, the SDP must contain the IP of the remote peer, and the port where it will be listening. This way, the SDP can be mangled without needing to go through the exchange process, as the receiving peer does not need to process any answer.
-      </p>
-      <p>
-      The user can set some bandwidth limits that will be used during the negotiation process.
-      The default bandwidth range of the endpoint is 100kbps-500kbps, but it can be changed separately for input/output directions and for audio/video streams.
-      <ul style='list-style-type:circle'>
-        <li>
-          Input bandwidth control mechanism: Configuration interval used to inform remote peer the range of bitrates that can be pushed into this RtpEndpoint object. These values are announced in the SDP.
-          <ul>
-            <li>
-              setMaxVideoRecvBandwidth: sets Max bitrate limits expected for received video stream.
-            </li>
-            <li>
-              setMaxAudioRecvBandwidth: sets Max bitrate limits expected for received audio stream.
-            </li>
-          </ul>
-        </li>
-        <li>
-          Output bandwidth control mechanism: Configuration interval used to control bitrate of the output video stream sent to remote peer. Remote peers can also announce bandwidth limitation in their SDPs (through the b=<modifier>:<value> tag). Kurento will always enforce bitrate limitations specified by the remote peer over internal configurations.
-          <ul>
-            <li>
-              setMaxVideoSendBandwidth: sets Max bitrate limits for video sent to remote peer.
-            </li>
-            <li>
-              setMinVideoSendBandwidth: sets Min bitrate limits for audio sent to remote peer.
-            </li>
-          </ul>
-        </li>
-      </ul>
-      All bandwidth control parameters must be changed before the SDP negotiation takes place, and can't be modified afterwards.
-      TODO: What happens if the b=as tag form the SDP has a lower value than the one set in setMinVideoSendBandwidth?
-      </p>
-      <p>
-      Take into consideration that setting a too high upper limit for the output bandwidth can be a reason for the local network connection to be overflooded.
+      If the answer changes chosen codecs, it may be possible that the endpoint processing the answer also instantiates a transcoder to adapt to the new codecs.
+      This is needed because, if the original negotiation established some codecs, this affect at the pipeline and any other connected media Element.
+      So, if renegotiation implies some change in codecs, the pipeline cannot change codecs in the other MediaElements, so a transocding is needed to adapta media with new codecs to the 
+      already established ones.
       </p>
       ",
       "constructor":

@@ -56,8 +56,8 @@ main (int argc, char **argv)
 
   kurento::ModuleManager moduleManager;
 
-  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-  //moduleManager.loadModulesFromDirectories ("../../src/server:../../..");
+  //moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server:../../..");
 
   mediaPipeline = moduleManager.getFactory ("MediaPipeline")->createObject (
                     config, "",
