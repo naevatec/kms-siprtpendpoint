@@ -345,6 +345,7 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 
 		sessionsData = g_list_append (sessionsData, (gpointer)data);
 	}
+	g_list_free(sessionKeys);
 
 	KMS_ELEMENT_LOCK (cloned);
 	if (cloned->priv->sessionData != NULL) {

@@ -135,13 +135,15 @@ public:
 
   /* Next methods are automatically implemented by code generator */
   using ComposedObjectImpl::connect;
-/*  virtual bool connect (const std::string &eventType,
+  virtual bool connect (const std::string &eventType,
                         std::shared_ptr<EventHandler> handler) override;
+
+
 
   virtual void invoke (std::shared_ptr<MediaObjectImpl> obj,
                        const std::string &methodName, const Json::Value &params,
                        Json::Value &response) override;
-*/
+
   virtual void Serialize (JsonSerializer &serializer) override;
 
 protected:

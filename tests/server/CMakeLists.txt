@@ -40,6 +40,7 @@ set_property(TARGET test_constructors
 target_link_libraries(test_constructors
   ${LIBRARY_NAME}impl
   ${KMSCORE_LIBRARIES}
+  -lgmodule-2.0
   ${glibmm-2.0_LIBRARIES}
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}

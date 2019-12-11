@@ -109,6 +109,23 @@ FacadeRtpEndpointImpl::StaticConstructor::StaticConstructor()
                            GST_DEFAULT_NAME);
 }
 
+// The methods connect and invoke are automatically generated in the SipRtpEndpoint class
+// but no in the Facadde, so we have to redirect the implementation to the one in SipRtpEndpoint
+bool FacadeRtpEndpointImpl::connect (const std::string &eventType, std::shared_ptr<EventHandler> handler)
+{
+	return this->rtp_ep->connect(eventType, handler);
+}
+
+
+void FacadeRtpEndpointImpl::invoke (std::shared_ptr<MediaObjectImpl> obj,
+                     const std::string &methodName, const Json::Value &params,
+                     Json::Value &response)
+{
+	this->rtp_ep->invoke(obj, methodName, params, response);
+}
+
+
+
 
 /*--------------------- Implementation of SipRtpEndpoint specific features ---------------------------------*/
 

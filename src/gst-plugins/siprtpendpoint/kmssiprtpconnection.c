@@ -66,6 +66,7 @@ kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * 
 		g_object_set (conn->priv->rtcp_udpsink, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtp_udpsrc, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtcp_udpsrc, "close-socket", FALSE, NULL);
+
 		g_object_set (conn->priv->rtp_udpsink, "socket", NULL);
 	    g_object_set (conn->priv->rtp_udpsrc, "socket", NULL);
 		g_object_set (conn->priv->rtcp_udpsink, "socket", NULL);

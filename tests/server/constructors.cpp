@@ -27,6 +27,7 @@
 #include <MediaSet.hpp>
 #include <gst/gst.h>
 #include <config.h>
+#include <gmodule.h>
 
 boost::property_tree::ptree config;
 
@@ -45,12 +46,35 @@ testSipRtpEndpoint (kurento::ModuleManager &moduleManager,
   kurento::MediaSet::getMediaSet()->release (object);
 }
 
+void
+show_library ()
+{
+	  GstPluginDesc *desc;
+	  GModule *module;
+	  gboolean ret;
+	  GModuleFlags flags;
+	  gpointer ptr;
+
+
+	  flags = G_MODULE_BIND_LOCAL;
+	  module = g_module_open ("/home/devel/kms-omni-build/build-Debug/kms-siprtpendpoint/src/gst-plugins/siprtpendpoint/libsiprtpendpoint.so", flags);
+	  ret = g_module_symbol (module, "gst_plugin_desc", &ptr);
+	  desc = (GstPluginDesc *) ptr;
+
+	  if (desc != NULL)
+		  ret = 0;
+
+	  if (ret == 0)
+		  desc = NULL;
+}
 
 int
 main (int argc, char **argv)
 {
   std::shared_ptr <kurento::MediaObjectImpl> mediaPipeline;
   std::shared_ptr <kurento::Factory> factory;
+
+  show_library();
 
   gst_init (&argc, &argv);
 
