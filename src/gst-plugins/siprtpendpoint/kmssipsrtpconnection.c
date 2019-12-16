@@ -47,6 +47,18 @@ struct _KmsSrtpConnectionPrivate
   gboolean r_key_set;
 };
 
+static gchar *auths[] = {
+  NULL,
+  "hmac-sha1-32",
+  "hmac-sha1-80"
+};
+
+static gchar *ciphers[] = {
+  NULL,
+  "aes-128-icm",
+  "aes-256-icm"
+};
+
 
 
 void
@@ -86,6 +98,143 @@ kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia *
 	}
 }
 
+static void
+kms_srtp_connection_new_pad_cb (GstElement * element, GstPad * pad,
+    KmsSrtpConnection * conn)
+{
+  GstPadTemplate *templ;
+  GstPad *sinkpad = NULL;
+
+  templ = gst_pad_get_pad_template (pad);
+
+  if (g_strcmp0 (GST_PAD_TEMPLATE_NAME_TEMPLATE (templ), "rtp_src_%u") == 0) {
+    sinkpad = gst_element_get_static_pad (conn->priv->rtp_udpsink, "sink");
+  } else if (g_strcmp0 (GST_PAD_TEMPLATE_NAME_TEMPLATE (templ),
+          "rtcp_src_%u") == 0) {
+    sinkpad = gst_element_get_static_pad (conn->priv->rtcp_udpsink, "sink");
+  } else {
+    goto end;
+  }
+
+  gst_pad_link (pad, sinkpad);
+
+end:
+  g_object_unref (templ);
+  g_clear_object (&sinkpad);
+}
+
+static const gchar *
+get_str_auth (guint auth)
+{
+  const gchar *str_auth = NULL;
+
+  if (auth < G_N_ELEMENTS (auths)) {
+    str_auth = auths[auth];
+  }
+
+  return str_auth;
+}
+
+static const gchar *
+get_str_cipher (guint cipher)
+{
+  const gchar *str_cipher = NULL;
+
+  if (cipher < G_N_ELEMENTS (ciphers)) {
+    str_cipher = ciphers[cipher];
+  }
+
+  return str_cipher;
+}
+
+
+static GstCaps *
+create_key_caps (guint ssrc, const gchar * key, guint auth, guint cipher)
+{
+  const gchar *str_cipher = NULL, *str_auth = NULL;
+  GstBuffer *buff_key;
+  guint8 *bin_buff;
+  GstCaps *caps;
+  gsize len;
+
+  str_cipher = get_str_cipher (cipher);
+  str_auth = get_str_auth (auth);
+
+  if (str_cipher == NULL || str_auth == NULL) {
+    return NULL;
+  }
+
+  bin_buff = g_base64_decode (key, &len);
+  buff_key = gst_buffer_new_wrapped (bin_buff, len);
+
+  caps = gst_caps_new_simple ("application/x-srtp",
+      "srtp-key", GST_TYPE_BUFFER, buff_key,
+      "srtp-cipher", G_TYPE_STRING, str_cipher,
+      "srtp-auth", G_TYPE_STRING, str_auth,
+      "srtcp-cipher", G_TYPE_STRING, str_cipher,
+      "srtcp-auth", G_TYPE_STRING, str_auth, NULL);
+
+  gst_buffer_unref (buff_key);
+
+  return caps;
+}
+
+
+static GstCaps *
+kms_srtp_connection_request_remote_key_cb (GstElement * srtpdec, guint ssrc,
+    KmsSrtpConnection * conn)
+{
+  GstCaps *caps = NULL;
+
+  KMS_RTP_BASE_CONNECTION_LOCK (conn);
+
+  if (!conn->priv->r_key_set) {
+    GST_DEBUG_OBJECT (conn, "key is not yet set");
+    goto end;
+  }
+
+  if (!conn->priv->r_updated) {
+    GST_DEBUG_OBJECT (conn, "Key is not yet updated");
+  } else {
+    GST_DEBUG_OBJECT (conn, "Using new key");
+    conn->priv->r_updated = FALSE;
+  }
+
+  caps = create_key_caps (ssrc, conn->priv->r_key, conn->priv->r_auth,
+      conn->priv->r_cipher);
+
+  GST_DEBUG_OBJECT (srtpdec, "Key Caps: %" GST_PTR_FORMAT, caps);
+
+end:
+  KMS_RTP_BASE_CONNECTION_UNLOCK (conn);
+
+  return caps;
+}
+
+static gint key_soft_limit_signal = -1;
+
+static gint
+getKeySoftLimitSignal ()
+{
+	if (key_soft_limit_signal == -1) {
+		key_soft_limit_signal = g_signal_lookup ("key-soft-limit", KMS_TYPE_SRTP_CONNECTION);
+	}
+	return key_soft_limit_signal;
+}
+
+static GstCaps *
+kms_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
+    KmsSrtpConnection * conn)
+{
+  g_signal_emit (conn, getKeySoftLimitSignal (), 0);
+
+  /* FIXME: Key is about to expire, a new one should be provided */
+  /* when renegotiation is supported */
+
+  return NULL;
+}
+
+
 
 KmsSrtpConnection *
 kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock)
@@ -124,6 +273,18 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 		  }
 	  }
 
+	  priv->r_updated = FALSE;
+	  priv->r_key_set = FALSE;
+
+	  priv->srtpenc = gst_element_factory_make ("srtpenc", NULL);
+	  priv->srtpdec = gst_element_factory_make ("srtpdec", NULL);
+	  g_signal_connect (priv->srtpenc, "pad-added",
+	      G_CALLBACK (kms_srtp_connection_new_pad_cb), obj);
+	  g_signal_connect (priv->srtpdec, "request-key",
+	      G_CALLBACK (kms_srtp_connection_request_remote_key_cb), obj);
+	  g_signal_connect (priv->srtpdec, "soft-limit",
+	      G_CALLBACK (kms_srtp_connection_soft_key_limit_cb), obj);
+
 	  priv->rtp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  priv->rtp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 	  g_object_set (priv->rtp_udpsink, "socket", priv->rtp_socket,
@@ -139,8 +300,6 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	      "auto-multicast", FALSE, NULL);
 
 	  kms_i_rtp_connection_connected_signal (KMS_I_RTP_CONNECTION (conn));
-
-
 
 	  return conn;
 }
