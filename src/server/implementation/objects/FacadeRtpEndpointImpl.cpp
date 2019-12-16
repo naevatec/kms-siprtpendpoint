@@ -139,6 +139,7 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 		return offer;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
+			GST_INFO("Consecutive generate Offer on %s, cloning endpoint", this->getId().c_str());
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
 
 			newEndpoint->postConstructor();
@@ -146,6 +147,7 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 			offer = newEndpoint->generateOffer();
 			rtp_ep = newEndpoint;
 			GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
+			GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 			return offer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
@@ -166,6 +168,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 		return answer;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
+			GST_INFO("Consecutive process Offer on %s, cloning endpoint", this->getId().c_str());
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
 
 			newEndpoint->postConstructor();
@@ -173,6 +176,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 			answer = newEndpoint->processOffer(offer);
 			rtp_ep = newEndpoint;
 			GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
+			GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 			return answer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
@@ -194,6 +198,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		return result;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
+			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache);
 			std::string unusedOffer;
 
@@ -201,9 +206,10 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 			this->linkMediaElement(newEndpoint, newEndpoint);
 			unusedOffer = newEndpoint->generateOffer();
 			GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
-			result = newEndpoint->processAnswer(answer);
 			rtp_ep = newEndpoint;
+			result = newEndpoint->processAnswer(answer);
 			GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
+			GST_INFO("Consecutive process Answer on %s, endpoint cloned and answer processed", this->getId().c_str());
 			return result;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
