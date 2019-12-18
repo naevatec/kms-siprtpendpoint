@@ -80,12 +80,22 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   //  sockets from the previous session (the equivalent connection). correlation should be done using ssrc and media type
   GSocket *rtp_sock = NULL;
   GSocket *rtcp_sock = NULL;
+  GList *old_ssrc = NULL;
 
   if (self->priv->conns != NULL) {
 	  kms_sip_rtp_connection_retrieve_sockets (self->priv->conns, media, &rtp_sock, &rtcp_sock);
+
+	  const gchar *media_str = gst_sdp_media_get_media (media);
+
+	  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+	      old_ssrc = g_list_copy (self->old_video_ssrc);
+	  }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+	      old_ssrc = g_list_copy (self->old_audio_ssrc);
+	  }
+
   }
   KmsRtpConnection *conn = kms_sip_rtp_connection_new (min_port, max_port,
-      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock);
+      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, old_ssrc);
 
   return KMS_I_RTP_CONNECTION (conn);
 }
@@ -127,6 +137,9 @@ kms_sip_rtp_session_finalize (GObject *object)
   if (self->priv->conns != NULL) {
 	  g_hash_table_unref (self->priv->conns);
   }
+
+  g_list_free (self->old_audio_ssrc);
+  g_list_free (self->old_video_ssrc);
 }
 
 static void

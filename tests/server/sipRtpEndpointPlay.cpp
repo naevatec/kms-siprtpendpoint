@@ -66,8 +66,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-//  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+//  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -527,7 +527,7 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  cv2.wait (lck2, [&] () {
 	    return media_state_changed2.load();
 	  });
-	  conn.disconnect ();
+	  conn2.disconnect ();
 
 	  if (!media_state_changed2) {
 	    BOOST_ERROR ("Not media Flowing");
@@ -553,6 +553,108 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
   releaseRtpEndpoint (rtpEpAnswerer2);
   releasePassTrhough (pt);
   releasePassTrhough (pt2);
+  releaseTestSrc (src);
+}
+
+static void
+reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypto)
+{
+	  std::atomic<bool> media_state_changed (false);
+	  std::atomic<bool> media_state_changed2 (false);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer2 = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+	  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+	  std::shared_ptr <MediaElementImpl> src2 = createTestSrc();
+	  std::condition_variable cv;
+	  std::condition_variable cv2;
+	  std::mutex mtx;
+	  std::unique_lock<std::mutex> lck (mtx);
+	  std::mutex mtx2;
+	  std::unique_lock<std::mutex> lck2 (mtx2);
+
+	  rtpEpOfferer->connect(pt);
+	  src->connect(rtpEpAnswerer);
+	  src2->connect(rtpEpAnswerer2);
+
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+			  MediaFlowInStateChange event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed = true;
+			  	  	  cv.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+	  std::string answer1 = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer1: " + answer1);
+
+	  rtpEpOfferer->processAnswer(answer1);
+
+	  // First stream
+	  cv.wait (lck, [&] () {
+	    return media_state_changed.load();
+	  });
+	  conn.disconnect ();
+
+	  conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+			  MediaFlowInStateChange event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed = true;
+			  	  	  cv2.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+	  if (!media_state_changed) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+	  std::string answer2 = rtpEpAnswerer2->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer2: " + answer2);
+
+	  rtpEpOfferer->processAnswer (answer2);
+
+	  // Second stream
+	  cv2.wait (lck2, [&] () {
+	    return media_state_changed2.load();
+	  });
+	  conn.disconnect ();
+
+	  if (!media_state_changed2) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releaseRtpEndpoint (rtpEpAnswerer2);
+  releasePassTrhough (pt);
+  releaseTestSrc (src);
+  releaseTestSrc (src2);
 }
 
 
@@ -598,22 +700,41 @@ reconnection_process_answer_state_changes_ipv6()
 	  reconnection_process_answer_state_changes_impl (true, false);
 }
 
+static void
+reconnection_process_answer_back_state_changes()
+{
+	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_answer_back_state_changes");
+	  reconnection_process_answer_back_state_changes_impl (false, false);
+}
+
+static void
+reconnection_process_answer_back_state_changes_ipv6()
+{
+	  BOOST_TEST_MESSAGE ("Start test: reconnection_process_answer_back_state_changes_ipv6");
+	  reconnection_process_answer_back_state_changes_impl (true, false);
+}
+
+
 
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
+  if (FALSE) {
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
+  }
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
 
   if (false) {
 	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
 	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
 	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
 	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15000);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15000);
   }
   return test;
 }

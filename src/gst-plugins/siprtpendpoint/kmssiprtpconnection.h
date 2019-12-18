@@ -24,8 +24,9 @@
 
 G_BEGIN_DECLS
 
-KmsRtpConnection *kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port,
-    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock);
+KmsRtpConnection *
+kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
+		GSocket *rtp_sock, GSocket *rtcp_sock, GList *old_ssrc);
 
 void kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp);
 

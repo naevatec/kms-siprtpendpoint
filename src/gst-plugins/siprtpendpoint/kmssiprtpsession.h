@@ -49,6 +49,9 @@ struct _KmsSipRtpSession
 
   gboolean use_ipv6;
 
+  GList *old_audio_ssrc;
+  GList *old_video_ssrc;
+
   KmsSipRtpSessionPrivate *priv;
 };
 
