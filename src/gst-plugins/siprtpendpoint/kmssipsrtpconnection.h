@@ -26,7 +26,7 @@ G_BEGIN_DECLS
 
 
 KmsSrtpConnection *kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port,
-    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock);
+    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock, GList *old_ssrc);
 
 void kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp);
 void kms_sip_srtp_connection_set_key (KmsSrtpConnection *conn, const gchar *key, guint auth, guint cipher, gboolean local);

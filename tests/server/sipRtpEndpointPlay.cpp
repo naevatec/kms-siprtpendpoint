@@ -66,8 +66,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-//  moduleManager.loadModulesFromDirectories ("../../src/server");
+//  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -168,6 +168,18 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
   return std::dynamic_pointer_cast <MediaElementImpl> (src);
 }
 
+static std::shared_ptr<MediaElementImpl> createTestAudioSrc() {
+  std::shared_ptr <MediaElementImpl> src = std::dynamic_pointer_cast
+      <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
+                            boost::property_tree::ptree(),
+                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                            "dummysrc") ) );
+
+  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", FALSE, NULL);
+
+  return std::dynamic_pointer_cast <MediaElementImpl> (src);
+}
+
 static void
 releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
 {
@@ -181,6 +193,7 @@ static std::shared_ptr<MediaElementImpl> getMediaElement (std::shared_ptr<PassTh
 {
 	return std::dynamic_pointer_cast<MediaElementImpl> (element);
 }
+
 
 static void
 media_state_changes_impl (bool useIpv6, bool useCrypto)
@@ -565,7 +578,7 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
 	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer2 = createRtpEndpoint (useIpv6, useCrypto);
 	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
-	  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+	  std::shared_ptr <MediaElementImpl> src = createTestAudioSrc();
 	  std::shared_ptr <MediaElementImpl> src2 = createTestSrc();
 	  std::condition_variable cv;
 	  std::condition_variable cv2;
@@ -581,7 +594,9 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
 			  MediaFlowInStateChange event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
-		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::AUDIO)) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
 			  	  	  media_state_changed = true;
 			  	  	  cv.notify_one();
@@ -607,9 +622,11 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 	  conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
 			  MediaFlowInStateChange event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
-		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::VIDEO)) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
-			  	  	  media_state_changed = true;
+			  	  	  media_state_changed2 = true;
 			  	  	  cv2.notify_one();
 		  	  	  }
 	  	  	  }
@@ -624,7 +641,7 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 
 	  rtpEpOfferer->processAnswer (answer2);
 
-	  // Second stream
+	  // First stream
 	  cv2.wait (lck2, [&] () {
 	    return media_state_changed2.load();
 	  });
@@ -721,12 +738,10 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  if (FALSE) {
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
-  }
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
 
   if (false) {
