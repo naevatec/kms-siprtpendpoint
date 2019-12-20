@@ -40,10 +40,20 @@ G_DEFINE_TYPE (KmsSipSrtpSession, kms_sip_srtp_session, KMS_TYPE_SRTP_SESSION);
   )                                               \
 )
 
+typedef struct _KmsSipSrtpProbeFilteringInfo KmsSipSrtpProbeFilteringInfo;
+
+struct _KmsSipSrtpProbeFilteringInfo
+{
+	KmsSrtpConnection *conn;
+	gulong rtp_probe;
+	gulong rtcp_probe;
+};
+
 
 struct _KmsSipSrtpSessionPrivate
 {
 	GHashTable *conns;
+	GList *rtp_filtering_info;
 };
 
 
@@ -65,6 +75,22 @@ kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
 
 /* Connection management begin */
 
+static void
+kms_sip_srtp_session_store_rtp_filtering_info (KmsSipSrtpSession *ses, KmsSrtpConnection *conn, gulong rtp_probe, gulong rtcp_probe)
+{
+	  KmsSipSrtpProbeFilteringInfo *info;
+
+	  info = g_try_malloc0 (sizeof (KmsSipSrtpProbeFilteringInfo));
+	  if (info == NULL) {
+		  GST_WARNING ("No memory, some leak may happen");
+	  }
+
+	  info->conn = g_object_ref (conn);
+	  info->rtp_probe = rtp_probe;
+	  info->rtcp_probe = rtcp_probe;
+
+	  ses->priv->rtp_filtering_info = g_list_append (ses->priv->rtp_filtering_info, info);
+}
 
 static KmsIRtpConnection *
 kms_sip_srtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
@@ -82,6 +108,8 @@ kms_sip_srtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   GSocket *rtp_sock = NULL;
   GSocket *rtcp_sock = NULL;
   GList *old_ssrc = NULL;
+  gulong rtp_probe = 0;
+  gulong rtcp_probe = 0;
 
   if (self->priv->conns != NULL) {
 	  kms_sip_srtp_connection_retrieve_sockets (self->priv->conns, media, &rtp_sock, &rtcp_sock);
@@ -95,7 +123,11 @@ kms_sip_srtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
 	  }
   }
   KmsSrtpConnection *conn = kms_sip_srtp_connection_new (min_port, max_port,
-      KMS_SRTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, old_ssrc);
+      KMS_SRTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, old_ssrc, &rtp_probe, &rtcp_probe);
+
+  if ((rtp_probe != 0) || (rtcp_probe != 0)) {
+	  kms_sip_srtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe);
+  }
 
   return KMS_I_RTP_CONNECTION (conn);
 }
@@ -126,6 +158,18 @@ kms_sip_srtp_session_init (KmsSipSrtpSession * self)
 	  self->priv = KMS_SIP_SRTP_SESSION_GET_PRIVATE (self);
 
 	  self->priv->conns = NULL;
+	  self->priv->rtp_filtering_info = NULL;
+}
+
+static void
+kms_sip_rtp_session_free_filter_info (gpointer data)
+{
+	KmsSipSrtpProbeFilteringInfo *info = (KmsSipSrtpProbeFilteringInfo*) data;
+
+	GST_DEBUG ("Releasing SRTP/SRTCP filtering probes");
+	kms_sip_srtp_connection_release_probes (info->conn, info->rtp_probe, info->rtcp_probe);
+	g_object_unref (info->conn);
+	g_free (data);
 }
 
 static void
@@ -137,7 +181,11 @@ kms_sip_srtp_session_finalize (GObject *object)
 	  g_hash_table_unref (self->priv->conns);
   }
 
-  g_list_free (self->old_audio_ssrc);
+  // Release RTP/RTCP filtering info
+  if (self->priv->rtp_filtering_info != NULL)
+	  g_list_free_full (self->priv->rtp_filtering_info, kms_sip_rtp_session_free_filter_info);
+
+g_list_free (self->old_audio_ssrc);
   g_list_free (self->old_video_ssrc);
 }
 

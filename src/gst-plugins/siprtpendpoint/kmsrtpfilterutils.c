@@ -158,6 +158,27 @@ kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, GList *old_ssrc)
 }
 
 
+void
+kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id)
+{
+	if (probe_id == 0)
+		return;
+
+    GST_DEBUG("Removing RTP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+    gst_pad_remove_probe (pad, probe_id);
+
+}
+
+void
+kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
+{
+	if (probe_id == 0)
+		return;
+
+    GST_DEBUG("Removing RTCP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+    gst_pad_remove_probe (pad, probe_id);
+
+}
 
 
 

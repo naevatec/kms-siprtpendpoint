@@ -81,7 +81,7 @@ kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * 
 
 KmsRtpConnection *
 kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock,
-		GList *old_ssrc)
+		GList *old_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
 	  // the gstreamer object factory for the connection, so that we can simplify this function
@@ -129,11 +129,11 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 
 		  pad = gst_element_get_static_pad (priv->rtcp_udpsrc, "src");
 
-		  kms_sip_rtp_filter_setup_probe_rtcp (pad, old_ssrc);
+		  *rtcp_probe_id = kms_sip_rtp_filter_setup_probe_rtcp (pad, old_ssrc);
 		  gst_object_unref (pad);
 
 		  pad = gst_element_get_static_pad (priv->rtp_udpsrc, "src");
-		  kms_sip_rtp_filter_setup_probe_rtp (pad, old_ssrc);
+		  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, old_ssrc);
 		  gst_object_unref (pad);
 	  }
 
@@ -155,5 +155,23 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  return conn;
 }
 
+void
+kms_sip_rtp_connection_release_probes (KmsRtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id)
+{
+	  KmsRtpConnectionPrivate *priv;
+	  GstPad *pad;
+
+	  priv = conn->priv;
+
+	  // Release RTCP probe
+	  pad = gst_element_get_static_pad (priv->rtcp_udpsrc, "src");
+	  kms_sip_rtp_filter_release_probe_rtcp (pad, rtcp_probe_id);
+	  gst_object_unref (pad);
+
+	  // Release RTP probe
+	  pad = gst_element_get_static_pad (priv->rtp_udpsrc, "src");
+	  kms_sip_rtp_filter_release_probe_rtp (pad, rtp_probe_id);
+	  gst_object_unref (pad);
+}
 
 
