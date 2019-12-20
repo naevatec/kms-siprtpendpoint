@@ -13,6 +13,7 @@ set(SIPRTP_SOURCES
   kmssiprtpsession.c kmssiprtpsession.h
   kmssipsrtpconnection.c kmssipsrtpconnection.h
   kmssipsrtpsession.c kmssipsrtpsession.h  
+  kmsrtpfilterutils.c kmsrtpfilterutils.h
 )
 
 add_library(siprtpendpoint MODULE ${SIPRTP_SOURCES})
