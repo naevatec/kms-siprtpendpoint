@@ -21,8 +21,6 @@
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
 
-
-
 // TODO: this hack can be removed when we integrate this into kms-elements and make kms_rtp_connection_new  able to
 // get an object factory
 struct _KmsSrtpConnectionPrivate
@@ -61,8 +59,6 @@ static gchar *ciphers[] = {
   "aes-256-icm"
 };
 
-
-
 void
 kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp)
 {
@@ -90,6 +86,8 @@ kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia *
 		//  so that they are not released on previoues endpoint finalization
 		g_object_set (conn->priv->rtp_udpsink, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtcp_udpsink, "close-socket", FALSE, NULL);
+		g_object_set (conn->priv->rtp_udpsrc, "close-socket", FALSE, NULL);
+		g_object_set (conn->priv->rtcp_udpsrc, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtp_udpsink, "socket", NULL);
 	    g_object_set (conn->priv->rtp_udpsrc, "socket", NULL);
 		g_object_set (conn->priv->rtcp_udpsink, "socket", NULL);
@@ -282,7 +280,6 @@ get_str_cipher (guint cipher)
   return str_cipher;
 }
 
-
 static GstCaps *
 create_key_caps (guint ssrc, const gchar * key, guint auth, guint cipher)
 {
@@ -313,7 +310,6 @@ create_key_caps (guint ssrc, const gchar * key, guint auth, guint cipher)
 
   return caps;
 }
-
 
 static GstCaps *
 kms_sip_srtp_connection_request_remote_key_cb (GstElement * srtpdec, guint ssrc,
@@ -346,6 +342,7 @@ end:
   return caps;
 }
 
+
 static gint key_soft_limit_signal = -1;
 
 static gint
@@ -361,14 +358,13 @@ static GstCaps *
 kms_sip_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
     KmsSrtpConnection * conn)
 {
-  g_signal_emit (conn, getKeySoftLimitSignal (), 0);
+  g_signal_emit (conn, getKeySoftLimitSignal(), 0);
 
   /* FIXME: Key is about to expire, a new one should be provided */
   /* when renegotiation is supported */
 
   return NULL;
 }
-
 
 
 KmsSrtpConnection *
