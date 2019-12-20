@@ -50,9 +50,9 @@ kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * 
 	if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
 	  media_key = AUDIO_RTP_SESSION_STR;
 	} else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-		  media_key = VIDEO_RTP_SESSION_STR;
+	  media_key = VIDEO_RTP_SESSION_STR;
 	} else {
-		  media_key = "";
+	  media_key = "";
 	}
 
 	conn = KMS_RTP_CONNECTION (g_hash_table_lookup (conns, media_key));

@@ -32,7 +32,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 G_DEFINE_TYPE (KmsSipSrtpSession, kms_sip_srtp_session, KMS_TYPE_SRTP_SESSION);
 
-#define KMS_SIP_RTP_SESSION_GET_PRIVATE(obj) (  \
+#define KMS_SIP_SRTP_SESSION_GET_PRIVATE(obj) (  \
   G_TYPE_INSTANCE_GET_PRIVATE (                   \
     (obj),                                        \
     KMS_TYPE_SIP_SRTP_SESSION,                   \
@@ -123,7 +123,7 @@ kms_sip_srtp_session_post_constructor (KmsSrtpSession * self,
 static void
 kms_sip_srtp_session_init (KmsSipSrtpSession * self)
 {
-	  self->priv = KMS_SIP_RTP_SESSION_GET_PRIVATE (self);
+	  self->priv = KMS_SIP_SRTP_SESSION_GET_PRIVATE (self);
 
 	  self->priv->conns = NULL;
 }
@@ -134,8 +134,11 @@ kms_sip_srtp_session_finalize (GObject *object)
   KmsSipSrtpSession *self = KMS_SIP_SRTP_SESSION(object);
 
   if (self->priv->conns != NULL) {
-	  g_object_unref (self->priv->conns);
+	  g_hash_table_unref (self->priv->conns);
   }
+
+  g_list_free (self->old_audio_ssrc);
+  g_list_free (self->old_video_ssrc);
 }
 
 

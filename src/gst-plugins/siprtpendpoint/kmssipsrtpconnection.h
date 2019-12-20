@@ -32,4 +32,4 @@ void kms_sip_srtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMe
 void kms_sip_srtp_connection_set_key (KmsSrtpConnection *conn, const gchar *key, guint auth, guint cipher, gboolean local);
 
 G_END_DECLS
-#endif /* __KMS_SIP_RTP_CONNECTION_H__ */
+#endif /* __KMS_SIP_SRTP_CONNECTION_H__ */

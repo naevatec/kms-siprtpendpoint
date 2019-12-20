@@ -130,43 +130,68 @@ kms_sip_rtp_endpoint_get_clone_data (GList *sessionData)
 }
 
 static void
+kms_sip_rtp_endpoint_preserve_rtp_session_data (KmsSipRtpSession *ses,
+		GList *old_ssrc_audio, GList *old_ssrc_video,
+		GHashTable *conns)
+{
+	ses->old_audio_ssrc = g_list_copy (old_ssrc_audio);
+	ses->old_video_ssrc = g_list_copy (old_ssrc_video);
+
+	KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->clone_connections (ses,conns);
+}
+
+static void
+kms_sip_rtp_endpoint_preserve_srtp_session_data (KmsSipSrtpSession *ses,
+		GList *old_ssrc_audio, GList *old_ssrc_video,
+		GHashTable *conns)
+{
+	ses->old_audio_ssrc = g_list_copy (old_ssrc_audio);
+	ses->old_video_ssrc = g_list_copy (old_ssrc_video);
+
+	KMS_SIP_SRTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->clone_connections (ses,conns);
+}
+
+static void
 kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** sess)
 {
 	GstElement *rtpbin = kms_sip_rtp_endpoint_get_rtpbin (self);
 	GList *sessionToClone = self->priv->sessionData;
 
 	if (rtpbin != NULL) {
+		gboolean is_srtp = FALSE;
+
+		is_srtp = KMS_IS_SIP_SRTP_SESSION (*sess);
 		// TODO: Multisession seems not used on RTPEndpoint, anyway we are doing something probably incorrect
 		// once multisession is used, that is to assume that creation order of sessions are maintained among all
 		// endpoints, and so order can be used to correlate internal rtp sessions.
 		KmsBaseRtpSession *clonedSes = KMS_BASE_RTP_SESSION (*sess);
-		KmsSipRtpSession *clonedSipSes = KMS_SIP_RTP_SESSION (*sess);
 		guint32 ssrc;
-		GList *old_ssrc;
+		GList *old_ssrc_audio;
+		GList *old_ssrc_video;
 		GHashTable *conns;
+
+		conns = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->conns;
 
 		/* TODO: think about this when multiple audio/video medias */
 		// Audio
 		//      Clone SSRC
 		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->audio_ssrc;
-		old_ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->old_audio_ssrc;
-		conns = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->conns;
+		old_ssrc_audio = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->old_audio_ssrc;
 		clonedSes->local_audio_ssrc = ssrc;
-		clonedSipSes->old_audio_ssrc = g_list_copy (old_ssrc);
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, AUDIO_RTP_SESSION, ssrc, AUDIO_RTPBIN_SEND_RTP_SINK);
 
 		// Video
 		//        Clone SSRC
-		ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->video_ssrc;
-		old_ssrc = ((KmsSipRtpEndpointCloneData*)sessionToClone->data)->old_video_ssrc;
+		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->video_ssrc;
+		old_ssrc_video = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->old_video_ssrc;
 		clonedSes->local_video_ssrc = ssrc;
-		clonedSipSes->old_video_ssrc = g_list_copy (old_ssrc);
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, VIDEO_RTP_SESSION, ssrc, VIDEO_RTPBIN_SEND_RTP_SINK);
 
-		KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(clonedSipSes))->clone_connections (clonedSipSes,conns);
-
-		////       Clone sockets
-		//kms_sip_rtp_endpoint_clone_connections (origConns, clonedSes);
+		if (is_srtp) {
+			kms_sip_rtp_endpoint_preserve_srtp_session_data (KMS_SIP_SRTP_SESSION(*sess), old_ssrc_audio, old_ssrc_video, conns);
+		} else {
+			kms_sip_rtp_endpoint_preserve_rtp_session_data (KMS_SIP_RTP_SESSION(*sess), old_ssrc_audio, old_ssrc_video, conns);
+		}
 	}
 }
 

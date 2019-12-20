@@ -234,7 +234,7 @@ setup_probe_filter_old_ssrc_rtcp (GstPad *pad, GList *old_ssrc)
 }
 
 static void
-kms_srtp_connection_new_pad_cb (GstElement * element, GstPad * pad,
+kms_sip_srtp_connection_new_pad_cb (GstElement * element, GstPad * pad,
     KmsSrtpConnection * conn)
 {
   GstPadTemplate *templ;
@@ -316,7 +316,7 @@ create_key_caps (guint ssrc, const gchar * key, guint auth, guint cipher)
 
 
 static GstCaps *
-kms_srtp_connection_request_remote_key_cb (GstElement * srtpdec, guint ssrc,
+kms_sip_srtp_connection_request_remote_key_cb (GstElement * srtpdec, guint ssrc,
     KmsSrtpConnection * conn)
 {
   GstCaps *caps = NULL;
@@ -358,7 +358,7 @@ getKeySoftLimitSignal ()
 }
 
 static GstCaps *
-kms_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
+kms_sip_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
     KmsSrtpConnection * conn)
 {
   g_signal_emit (conn, getKeySoftLimitSignal (), 0);
@@ -372,7 +372,8 @@ kms_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
 
 
 KmsSrtpConnection *
-kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock,
+kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
+		GSocket *rtp_sock, GSocket *rtcp_sock,
 		GList *old_ssrc)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
@@ -396,6 +397,7 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	  if ((rtp_sock != NULL) && (rtcp_sock != NULL)) {
 		  priv->rtp_socket = rtp_sock;
 		  priv->rtcp_socket = rtcp_sock;
+		  GST_ERROR ("Sockets RTP %p and RTCP %p", rtp_sock, rtcp_sock);
 
 	  } else {
 		  //   ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -407,6 +409,7 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 		    g_object_unref (obj);
 		    return NULL;
 		  }
+		  GST_ERROR ("Sockets RTP %p and RTCP %p", priv->rtp_socket, priv->rtcp_socket);
 	  }
 
 	  priv->r_updated = FALSE;
@@ -415,11 +418,11 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	  priv->srtpenc = gst_element_factory_make ("srtpenc", NULL);
 	  priv->srtpdec = gst_element_factory_make ("srtpdec", NULL);
 	  g_signal_connect (priv->srtpenc, "pad-added",
-	      G_CALLBACK (kms_srtp_connection_new_pad_cb), obj);
+	      G_CALLBACK (kms_sip_srtp_connection_new_pad_cb), obj);
 	  g_signal_connect (priv->srtpdec, "request-key",
-	      G_CALLBACK (kms_srtp_connection_request_remote_key_cb), obj);
+	      G_CALLBACK (kms_sip_srtp_connection_request_remote_key_cb), obj);
 	  g_signal_connect (priv->srtpdec, "soft-limit",
-	      G_CALLBACK (kms_srtp_connection_soft_key_limit_cb), obj);
+	      G_CALLBACK (kms_sip_srtp_connection_soft_key_limit_cb), obj);
 
 	  priv->rtp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  priv->rtp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
