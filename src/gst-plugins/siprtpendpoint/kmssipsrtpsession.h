@@ -50,8 +50,8 @@ struct _KmsSipSrtpSession
 
   gboolean use_ipv6;
 
-  GList *old_audio_ssrc;
-  GList *old_video_ssrc;
+  guint32 remote_audio_ssrc;
+  guint32 remote_video_ssrc;
 
   KmsSipSrtpSessionPrivate *priv;
 };
@@ -62,6 +62,8 @@ struct _KmsSipSrtpSessionClass
 
   /* signals */
   void (*clone_connections) (KmsSipSrtpSession *self, GHashTable *conns);
+
+  void (*store_rtp_filtering_info) (KmsSipSrtpSession *ses, KmsSrtpConnection *conn, gulong rtp_probe, gulong rtcp_probe);
 
 };
 

@@ -199,7 +199,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
 			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
-			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache);
+			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache, answer);
 			std::string unusedOffer;
 
 			newEndpoint->postConstructor();

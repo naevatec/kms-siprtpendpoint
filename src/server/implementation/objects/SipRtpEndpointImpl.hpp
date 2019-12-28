@@ -49,7 +49,8 @@ public:
 
   std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint (const boost::property_tree::ptree &conf,
           std::shared_ptr<MediaPipeline> mediaPipeline,
-          std::shared_ptr<SDES> crypto, bool useIpv6);
+          std::shared_ptr<SDES> crypto, bool useIpv6,
+		  const std::string &sdp);
 
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
@@ -71,7 +72,7 @@ private:
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 
-  std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp);
+  std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp, const std::string &sdp);
 
   class StaticConstructor
   {

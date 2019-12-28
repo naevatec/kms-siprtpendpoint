@@ -23,10 +23,10 @@
 
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, GList *old_ssrc);
+kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, guint32 expected_ssrc);
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, GList *old_ssrc);
+kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, guint32 expected_ssrc);
 
 void
 kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id);

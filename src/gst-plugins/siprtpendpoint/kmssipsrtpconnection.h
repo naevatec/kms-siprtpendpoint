@@ -26,7 +26,10 @@ G_BEGIN_DECLS
 
 
 KmsSrtpConnection *kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port,
-    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock, GList *old_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id);
+    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock, guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id);
+
+void
+kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, guint32 ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id);
 
 void
 kms_sip_srtp_connection_release_probes (KmsSrtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id);

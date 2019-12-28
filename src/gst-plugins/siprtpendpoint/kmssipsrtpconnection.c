@@ -235,11 +235,29 @@ kms_sip_srtp_connection_soft_key_limit_cb (GstElement * srtpdec, guint ssrc,
   return NULL;
 }
 
+void
+kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+{
+	  KmsSrtpConnectionPrivate *priv = conn->priv;
+
+	  // If we are reusing sockets, it is possible that packets from old connection (old ssrcs) arrive to the sockets
+	  // They should be avoided as they may auto setup the new connection for old SSRCs, preventing the new connection to succed
+	  GstPad *pad;
+
+	  pad = gst_element_get_static_pad (priv->rtcp_udpsrc, "src");
+
+	  *rtcp_probe_id = kms_sip_rtp_filter_setup_probe_rtcp (pad, expected_ssrc);
+	  gst_object_unref (pad);
+
+	  pad = gst_element_get_static_pad (priv->rtp_udpsrc, "src");
+	  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, expected_ssrc);
+	  gst_object_unref (pad);
+}
 
 KmsSrtpConnection *
 kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
 		GSocket *rtp_sock, GSocket *rtcp_sock,
-		GList *old_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+		guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
 	  // the gstreamer object factory for the connection, so that we can simplify this function
@@ -292,19 +310,8 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	  priv->rtcp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  priv->rtcp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 
-	  if ((rtp_sock != NULL) && (rtcp_sock != NULL)) {
-		  // If we are reusing sockets, it is possible that packets from old connection (old ssrcs) arrive to the sockets
-		  // They should be avoided as they may auto setup the new connection for old SSRCs, preventing the new connection to succed
-		  GstPad *pad;
-
-		  pad = gst_element_get_static_pad (priv->rtcp_udpsrc, "src");
-
-		  *rtcp_probe_id = kms_sip_rtp_filter_setup_probe_rtcp (pad, old_ssrc);
-		  gst_object_unref (pad);
-
-		  pad = gst_element_get_static_pad (priv->rtp_udpsrc, "src");
-		  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, old_ssrc);
-		  gst_object_unref (pad);
+	  if (expected_ssrc != 0) {
+		  kms_sip_srtp_connection_add_probes (conn, expected_ssrc, rtp_probe_id, rtcp_probe_id);
 	  }
 
 	  g_object_set (priv->rtp_udpsink, "socket", priv->rtp_socket,

@@ -57,7 +57,7 @@ struct _KmsSipRtpEndpointClass
 
 
   /* signals */
-  void (*clone_to_new_ep) (KmsSipRtpEndpoint *obj, KmsSipRtpEndpoint *cloned);
+  void (*clone_to_new_ep) (KmsSipRtpEndpoint *obj, KmsSipRtpEndpoint *cloned, const gchar* sdp);
 };
 
 GType kms_sip_rtp_endpoint_get_type (void);

@@ -191,17 +191,18 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
 
 std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (const boost::property_tree::ptree &conf,
         std::shared_ptr<MediaPipeline> mediaPipeline,
-        std::shared_ptr<SDES> crypto, bool useIpv6)
+        std::shared_ptr<SDES> crypto, bool useIpv6,
+		const std::string &sdp)
 {
 	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6));
 
-	this->cloneToNewEndpoint (newEndpoint);
+	this->cloneToNewEndpoint (newEndpoint, sdp);
 	return newEndpoint;
 }
 
-std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp)
+std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp, const std::string &sdp)
 {
-	g_signal_emit_by_name (element, "clone-to-new-ep", newEp->element);
+	g_signal_emit_by_name (element, "clone-to-new-ep", newEp->element, sdp.c_str());
 
 	return newEp;
 }

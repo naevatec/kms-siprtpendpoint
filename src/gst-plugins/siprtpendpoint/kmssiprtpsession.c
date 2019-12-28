@@ -105,24 +105,27 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   //  sockets from the previous session (the equivalent connection). correlation should be done using ssrc and media type
   GSocket *rtp_sock = NULL;
   GSocket *rtcp_sock = NULL;
-  GList *old_ssrc = NULL;
+  guint32 expected_ssrc = 0;
   gulong rtp_probe = 0;
   gulong rtcp_probe = 0;
-
+  const gchar *media_str;
+  KmsRtpConnection *conn;
 
   if (self->priv->conns != NULL) {
+	  // If we are recovering a previous session, due to a renegotation (consecutive processAnswer)
 	  kms_sip_rtp_connection_retrieve_sockets (self->priv->conns, media, &rtp_sock, &rtcp_sock);
 
-	  const gchar *media_str = gst_sdp_media_get_media (media);
-
-	  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-	      old_ssrc = self->old_video_ssrc;
-	  }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-	      old_ssrc = self->old_audio_ssrc;
-	  }
   }
-  KmsRtpConnection *conn = kms_sip_rtp_connection_new (min_port, max_port,
-      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, old_ssrc, &rtp_probe, &rtcp_probe);
+
+  media_str = gst_sdp_media_get_media (media);
+
+  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+	  expected_ssrc = self->remote_video_ssrc;
+  }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+	  expected_ssrc = self->remote_audio_ssrc;
+  }
+  conn = kms_sip_rtp_connection_new (min_port, max_port,
+      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, expected_ssrc, &rtp_probe, &rtcp_probe);
 
   if ((rtp_probe != 0) || (rtcp_probe != 0)) {
 	  kms_sip_rtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe);
@@ -159,6 +162,8 @@ kms_sip_rtp_session_init (KmsSipRtpSession * self)
 
 	  self->priv->conns = NULL;
 	  self->priv->rtp_filtering_info = NULL;
+
+	  GST_DEBUG ("Initialized Kms Sip RTP Session %p", self);
 }
 
 static void
@@ -186,8 +191,7 @@ kms_sip_rtp_session_finalize (GObject *object)
   if (self->priv->rtp_filtering_info != NULL)
 	  g_list_free_full (self->priv->rtp_filtering_info, kms_sip_rtp_session_free_filter_info);
 
-  g_list_free (self->old_audio_ssrc);
-  g_list_free (self->old_video_ssrc);
+  GST_DEBUG ("Finalized RTP Session %p", object);
 }
 
 static void
@@ -213,6 +217,7 @@ kms_sip_rtp_session_class_init (KmsSipRtpSessionClass * klass)
   base_rtp_session_class->create_connection = kms_sip_rtp_session_create_connection;
 
   klass->clone_connections = kms_sip_rtp_session_clone_connections;
+  klass->store_rtp_filtering_info = kms_sip_rtp_session_store_rtp_filtering_info;
 
   gst_element_class_set_details_simple (gstelement_class,
       "SipRtpSession",
