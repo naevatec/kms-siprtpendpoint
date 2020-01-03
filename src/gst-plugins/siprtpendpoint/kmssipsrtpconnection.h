@@ -19,17 +19,20 @@
 #define __KMS_SIP_SRTP_CONNECTION_H__
 
 #include "kmssrtpconnection.h"
+#include "kmsrtpfilterutils.h"
 #include <gio/gio.h>
 #include <gst/sdp/gstsdpmessage.h>
 
 G_BEGIN_DECLS
 
 
-KmsSrtpConnection *kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port,
-    gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock, guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id);
+KmsSrtpConnection *
+kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
+		GSocket *rtp_sock, GSocket *rtcp_sock,
+		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id);
 
 void
-kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, guint32 ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id);
+kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id);
 
 void
 kms_sip_srtp_connection_release_probes (KmsSrtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id);

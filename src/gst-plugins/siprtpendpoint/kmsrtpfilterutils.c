@@ -25,15 +25,26 @@
 
 
 static gboolean
-check_ssrc (guint32 ssrc, guint32 expected_ssrc)
+check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info)
 {
-	if (ssrc == expected_ssrc)
+	if (filter_info->expected == 0) {
+		GList* it = filter_info->old;
+
+		while (it != NULL) {
+			if (ssrc == GPOINTER_TO_UINT(it->data))
+				return TRUE;
+			it = it->next;
+		}
+		filter_info->expected = ssrc;
+		return FALSE;
+	}
+	if (ssrc == filter_info->expected)
 		return FALSE;
 	return TRUE;
 }
 
 static GstPadProbeReturn
-filter_ssrc_rtp_buffer (GstBuffer *buffer, guint32 expected_ssrc)
+filter_ssrc_rtp_buffer (GstBuffer *buffer, SipFilterSsrcInfo* filter_info)
 {
 	GstRTPBuffer rtp_buffer =  GST_RTP_BUFFER_INIT;
 
@@ -42,7 +53,7 @@ filter_ssrc_rtp_buffer (GstBuffer *buffer, guint32 expected_ssrc)
 		guint32 checked_ssrc = gst_rtp_buffer_get_ssrc (&rtp_buffer);
 
 		gst_rtp_buffer_unmap (&rtp_buffer);
-		if (check_ssrc (checked_ssrc, expected_ssrc)) {
+		if (check_ssrc (checked_ssrc, filter_info)) {
 			GST_INFO ("RTP packet dropped from a previous RTP flow with SSRC %u", checked_ssrc);
 			return GST_PAD_PROBE_DROP;
 		} else {
@@ -60,9 +71,9 @@ filter_ssrc_rtp_buffer (GstBuffer *buffer, guint32 expected_ssrc)
 static gboolean
 filter_buffer (GstBuffer ** buffer, guint idx, gpointer user_data)
 {
-	guint32 ssrc = GPOINTER_TO_UINT(user_data);
+	SipFilterSsrcInfo* filter_info = (SipFilterSsrcInfo*)user_data;
 
-	if (filter_ssrc_rtp_buffer(*buffer, ssrc) == GST_PAD_PROBE_DROP)
+	if (filter_ssrc_rtp_buffer(*buffer, filter_info) == GST_PAD_PROBE_DROP)
 		*buffer = NULL;
 
 	return TRUE;
@@ -71,7 +82,7 @@ filter_buffer (GstBuffer ** buffer, guint idx, gpointer user_data)
 static GstPadProbeReturn
 filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
-	guint32 expected_ssrc = GPOINTER_TO_UINT(user_data);
+	SipFilterSsrcInfo* filter_info = (SipFilterSsrcInfo*) user_data;
 	GstBuffer *buffer;
 
 	GST_DEBUG ("Filtering RTP packets from previous flows to this receiver");
@@ -79,7 +90,7 @@ filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	if (buffer != NULL) {
 		GST_DEBUG ("RTP buffer received from Filtering RTP packets from previous flows to this receiver");
 
-		return filter_ssrc_rtp_buffer (buffer, expected_ssrc);
+		return filter_ssrc_rtp_buffer (buffer, filter_info);
 	} else  {
 		GstBufferList *buffer_list;
 
@@ -97,7 +108,7 @@ filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 static GstPadProbeReturn
 filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
-	guint32 expected_ssrc = GPOINTER_TO_UINT(user_data);
+	SipFilterSsrcInfo* filter_info = (SipFilterSsrcInfo*)user_data;
 	GstBuffer *buffer;
 
 	buffer = GST_PAD_PROBE_INFO_BUFFER (info);
@@ -123,8 +134,8 @@ filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
         		guint64 ntptime;
 
     			gst_rtcp_packet_sr_get_sender_info    (&packet, &ssrc, &ntptime, &rtptime, &packet_count, &octet_count);
-    			if (check_ssrc (ssrc, expected_ssrc)) {
-    				GST_DEBUG("Unexpected SSRC RTCP packet received: %u, expected: %u", ssrc, expected_ssrc);
+    			if (check_ssrc (ssrc, filter_info)) {
+    				GST_DEBUG("Unexpected SSRC RTCP packet received: %u, expected: %u", ssrc, filter_info->expected);
     				gst_rtcp_packet_remove (&packet);
     			}
     		}
@@ -138,19 +149,29 @@ filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, guint32 expected_ssrc)
+kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, SipFilterSsrcInfo* filter_info)
 {
-    GST_DEBUG("Installing RTP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
-    return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST | GST_PAD_PROBE_TYPE_PUSH | GST_PAD_PROBE_TYPE_PULL,
-        (GstPadProbeCallback) filter_ssrc_rtp, GUINT_TO_POINTER(expected_ssrc), NULL);
+	if (filter_info != NULL) {
+		GST_DEBUG("Installing RTP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+		return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST | GST_PAD_PROBE_TYPE_PUSH | GST_PAD_PROBE_TYPE_PULL,
+				(GstPadProbeCallback) filter_ssrc_rtp, GUINT_TO_POINTER(filter_info), NULL);
+	} else {
+	    GST_DEBUG("No RTP probe installed for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+	    return 0;
+	}
 }
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, guint32 expected_ssrc)
+kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, SipFilterSsrcInfo* filter_info)
 {
-    GST_DEBUG("Installing RTCP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
-    return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
-        (GstPadProbeCallback) filter_ssrc_rtcp, GUINT_TO_POINTER(expected_ssrc), NULL);
+	if (filter_info != NULL) {
+	    GST_DEBUG("Installing RTCP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+	    return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
+	        (GstPadProbeCallback) filter_ssrc_rtcp, filter_info, NULL);
+	} else {
+	    GST_DEBUG("No RTCP probe installed for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+	    return 0;
+	}
 }
 
 
@@ -176,5 +197,33 @@ kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
 
 }
 
+SipFilterSsrcInfo*
+kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous)
+{
+	SipFilterSsrcInfo* info = g_new (SipFilterSsrcInfo, 1);
+
+	info->expected = expected;
+	info->old = NULL;
+	if (previous != NULL) {
+		GList* it = previous->old;
+
+		if (previous->expected != 0)
+			info->old = g_list_append (info->old, GUINT_TO_POINTER(previous->expected));
+		while (it != NULL) {
+			info->old = g_list_append (info->old, it->data);
+			it = it->next;
+		}
+	}
+
+	return info;
+}
+
+void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info)
+{
+	if (info->old != NULL) {
+		g_list_free (info->old);
+	}
+	g_free (info);
+}
 
 

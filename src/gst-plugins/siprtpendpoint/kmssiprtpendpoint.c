@@ -52,8 +52,11 @@ typedef struct _KmsSipRtpEndpointCloneData KmsSipRtpEndpointCloneData;
 
 struct _KmsSipRtpEndpointCloneData
 {
-	guint32 audio_ssrc;
-	guint32 video_ssrc;
+	guint32 local_audio_ssrc;
+	guint32 local_video_ssrc;
+
+	SipFilterSsrcInfo* audio_filter_info;
+	SipFilterSsrcInfo* video_filter_info;
 
 	GHashTable *conns;
 };
@@ -63,10 +66,6 @@ struct _KmsSipRtpEndpointPrivate
   gboolean *use_sdes_cache;
 
   GList *sessionData;
-
-  guint32 remote_audio_ssrc;
-  guint32 remote_video_ssrc;
-
 };
 
 /* Signals and args */
@@ -164,13 +163,13 @@ kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** s
 		/* TODO: think about this when multiple audio/video medias */
 		// Audio
 		//      Clone SSRC
-		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->audio_ssrc;
+		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->local_audio_ssrc;
 		clonedSes->local_audio_ssrc = ssrc;
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, AUDIO_RTP_SESSION, ssrc, AUDIO_RTPBIN_SEND_RTP_SINK);
 
 		// Video
 		//        Clone SSRC
-		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->video_ssrc;
+		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->local_video_ssrc;
 		clonedSes->local_video_ssrc = ssrc;
 		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, VIDEO_RTP_SESSION, ssrc, VIDEO_RTPBIN_SEND_RTP_SINK);
 
@@ -260,6 +259,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
   KmsIRtpSessionManager *manager = KMS_I_RTP_SESSION_MANAGER (base_sdp);
   KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT (base_sdp);
   gboolean use_ipv6 = FALSE;
+  KmsSipRtpEndpointCloneData *data = NULL;
 
   /* Get ip address now that session is being created */
   kms_sip_rtp_endpoint_set_addr (self);
@@ -269,15 +269,17 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 	KmsSipSrtpSession *sip_srtp_ses = kms_sip_srtp_session_new (base_sdp, id, manager, use_ipv6);
     *sess = KMS_SDP_SESSION (sip_srtp_ses);
 	if (self->priv->sessionData != NULL) {
-		sip_srtp_ses->remote_audio_ssrc = self->priv->remote_audio_ssrc;
-		sip_srtp_ses->remote_video_ssrc = self->priv->remote_video_ssrc;
+		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
+		sip_srtp_ses->audio_filter_info = data->audio_filter_info;
+		sip_srtp_ses->video_filter_info = data->video_filter_info;
 	}
   } else {
 	KmsSipRtpSession *sip_rtp_ses = kms_sip_rtp_session_new (base_sdp, id, manager, use_ipv6);
     *sess = KMS_SDP_SESSION (sip_rtp_ses);
 	if (self->priv->sessionData != NULL) {
-		sip_rtp_ses->remote_audio_ssrc = self->priv->remote_audio_ssrc;
-		sip_rtp_ses->remote_video_ssrc = self->priv->remote_video_ssrc;
+		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
+		sip_rtp_ses->audio_filter_info = data->audio_filter_info;
+		sip_rtp_ses->video_filter_info = data->video_filter_info;
 	}
   }
 
@@ -323,50 +325,50 @@ kms_sip_rtp_endpoint_configure_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
 
 /* Configure media SDP end */
 
-static void
-kms_sip_rtp_endpoint_set_connection_filter_probe (KmsSipRtpEndpoint *self, KmsIRtpConnection *conn, KmsBaseRtpSession *ses, guint32 ssrc)
-{
-	if (KMS_IS_RTP_CONNECTION (conn)) {
-		gulong rtp_probe, rtcp_probe;
-		KmsSipRtpSession *sip_ses = KMS_SIP_RTP_SESSION (ses);
-		KmsRtpConnection *rtp_conn = KMS_RTP_CONNECTION (conn);
+//static void
+//kms_sip_rtp_endpoint_set_connection_filter_probe (KmsSipRtpEndpoint *self, KmsIRtpConnection *conn, KmsBaseRtpSession *ses, guint32 expected_ssrc)
+//{
+//	if (KMS_IS_RTP_CONNECTION (conn)) {
+//		gulong rtp_probe, rtcp_probe;
+//		KmsSipRtpSession *sip_ses = KMS_SIP_RTP_SESSION (ses);
+//		KmsRtpConnection *rtp_conn = KMS_RTP_CONNECTION (conn);
+//
+//		kms_sip_rtp_connection_add_probes (rtp_conn, filter_info, &rtp_probe, &rtcp_probe);
+//		KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
+//	} else if (KMS_IS_SRTP_CONNECTION (conn)) {
+//		gulong rtp_probe, rtcp_probe;
+//		KmsSipSrtpSession *sip_ses = KMS_SIP_SRTP_SESSION (ses);
+//		KmsSrtpConnection *rtp_conn = KMS_SRTP_CONNECTION (conn);
+//
+//		kms_sip_srtp_connection_add_probes (rtp_conn, filter_info, &rtp_probe, &rtcp_probe);
+//		KMS_SIP_SRTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
+//	}
+//}
 
-		kms_sip_rtp_connection_add_probes (rtp_conn, ssrc, &rtp_probe, &rtcp_probe);
-		KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
-	} else if (KMS_IS_SRTP_CONNECTION (conn)) {
-		gulong rtp_probe, rtcp_probe;
-		KmsSipSrtpSession *sip_ses = KMS_SIP_SRTP_SESSION (ses);
-		KmsSrtpConnection *rtp_conn = KMS_SRTP_CONNECTION (conn);
 
-		kms_sip_srtp_connection_add_probes (rtp_conn, ssrc, &rtp_probe, &rtcp_probe);
-		KMS_SIP_SRTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
-	}
-}
-
-
-static void
-kms_sip_rtp_endpoint_set_filter_probes (KmsSipRtpEndpoint *self)
-{
-	GHashTable * sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT(self));
-	GList *sessionKeys = g_hash_table_get_keys (sessions);
-	gint i;
-	KmsIRtpConnection *conn;
-
-	// In fact SipRtpEndpoint should have only one session, if not, this loop should be revised
-	for (i = 0; i < g_hash_table_size(sessions); i++) {
-		gpointer sesKey = sessionKeys->data;
-		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
-
-		// AUDIO
-		conn = g_hash_table_lookup (ses->conns, AUDIO_RTP_SESSION_STR);
-		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, self->priv->remote_audio_ssrc);
-
-		// VIDEO
-		conn = g_hash_table_lookup (ses->conns, VIDEO_RTP_SESSION_STR);
-		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, self->priv->remote_video_ssrc);
-	}
-	g_list_free(sessionKeys);
-}
+//static void
+//kms_sip_rtp_endpoint_set_filter_probes (KmsSipRtpEndpoint *self, guint32 expected_audio_ssrc, guint32 expected_video_ssrc)
+//{
+//	GHashTable * sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT(self));
+//	GList *sessionKeys = g_hash_table_get_keys (sessions);
+//	gint i;
+//	KmsIRtpConnection *conn;
+//
+//	// In fact SipRtpEndpoint should have only one session, if not, this loop should be revised
+//	for (i = 0; i < g_hash_table_size(sessions); i++) {
+//		gpointer sesKey = sessionKeys->data;
+//		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
+//
+//		// AUDIO
+//		conn = g_hash_table_lookup (ses->conns, AUDIO_RTP_SESSION_STR);
+//		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, expected_audio_ssrc);
+//
+//		// VIDEO
+//		conn = g_hash_table_lookup (ses->conns, VIDEO_RTP_SESSION_STR);
+//		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, expected_video_ssrc);
+//	}
+//	g_list_free(sessionKeys);
+//}
 
 static guint
 ssrc_str_to_uint (const gchar * ssrc_str)
@@ -464,10 +466,12 @@ static gboolean
 kms_sip_rtp_endpoint_process_answer (KmsBaseSdpEndpoint * ep,
     const gchar * sess_id, GstSDPMessage * answer)
 {
-	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(ep);
-
-	kms_sip_rtp_endpoint_get_expected_ssrc (answer, &self->priv->remote_audio_ssrc, &self->priv->remote_video_ssrc);
-	kms_sip_rtp_endpoint_set_filter_probes (self);
+//	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(ep);
+//	guint32 expected_audio_ssrc = 0;
+//	guint32 expected_video_ssrc = 0;
+//
+//	kms_sip_rtp_endpoint_get_expected_ssrc (answer, &expected_audio_ssrc, &expected_video_ssrc);
+//	kms_sip_rtp_endpoint_set_filter_probes (self);
 	return KMS_BASE_SDP_ENDPOINT_CLASS(kms_sip_rtp_endpoint_parent_class)->process_answer (ep, sess_id, answer);
 }
 
@@ -480,12 +484,29 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
 }
 
 static KmsSipRtpEndpointCloneData*
-kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses)
+kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses, guint32 audio_ssrc, guint32 video_ssrc)
 {
 	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
+	SipFilterSsrcInfo* audio_filter_info;
+	SipFilterSsrcInfo* video_filter_info;
 
-	data->audio_ssrc = ses->local_audio_ssrc;
-	data->video_ssrc = ses->local_video_ssrc;
+	data->local_audio_ssrc = ses->local_audio_ssrc;
+	data->local_video_ssrc = ses->local_video_ssrc;
+
+	if (KMS_IS_SIP_RTP_SESSION (ses)) {
+		KmsSipRtpSession* sip_ses = KMS_SIP_RTP_SESSION (ses);
+
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info);
+	} else if (KMS_IS_SIP_SRTP_SESSION (ses)) {
+		KmsSipSrtpSession* sip_ses = KMS_SIP_SRTP_SESSION (ses);
+
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info);
+	}
+
+	data->audio_filter_info = audio_filter_info;
+	data->video_filter_info = video_filter_info;
 	data->conns = g_hash_table_ref(ses->conns);
 
 	return data;
@@ -517,7 +538,8 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 	GList *sessionKeys = g_hash_table_get_keys (sessions);
 	gint i;
 	GList *sessionsData = NULL;
-	guint32 remote_audio_ssrc, remote_video_ssrc;
+	guint32 remote_audio_ssrc = 0;
+	guint32 remote_video_ssrc = 0;
 	GstSDPMessage *sdp;
 
 	gst_sdp_message_new (&sdp);
@@ -525,7 +547,7 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 		GST_ERROR("Could not parse SDP answer");
 
 	if (!kms_sip_rtp_endpoint_get_expected_ssrc (sdp, &remote_audio_ssrc, &remote_video_ssrc)) {
-		GST_ERROR("Could not find SSRCs on SDP answer");
+		GST_INFO("Could not find SSRCs on SDP answer, assuming first SSRC different from previous is valid");
 	}
 
 	gst_sdp_message_free (sdp);
@@ -534,7 +556,7 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 	for (i = 0; i < g_hash_table_size(sessions); i++) {
 		gpointer sesKey = sessionKeys->data;
 		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
-		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (self, ses);
+		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (self, ses, remote_audio_ssrc, remote_video_ssrc);
 
 		sessionsData = g_list_append (sessionsData, (gpointer)data);
 	}
@@ -545,8 +567,6 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 		kms_sip_rtp_endpoint_free_clone_data (cloned->priv->sessionData);
 	}
 	cloned->priv->sessionData = sessionsData;
-	cloned->priv->remote_audio_ssrc = remote_audio_ssrc;
-	cloned->priv->remote_video_ssrc = remote_video_ssrc;
 	KMS_ELEMENT_UNLOCK (cloned);
 }
 
@@ -677,9 +697,6 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 
   self->priv->use_sdes_cache = NULL;
   self->priv->sessionData = NULL;
-
-  self->priv->remote_audio_ssrc = 0;
-  self->priv->remote_video_ssrc = 0;
 
   GST_DEBUG ("Initialized RTP Endpoint %p", self);
 }

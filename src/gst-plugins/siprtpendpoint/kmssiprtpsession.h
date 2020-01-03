@@ -21,6 +21,7 @@
 #include <gst/gst.h>
 #include <kmsrtpsession.h>
 #include "kmssiprtpconnection.h"
+#include "kmsrtpfilterutils.h"
 
 G_BEGIN_DECLS
 
@@ -49,8 +50,8 @@ struct _KmsSipRtpSession
 
   gboolean use_ipv6;
 
-  guint32 remote_audio_ssrc;
-  guint32 remote_video_ssrc;
+  SipFilterSsrcInfo* audio_filter_info;
+  SipFilterSsrcInfo* video_filter_info;
 
   KmsSipRtpSessionPrivate *priv;
 };

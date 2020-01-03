@@ -20,6 +20,7 @@
 #endif
 
 #include "kmssiprtpsession.h"
+#include "kmsrtpfilterutils.h"
 #include <commons/kmsbasertpsession.h>
 #include <commons/constants.h>
 #include <gio/gio.h>
@@ -64,6 +65,8 @@ kms_sip_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
 
   obj = g_object_new (KMS_TYPE_SIP_RTP_SESSION, NULL);
   self = KMS_SIP_RTP_SESSION (obj);
+  self->audio_filter_info = NULL;
+  self->video_filter_info = NULL;
   KMS_RTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor
       (KMS_RTP_SESSION(self), ep, id, manager, use_ipv6);
 
@@ -105,7 +108,7 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   //  sockets from the previous session (the equivalent connection). correlation should be done using ssrc and media type
   GSocket *rtp_sock = NULL;
   GSocket *rtcp_sock = NULL;
-  guint32 expected_ssrc = 0;
+  SipFilterSsrcInfo* filter_info = NULL;
   gulong rtp_probe = 0;
   gulong rtcp_probe = 0;
   const gchar *media_str;
@@ -120,12 +123,12 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   media_str = gst_sdp_media_get_media (media);
 
   if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-	  expected_ssrc = self->remote_video_ssrc;
+	  filter_info = self->video_filter_info;
   }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-	  expected_ssrc = self->remote_audio_ssrc;
+	  filter_info = self->audio_filter_info;
   }
   conn = kms_sip_rtp_connection_new (min_port, max_port,
-      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, expected_ssrc, &rtp_probe, &rtcp_probe);
+      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe);
 
   if ((rtp_probe != 0) || (rtcp_probe != 0)) {
 	  kms_sip_rtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe);
@@ -191,6 +194,14 @@ kms_sip_rtp_session_finalize (GObject *object)
   if (self->priv->rtp_filtering_info != NULL)
 	  g_list_free_full (self->priv->rtp_filtering_info, kms_sip_rtp_session_free_filter_info);
 
+  if (self->audio_filter_info != NULL) {
+	  kms_sip_rtp_filter_release_filtering_info (self->audio_filter_info);
+  }
+  if (self->video_filter_info != NULL) {
+	  kms_sip_rtp_filter_release_filtering_info (self->video_filter_info);
+
+
+  }
   GST_DEBUG ("Finalized RTP Session %p", object);
 }
 

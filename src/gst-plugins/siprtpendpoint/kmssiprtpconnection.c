@@ -81,7 +81,7 @@ kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * 
 
 
 void
-kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id)
 {
 	  KmsRtpConnectionPrivate *priv = conn->priv;
 
@@ -91,18 +91,18 @@ kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, guint32 expected_ssrc
 
 	  pad = gst_element_get_static_pad (priv->rtcp_udpsrc, "src");
 
-	  *rtcp_probe_id = kms_sip_rtp_filter_setup_probe_rtcp (pad, expected_ssrc);
+	  *rtcp_probe_id = kms_sip_rtp_filter_setup_probe_rtcp (pad, filter_info);
 	  gst_object_unref (pad);
 
 	  pad = gst_element_get_static_pad (priv->rtp_udpsrc, "src");
-	  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, expected_ssrc);
+	  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, filter_info);
 	  gst_object_unref (pad);
 }
 
 
 KmsRtpConnection *
 kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock,
-		guint32 expected_ssrc, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
 	  // the gstreamer object factory for the connection, so that we can simplify this function
@@ -143,8 +143,8 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  priv->rtcp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  priv->rtcp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 
-	  if (expected_ssrc != 0) {
-		  kms_sip_rtp_connection_add_probes (conn, expected_ssrc, rtp_probe_id, rtcp_probe_id);
+	  if (filter_info != NULL) {
+		  kms_sip_rtp_connection_add_probes (conn, filter_info, rtp_probe_id, rtcp_probe_id);
 	  }
 
 	  g_object_set (priv->rtp_udpsink, "socket", priv->rtp_socket,

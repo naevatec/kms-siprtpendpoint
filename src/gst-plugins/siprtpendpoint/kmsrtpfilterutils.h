@@ -21,12 +21,18 @@
 
 #include <gst/gst.h>
 
+typedef struct _SipFilterSsrcInfo SipFilterSsrcInfo;
+
+struct _SipFilterSsrcInfo {
+	guint32 expected;
+	GList*  old;
+};
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, guint32 expected_ssrc);
+kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, SipFilterSsrcInfo* filter_info);
 
 gulong
-kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, guint32 expected_ssrc);
+kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, SipFilterSsrcInfo* filter_info);
 
 void
 kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id);
@@ -34,5 +40,9 @@ kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id);
 void
 kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id);
 
+SipFilterSsrcInfo*
+kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous);
+
+void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info);
 
 #endif /* KMSRTPFILTERUTILS_H_ */
