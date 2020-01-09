@@ -48,6 +48,8 @@ public:
 
   operator BaseRtpEndpointImpl();
 
+
+
   /*----------------- MEthods from BaseRtpEndpoint ---------------*/
   int getMinVideoRecvBandwidth () override;
   void setMinVideoRecvBandwidth (int minVideoRecvBandwidth) override;
@@ -151,10 +153,27 @@ protected:
 
 private:
 
+  sigc::signal<void, MediaStateChanged> signalMediaStateChanged;
+  sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
+  sigc::signal<void, MediaSessionStarted> signalMediaSessionStarted;
+  sigc::signal<void, MediaSessionTerminated> signalMediaSessionTerminated;
+  sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
 
-  sigc::connection connRtp;
-  sigc::connection connEpIn;
-  sigc::connection connEpOut;
+  sigc::connection connMediaStateChanged;
+  sigc::connection connConnectionStateChanged;
+  sigc::connection connMediaSessionStarted;
+  sigc::connection connMediaSessionTerminated;
+  sigc::connection connOnKeySoftLimit;
+
+  void
+  disconnectForwardSignals ();
+
+  void
+  connectForwardSignals ();
+
+  void
+  renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint);
+
 
 
   std::shared_ptr<SipRtpEndpointImpl> rtp_ep;

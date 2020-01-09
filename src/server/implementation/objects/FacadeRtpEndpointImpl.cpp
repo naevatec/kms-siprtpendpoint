@@ -59,7 +59,7 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
 
 FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
 {
-	this->linkMediaElement(NULL, NULL);
+	linkMediaElement(NULL, NULL);
 }
 
 void
@@ -68,35 +68,7 @@ FacadeRtpEndpointImpl::postConstructor ()
   ComposedObjectImpl::postConstructor ();
 
   rtp_ep->postConstructor();
-  this->linkMediaElement(rtp_ep, rtp_ep);
-
-  connRtp = std::dynamic_pointer_cast<MediaElementImpl>(rtp_ep)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
-	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
-	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
-		  	  	  GST_DEBUG("Media Flowing In");
-	  	  	  }
-  	  	  }
-  );
-
-  connEpIn = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
-	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
-	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
-		  	  	  GST_DEBUG("Media Flowing In");
-	  	  	  }
-  	  	  }
-  );
-
-  connEpOut = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
-	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
-	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
-		  	  	  GST_DEBUG("Media Flowing In");
-	  	  	  }
-  	  	  }
-  );
-
+  linkMediaElement(rtp_ep, rtp_ep);
 
 }
 
@@ -109,11 +81,39 @@ FacadeRtpEndpointImpl::StaticConstructor::StaticConstructor()
                            GST_DEFAULT_NAME);
 }
 
+
 // The methods connect and invoke are automatically generated in the SipRtpEndpoint class
 // but no in the Facadde, so we have to redirect the implementation to the one in SipRtpEndpoint
 bool FacadeRtpEndpointImpl::connect (const std::string &eventType, std::shared_ptr<EventHandler> handler)
 {
-	return this->rtp_ep->connect(eventType, handler);
+    std::weak_ptr<EventHandler> wh = handler;
+
+    if ("OnKeySoftLimit" == eventType){
+    	sigc::connection conn = connectEventToExternalHandler<OnKeySoftLimit> (signalOnKeySoftLimit, wh);
+	    handler->setConnection (conn);
+	    return true;
+    }
+	if ("MediaStateChanged" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaStateChanged> (signalMediaStateChanged, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
+	if ("ConnectionStateChanged" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<ConnectionStateChanged> (signalConnectionStateChanged, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
+	if ("MediaSessionStarted" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaSessionStarted> (signalMediaSessionStarted, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
+	if ("MediaSessionTerminated" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaSessionTerminated> (signalMediaSessionTerminated, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
+	return ComposedObjectImpl::connect (eventType, handler);
 }
 
 
@@ -143,9 +143,8 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
 
 			newEndpoint->postConstructor();
-			this->linkMediaElement(newEndpoint, newEndpoint);
+			renewInternalEndpoint (newEndpoint);
 			offer = newEndpoint->generateOffer();
-			rtp_ep = newEndpoint;
 			GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
 			GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 			return offer;
@@ -172,9 +171,8 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
 
 			newEndpoint->postConstructor();
-			this->linkMediaElement(newEndpoint, newEndpoint);
+			renewInternalEndpoint (newEndpoint);
 			answer = newEndpoint->processOffer(offer);
-			rtp_ep = newEndpoint;
 			GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
 			GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 			return answer;
@@ -203,10 +201,9 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 			std::string unusedOffer;
 
 			newEndpoint->postConstructor();
-			this->linkMediaElement(newEndpoint, newEndpoint);
+			renewInternalEndpoint (newEndpoint);
 			unusedOffer = newEndpoint->generateOffer();
 			GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
-			rtp_ep = newEndpoint;
 			result = newEndpoint->processAnswer(answer);
 			GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
 			GST_INFO("Consecutive process Answer on %s, endpoint cloned and answer processed", this->getId().c_str());
@@ -229,6 +226,63 @@ std::string FacadeRtpEndpointImpl::getLocalSessionDescriptor ()
 std::string FacadeRtpEndpointImpl::getRemoteSessionDescriptor ()
 {
 	return this->rtp_ep->getRemoteSessionDescriptor();
+}
+
+
+void
+FacadeRtpEndpointImpl::disconnectForwardSignals ()
+{
+	connMediaStateChanged.disconnect ();
+	connConnectionStateChanged.disconnect ();
+	connMediaSessionStarted.disconnect ();
+	connMediaSessionTerminated.disconnect ();
+	connOnKeySoftLimit.disconnect ();
+}
+
+void
+FacadeRtpEndpointImpl::connectForwardSignals ()
+{
+
+	  connMediaStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaStateChanged.connect([ & ] (
+			  MediaStateChanged event) {
+		  raiseEvent<MediaStateChanged> (event, shared_from_this(), signalMediaStateChanged);
+	  });
+
+	  connConnectionStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalConnectionStateChanged.connect([ & ] (
+			  ConnectionStateChanged event) {
+		  raiseEvent<ConnectionStateChanged> (event, shared_from_this(), signalConnectionStateChanged);
+	  });
+
+	  connMediaSessionStarted = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionStarted.connect([ & ] (
+			  MediaSessionStarted event) {
+		  raiseEvent<MediaSessionStarted> (event, shared_from_this(), signalMediaSessionStarted);
+	  });
+
+	  connMediaSessionTerminated = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionTerminated.connect([ & ] (
+			  MediaSessionTerminated event) {
+		  raiseEvent<MediaSessionTerminated> (event, shared_from_this(), signalMediaSessionTerminated);
+	  });
+
+	  connOnKeySoftLimit = rtp_ep->signalOnKeySoftLimit.connect([ & ] (
+			  OnKeySoftLimit event) {
+		  raiseEvent<OnKeySoftLimit> (event, shared_from_this(), signalOnKeySoftLimit);
+	  });
+
+}
+
+void
+FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint)
+{
+	if (rtp_ep != NULL) {
+		disconnectForwardSignals ();
+	}
+
+	rtp_ep = newEndpoint;
+	linkMediaElement(newEndpoint, newEndpoint);
+
+	if (rtp_ep != NULL) {
+		connectForwardSignals ();
+	}
 }
 
 

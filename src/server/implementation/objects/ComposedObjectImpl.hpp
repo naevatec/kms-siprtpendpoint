@@ -64,14 +64,78 @@ public:
 
 protected:
   virtual void postConstructor () override;
+  bool connect (const std::string &eventType, std::shared_ptr<EventHandler> handler);
   std::shared_ptr<PassThroughImpl> sinkPt;
   std::shared_ptr<PassThroughImpl> srcPt;
+
+  template<typename T>
+  sigc::connection connectEventToExternalHandler (sigc::signal<void, T>& signal, std::weak_ptr<EventHandler>& wh)
+  {
+      sigc::connection conn = signal.connect ([ &, wh] (T event) {
+        std::shared_ptr<EventHandler> lh = wh.lock();
+        if (!lh)
+          return;
+
+        std::shared_ptr<T> ev_ref (new T(event));
+        auto object = this->shared_from_this();
+
+        lh->sendEventAsync ([ev_ref, object, lh] {
+            JsonSerializer s (true);
+
+            s.Serialize ("data", ev_ref.get());
+            s.Serialize ("object", object.get());
+            s.JsonValue["type"] = T::getName().c_str();
+
+            lh->sendEvent (s.JsonValue);
+        });
+      });
+      return conn;
+  }
+
+  template<typename T> void
+  raiseEvent (T& event, std::shared_ptr<MediaObject> self, sigc::signal<void, T>& signal)
+  {
+  	  try {
+  		  T event2 (event);
+
+  		  event2.setSource(self);
+  		  sigcSignalEmit(signal, event2);
+  	  } catch (const std::bad_weak_ptr &e) {
+  	    // shared_from_this()
+  	    GST_ERROR ("BUG creating %s: %s", T::getName ().c_str (),
+  	        e.what ());
+  	  }
+  }
+
+
 
 private:
 
   GstElement* origElem;
   std::shared_ptr<MediaElement> linkedSource;
   std::shared_ptr<MediaElement> linkedSink;
+
+  sigc::signal<void, ElementConnected> signalElementConnected;
+  sigc::signal<void, ElementDisconnected> signalElementDisconnected;
+  sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
+  sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
+  sigc::signal<void, MediaTranscodingStateChange> signalMediaTranscodingStateChange;
+  sigc::signal<void, Error> signalError;
+
+  sigc::connection connElementConnectedSrc;
+  sigc::connection connElementConnectedSink;
+  sigc::connection connElementDisconnectedSrc;
+  sigc::connection connElementDisconnectedSink;
+  sigc::connection connMediaTranscodingStateChangeSrc;
+  sigc::connection connMediaTranscodingStateChangeSink;
+  sigc::connection connMediaFlowOutStateChange;
+  sigc::connection connMediaFlowInStateChange;
+  sigc::connection connErrorSrc;
+  sigc::connection connErrorSink;
+  sigc::connection connErrorlinkedSrc;
+  sigc::connection connErrorlinkedSink;
+
+
 
   std::recursive_mutex linkMutex;
 
@@ -82,6 +146,9 @@ private:
   };
 
   static StaticConstructor staticConstructor;
+
+  void connectForwardSignals ();
+  void disconnectForwardSignals ();
 
 };
 
