@@ -171,7 +171,7 @@ private:
   void
   connectForwardSignals ();
 
-  void
+  std::shared_ptr<SipRtpEndpointImpl>
   renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint);
 
 

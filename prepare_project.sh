@@ -1,5 +1,5 @@
 #!/bin/sh
-i
+
 #BUILD_TYPE=Release
 #BUILD_TYPE=RelWithDebInfo
 BUILD_TYPE=Debug
@@ -10,9 +10,11 @@ cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DGENER
 make 
 make test_constructors
 make test_sip_rtp_endpoint
+make test_sip_rtp_endpoint_play
 make test
 
 
 make java_install
+make js
 
 sudo ../../adm-scripts/kurento-buildpackage.sh --srcdir ..

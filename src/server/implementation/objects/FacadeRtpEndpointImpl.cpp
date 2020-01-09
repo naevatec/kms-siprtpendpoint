@@ -199,9 +199,10 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
 			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache, answer);
 			std::string unusedOffer;
+			std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
 
 			newEndpoint->postConstructor();
-			renewInternalEndpoint (newEndpoint);
+			oldEndpoint = renewInternalEndpoint (newEndpoint);
 			unusedOffer = newEndpoint->generateOffer();
 			GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
 			result = newEndpoint->processAnswer(answer);
@@ -270,9 +271,11 @@ FacadeRtpEndpointImpl::connectForwardSignals ()
 
 }
 
-void
+std::shared_ptr<SipRtpEndpointImpl>
 FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint)
 {
+	std::shared_ptr<SipRtpEndpointImpl> tmp = rtp_ep;
+
 	if (rtp_ep != NULL) {
 		disconnectForwardSignals ();
 	}
@@ -283,6 +286,8 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 	if (rtp_ep != NULL) {
 		connectForwardSignals ();
 	}
+
+	return tmp;
 }
 
 
