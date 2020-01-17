@@ -3,7 +3,7 @@
     {
       "name": "SipRtpEndpoint",
       "extends": "BaseRtpEndpoint",
-      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of SIP 183 like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`.
+      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of SIP 183 like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`
       </p>
       <p>
       The API and methods to establish a RTP/SRTP communication are exactly the same as in :rom:cls:`RtpEndpoint`
@@ -12,7 +12,7 @@
       at any time regardless of the status of any previous SDP negotiation.
       </p>
       When any of the SDP negotiation methods are called and no previous negotiation has been made, the same rules that apply to 
-      :rom:cls:`RtpEndpoint` will applpy now.
+      :rom:cls:`RtpEndpoint` will apply now.
       </p>
       <p>
       If any of the SDP negotiation methods are called and a previous negotiation were initiated (it does not matter if it is completed and media flowing or not)
@@ -25,9 +25,11 @@
         <li>`processOffer`, much like the previous one, if a previous negotiation was initiated or even completed, media will be discarded, ports and ssrcs may also change as it will be answering to a different SDP offer</li>
         <li>`processAnswer`, similar to the previous this has some subtelties, as we are processing a new answer, original offer is maintained, this implies that ports, ssrcs and codecs offered by this endpoint are preserved. This implies that this new answer must be generated as a response to the original offer</li>
       </ul>
-      If the answer changes chosen codecs, it may be possible that the endpoint processing the answer also instantiates a transcoder to adapt to the new codecs.
-      This is needed because, if the original negotiation established some codecs, this affect at the pipeline and any other connected media Element.
-      So, if renegotiation implies some change in codecs, the pipeline cannot change codecs in the other MediaElements, so a transocding is needed to adapta media with new codecs to the 
+      </p>
+      <p>
+      If the answer changes chosen codecs, it may be possible that the endpoint processing the answer also instantiates a transcoder to adapt to the new codecs. 
+      This is needed because, if the original negotiation established some codecs, this affect at the pipeline and any other connected media Element. 
+      So, if renegotiation implies some change in codecs, the pipeline cannot change codecs in the other MediaElements, so a transocding is needed to adapt media with new codecs to the 
       already established ones.
       </p>
       ",
@@ -42,7 +44,7 @@
             },
             {
               "name": "crypto",
-              "doc": "SDES-type param. If present, this parameter indicates that the communication will be encrypted. By default no encryption is used.",
+              "doc": "SDES-type param. If present, this parameter indicates that the communication will be encrypted. By default no encryption is used. This behaves exactly the same as the crypto builder parameter for RtpEndpoint.",
               "type": "SDES",
               "optional": true,
               "defaultValue": {}

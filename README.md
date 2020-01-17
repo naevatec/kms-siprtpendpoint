@@ -5,7 +5,7 @@
 
 [![][KurentoImage]][Kurento]
 
-Copyright 2018 [Kurento]. Licensed under [Apache 2.0 License].
+Copyright 2019 [Kurento]. Licensed under [Apache 2.0 License].
 
 [Kurento]: https://kurento.org
 [KurentoImage]: https://secure.gravatar.com/avatar/21a2a12c56b2a91c8918d5779f1778bf?s=120
@@ -13,12 +13,24 @@ Copyright 2018 [Kurento]. Licensed under [Apache 2.0 License].
 
 
 
-kms-datachannel-adapter
+kms-siprtpendpoint
 =======================
 
-Datachannel adapter filters to inject messages in a datachannel and to generate events on a datachannel message.
+SipRtpEndpoint is a replacement for RtpEndpoint that allows renegotiation of media. Currently RtpEndpoint once SDP have been negotiated 
+does not allow to renegotiate media. That is further invocations of `generateOffer`, `processOffer` and `processAnswer` result in an error about the RtpEndpoint already negotiated.
 
-The kms-datachannel-adatper project contains a **DataChannel filter** element for the Kurento Media Server.
+This is a drawback when integrating. among other cases, with SIP VoIP networks that use [SIP 183 provisional media establishment](https://tools.ietf.org/html/draft-ietf-sip-183-00) because in that cases for a single generated offer, remote network can answer back with several SDP answers. Each SDP answer means some media (temporary) between remote endpoint and local RtpEndpoint. Each time a temporary SDP answer is received, old media should be discarded and new media according to the temporary answer should be established.
+
+To this aim, SipRtpEndpoint behaves exactly as an RtpEndpoint but allows to call any of the SDP negotitation APIs (`generateOffer`, `processOffer` or `processAnswer`) any time and as much times as needed. Each time one of this APIs are called, old media is discarded and the correspoding new media is established.
+
+SipRtpEndpoint is implemented as a derived class from BaseRtpEndpoint to provide the same features that RtrEndpoint. And internally is implemented as a RtpEndpoint connected through a pair of PassThrough elements (one for input media and the other for output media). First time SDP is negotiated, that negotiation is delegated on internal RtpEndpoint. Whenever a renegotiation is done, old internal RtpEndpoint is closed and discarded and a new one is instantiated and reconnected to Passthrough elements and negotiation is delegated on that new RtpEndpoint.
+
+The main involved APIs are:
+* `generateOffer` when renegotiation is done using a new `generateOffer` call, old RtpEndpoint is discarded and just the `generateOffer` is delegated on the new internal RtpEndpoint.
+* `processOffer` when renegotiation is done using a new `processOffer` call, old RtpEndpoint is discarded and just the `processOffer` is delegated on the new internal RtpEndpoint.
+* `processAnswer` when renegotiation is done using a new `processAnswer` call, is a little bit more complicated, because the answeer corresponds to an original offer generated using `generateOffer`on this same SipRtpEndpoint. Thus local media description should be preserved, mainly with regard to socket ports and SSRC's. So, old RtpEndpoint is discarded, but before being discarded, allocated Sockets and SSRCs are preserved and feed to the new instantiated RtpEndpoint so that local media preserves socket ports and SSRCs as expected. This behaviour also introduces a problem that is, if remote old media is not stopped before renegotiation, as we are preserving sockets, thos sockets may be receiving old and new media flows simultaneously. Due to the architecture of RtpEndpoint in KMS this forces to filter out old media in new RtpEndpoint.
+  
+  
 
 
 
