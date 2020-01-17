@@ -15,6 +15,13 @@ make test
 
 
 make java_install
+cd java
+mvn javadoc:javadoc
+
+cd js
+npm install --save-dev grunt-browserify grunt-contrib-clean grunt-jsdoc grunt-npm2bower-sync minifyify
+cd ..
+
 make js
 
 sudo ../../adm-scripts/kurento-buildpackage.sh --srcdir ..
