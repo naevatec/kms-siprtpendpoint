@@ -174,7 +174,12 @@ private:
   std::shared_ptr<SipRtpEndpointImpl>
   renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint);
 
+  void
+  setProperties (std::shared_ptr<SipRtpEndpointImpl> from);
 
+  std::shared_ptr<AudioCaps> audioCapsSet;
+  std::shared_ptr<VideoCaps> videoCapsSet;
+  std::shared_ptr<RembParams> rembParamsSet;
 
   std::shared_ptr<SipRtpEndpointImpl> rtp_ep;
 

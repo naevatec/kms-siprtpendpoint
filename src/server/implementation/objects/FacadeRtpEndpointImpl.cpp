@@ -55,6 +55,9 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
                          std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline)), cryptoCache (crypto), useIpv6Cache (useIpv6)
 {
   rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6));
+  audioCapsSet = NULL;
+  videoCapsSet = NULL;
+  rembParamsSet = NULL;
 }
 
 FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
@@ -271,6 +274,26 @@ FacadeRtpEndpointImpl::connectForwardSignals ()
 
 }
 
+void FacadeRtpEndpointImpl::setProperties (std::shared_ptr<SipRtpEndpointImpl> from)
+{
+	if (rtp_ep != NULL) {
+		rtp_ep->setName (from->getName());
+		rtp_ep->setSendTagsInEvents (from->getSendTagsInEvents());
+		if (audioCapsSet != NULL)
+			rtp_ep->setAudioFormat(audioCapsSet);
+		rtp_ep->setMaxOutputBitrate(from->getMaxOutputBitrate());
+		rtp_ep->setMinOutputBitrate(from->getMinOutputBitrate());
+		if (videoCapsSet != NULL)
+			rtp_ep->setVideoFormat(videoCapsSet);
+		rtp_ep->setMaxAudioRecvBandwidth (from->getMaxAudioRecvBandwidth ());
+		rtp_ep->setMaxVideoRecvBandwidth (from->getMaxVideoRecvBandwidth());
+		rtp_ep->setMaxVideoSendBandwidth (from->getMaxVideoSendBandwidth());
+		rtp_ep->setMinVideoRecvBandwidth (from->getMinVideoRecvBandwidth ());
+		if (rembParamsSet != NULL)
+			rtp_ep->setRembParams (rembParamsSet);
+	}
+}
+
 std::shared_ptr<SipRtpEndpointImpl>
 FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEndpoint)
 {
@@ -282,6 +305,7 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 
 	rtp_ep = newEndpoint;
 	linkMediaElement(newEndpoint, newEndpoint);
+	setProperties (tmp);
 
 	if (rtp_ep != NULL) {
 		connectForwardSignals ();
@@ -337,6 +361,7 @@ std::shared_ptr<RembParams> FacadeRtpEndpointImpl::getRembParams ()
 void FacadeRtpEndpointImpl::setRembParams (std::shared_ptr<RembParams> rembParams)
 {
 	this->rtp_ep->setRembParams (rembParams);
+	rembParamsSet = rembParams;
 }
 sigc::signal<void, MediaStateChanged> FacadeRtpEndpointImpl::getSignalMediaStateChanged ()
 {
