@@ -3,7 +3,10 @@
     {
       "name": "SipRtpEndpoint",
       "extends": "BaseRtpEndpoint",
-      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of SIP 183 like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`
+      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of <a href='https://tools.ietf.org/html/draft-ietf-sip-183-00'>SIP 183</a> like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`
+      </p>
+      <p>
+      It is however recommended that if you do not need any renegotation feature, to use the :rom:cls:`RtpEndpoint` to avoid unneeded overload due to the components instatiated to allow renegotiation. 
       </p>
       <p>
       The API and methods to establish a RTP/SRTP communication are exactly the same as in :rom:cls:`RtpEndpoint`
