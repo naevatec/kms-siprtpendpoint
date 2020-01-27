@@ -136,7 +136,10 @@ filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
     			gst_rtcp_packet_sr_get_sender_info    (&packet, &ssrc, &ntptime, &rtptime, &packet_count, &octet_count);
     			if (check_ssrc (ssrc, filter_info)) {
     				GST_DEBUG("Unexpected SSRC RTCP packet received: %u, expected: %u", ssrc, filter_info->expected);
-    				gst_rtcp_packet_remove (&packet);
+    				// If any packet in a buffer has an unexpectd SSRc, all buffer can be dropped
+    				return GST_PAD_PROBE_DROP;
+    			} else {
+    				return GST_PAD_PROBE_OK;
     			}
     		}
     		has_packet = gst_rtcp_packet_move_to_next (&packet);
