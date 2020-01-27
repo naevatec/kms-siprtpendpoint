@@ -35,7 +35,7 @@ kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* fi
 void
 kms_sip_rtp_connection_release_probes (KmsRtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id);
 
-void kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp);
+void kms_sip_rtp_connection_retrieve_sockets (KmsRtpConnection *conn, GSocket **rtp, GSocket **rtcp);
 
 G_END_DECLS
 #endif /* __KMS_SIP_RTP_CONNECTION_H__ */

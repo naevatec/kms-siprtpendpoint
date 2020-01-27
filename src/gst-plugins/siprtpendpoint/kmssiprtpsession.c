@@ -20,6 +20,7 @@
 #endif
 
 #include "kmssiprtpsession.h"
+#include "kmssipsrtpconnection.h"
 #include "kmsrtpfilterutils.h"
 #include <commons/kmsbasertpsession.h>
 #include <commons/constants.h>
@@ -93,6 +94,36 @@ kms_sip_rtp_session_store_rtp_filtering_info (KmsSipRtpSession *ses, KmsRtpConne
 	  ses->priv->rtp_filtering_info = g_list_append (ses->priv->rtp_filtering_info, info);
 }
 
+static void
+kms_sip_rtp_session_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp)
+{
+	gchar *media_key;
+	KmsRtpBaseConnection *conn;
+
+	const gchar *media_str = gst_sdp_media_get_media (media);
+
+	/* TODO: think about this when multiple audio/video medias */
+	if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+	  media_key = AUDIO_RTP_SESSION_STR;
+	} else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+	  media_key = VIDEO_RTP_SESSION_STR;
+	} else {
+	  media_key = "";
+	}
+
+	conn = KMS_RTP_BASE_CONNECTION (g_hash_table_lookup (conns, media_key));
+
+	if (KMS_IS_RTP_CONNECTION (conn)) {
+		KmsRtpConnection *rtpConn = KMS_RTP_CONNECTION (conn);
+
+		kms_sip_rtp_connection_retrieve_sockets (rtpConn, rtp, rtcp);
+	} else if (KMS_IS_SRTP_CONNECTION (conn)) {
+		KmsSrtpConnection *srtpConn = KMS_SRTP_CONNECTION (conn);
+
+		kms_sip_srtp_connection_retrieve_sockets (srtpConn, rtp, rtcp);
+	}
+}
+
 static KmsIRtpConnection *
 kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
     const GstSDPMedia * media, const gchar * name, guint16 min_port,
@@ -116,7 +147,7 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
 
   if (self->priv->conns != NULL) {
 	  // If we are recovering a previous session, due to a renegotation (consecutive processAnswer)
-	  kms_sip_rtp_connection_retrieve_sockets (self->priv->conns, media, &rtp_sock, &rtcp_sock);
+	  kms_sip_rtp_session_retrieve_sockets (self->priv->conns, media, &rtp_sock, &rtcp_sock);
 
   }
 

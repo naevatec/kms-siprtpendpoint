@@ -40,23 +40,8 @@ struct _KmsRtpConnectionPrivate
 };
 
 void
-kms_sip_rtp_connection_retrieve_sockets (GHashTable *conns, const GstSDPMedia * media, GSocket **rtp, GSocket **rtcp)
+kms_sip_rtp_connection_retrieve_sockets (KmsRtpConnection *conn, GSocket **rtp, GSocket **rtcp)
 {
-	gchar *media_key;
-	KmsRtpConnection *conn;
-
-	const gchar *media_str = gst_sdp_media_get_media (media);
-
-	/* TODO: think about this when multiple audio/video medias */
-	if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-	  media_key = AUDIO_RTP_SESSION_STR;
-	} else if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-	  media_key = VIDEO_RTP_SESSION_STR;
-	} else {
-	  media_key = "";
-	}
-
-	conn = KMS_RTP_CONNECTION (g_hash_table_lookup (conns, media_key));
 	if (conn != NULL) {
 		// Retrieve the sockets
 		*rtcp = g_object_ref (conn->priv->rtcp_socket);
