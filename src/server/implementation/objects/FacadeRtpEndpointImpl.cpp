@@ -28,6 +28,7 @@
 #include <SDES.hpp>
 #include <memory>
 #include <string>
+#include <sstream>
 #include <MediaFlowInStateChange.hpp>
 #include <MediaFlowState.hpp>
 
@@ -164,21 +165,20 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
 	std::string answer;
+	std::shared_ptr<SDES> cryptoToUse = cryptoCache;
+
 	try {
-		answer = this->rtp_ep->processOffer(offer);
-		GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
-		return answer;
+		if (isSDPCompatible (offer)) {
+			answer = this->rtp_ep->processOffer(offer);
+			GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
+			return answer;
+		}
+		GST_INFO ("SRTP/RTP not compatible offer received. Adapting");
+		if (rtp_ep->isEncrypted ())
+			cryptoToUse = std::shared_ptr<SDES>(new SDES ());
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			GST_INFO("Consecutive process Offer on %s, cloning endpoint", this->getId().c_str());
-			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
-
-			newEndpoint->postConstructor();
-			renewInternalEndpoint (newEndpoint);
-			answer = newEndpoint->processOffer(offer);
-			GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
-			GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
-			return answer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -187,31 +187,33 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache));
+
+	newEndpoint->postConstructor();
+	renewInternalEndpoint (newEndpoint);
+	answer = newEndpoint->processOffer(offer);
+	GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
+	GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
+	return answer;
 }
 
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 {
 	std::string result;
+	std::shared_ptr<SDES> cryptoToUse = cryptoCache;
 
 	try {
-		result = this->rtp_ep->processAnswer(answer);
-		GST_DEBUG ("ProcessAnswer: \n%s", result.c_str());
-		return result;
+		if (isSDPCompatible (answer)) {
+			result = this->rtp_ep->processAnswer(answer);
+			GST_DEBUG ("ProcessAnswer: \n%s", result.c_str());
+			return result;
+		}
+		GST_INFO ("SRTP/RTP not compatible answer received. Adapting");
+		if (rtp_ep->isEncrypted ())
+			cryptoToUse = std::shared_ptr<SDES>(new SDES ());
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
 			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
-			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoCache, useIpv6Cache, answer);
-			std::string unusedOffer;
-			std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
-
-			newEndpoint->postConstructor();
-			oldEndpoint = renewInternalEndpoint (newEndpoint);
-			unusedOffer = newEndpoint->generateOffer();
-			GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
-			result = newEndpoint->processAnswer(answer);
-			GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
-			GST_INFO("Consecutive process Answer on %s, endpoint cloned and answer processed", this->getId().c_str());
-			return result;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -220,6 +222,18 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, answer);
+	std::string unusedOffer;
+	std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
+
+	newEndpoint->postConstructor();
+	oldEndpoint = renewInternalEndpoint (newEndpoint);
+	unusedOffer = newEndpoint->generateOffer();
+	GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
+	result = newEndpoint->processAnswer(answer);
+	GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
+	GST_INFO("Consecutive process Answer on %s, endpoint cloned and answer processed", this->getId().c_str());
+	return result;
 }
 
 std::string FacadeRtpEndpointImpl::getLocalSessionDescriptor ()
@@ -314,6 +328,36 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 	return tmp;
 }
 
+static bool
+isSDPEncryptedProfile (std::string sdp)
+{
+	// Perhaps we could use GStreamer to parse SDP, but there is no point in decoding the entire SDP
+	std::istringstream iss(sdp);
+
+	std::string line;
+	while (std::getline(iss, line))
+	{
+		// Search for an m= line
+	    if (line.rfind ("m=", 0) == 0) {
+	    	// We assume all media lines use the same protocols
+	    	if (line.find ("RTP/SAVP ") != std::string::npos)
+	    		return TRUE;
+	    	else if (line.find ("RTP/SAVPF ") != std::string::npos)
+	    		return TRUE;
+	    }
+	}
+	return FALSE;
+}
+
+bool
+FacadeRtpEndpointImpl::isSDPCompatible (std::string sdp)
+{
+	bool encryptedEp = this->rtp_ep->isEncrypted ();
+	bool encryptedSDP = isSDPEncryptedProfile (sdp);
+
+	// They are compatible if both values are the same
+	return encryptedEp == encryptedSDP;
+}
 
 /*----------------- MEthods from BaseRtpEndpoint ---------------*/
 int FacadeRtpEndpointImpl::getMinVideoRecvBandwidth ()

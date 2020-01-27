@@ -177,6 +177,9 @@ private:
   void
   setProperties (std::shared_ptr<SipRtpEndpointImpl> from);
 
+  bool
+  isSDPCompatible (std::string sdp);
+
   std::shared_ptr<AudioCaps> audioCapsSet;
   std::shared_ptr<VideoCaps> videoCapsSet;
   std::shared_ptr<RembParams> rembParamsSet;

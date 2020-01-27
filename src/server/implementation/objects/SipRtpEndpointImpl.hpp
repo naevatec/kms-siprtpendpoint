@@ -52,6 +52,8 @@ public:
           std::shared_ptr<SDES> crypto, bool useIpv6,
 		  const std::string &sdp);
 
+  bool isEncrypted ();
+
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
   virtual bool connect (const std::string &eventType,
@@ -69,6 +71,7 @@ public:
 protected:
 private:
 
+  bool encrypted = FALSE;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 

@@ -56,6 +56,8 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
     return;
   }
 
+  encrypted = TRUE;
+
   if (!crypto->isSetKey() && !crypto->isSetKeyBase64()) {
     /* Use random key */
     g_object_set (element, "crypto-suite", crypto->getCrypto()->getValue(),
@@ -113,12 +115,19 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                 "crypto-suite", crypto->getCrypto()->getValue(), NULL);
 }
 
+
 SipRtpEndpointImpl::~SipRtpEndpointImpl()
 {
   if (handlerOnKeySoftLimit > 0) {
     unregister_signal_handler (element, handlerOnKeySoftLimit);
   }
 }
+
+bool SipRtpEndpointImpl::isEncrypted ()
+{
+	return encrypted;
+}
+
 
 void
 SipRtpEndpointImpl::postConstructor ()
