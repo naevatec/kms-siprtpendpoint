@@ -246,6 +246,8 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
     BOOST_ERROR ("Connection must be connected");
   }
 
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -333,6 +335,8 @@ reconnection_generate_offer_state_changes_impl_alt ()
     BOOST_ERROR ("Connection must be connected");
   }
 
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
