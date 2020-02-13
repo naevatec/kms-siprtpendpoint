@@ -47,7 +47,8 @@ namespace kurento
 
 SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                   std::shared_ptr<MediaPipeline> mediaPipeline,
-                                  std::shared_ptr<SDES> crypto, bool useIpv6)
+                                  std::shared_ptr<SDES> crypto,
+								  bool useIpv6)
   : BaseRtpEndpointImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
@@ -55,8 +56,6 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
   if (!crypto->isSetCrypto() ) {
     return;
   }
-
-  encrypted = TRUE;
 
   if (!crypto->isSetKey() && !crypto->isSetKeyBase64()) {
     /* Use random key */
@@ -123,12 +122,6 @@ SipRtpEndpointImpl::~SipRtpEndpointImpl()
   }
 }
 
-bool SipRtpEndpointImpl::isEncrypted ()
-{
-	return encrypted;
-}
-
-
 void
 SipRtpEndpointImpl::postConstructor ()
 {
@@ -146,7 +139,9 @@ SipRtpEndpointImpl::postConstructor ()
 MediaObjectImpl *
 SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf,
                                       std::shared_ptr<MediaPipeline> mediaPipeline,
-                                      std::shared_ptr<SDES> crypto, bool useIpv6) const
+                                      std::shared_ptr<SDES> crypto,
+									  bool cryptoAgnostic,
+									  bool useIpv6) const
 {
   // Here we have made a real special construct to deal with Kurento object system to inreface with
   // an implementation of and object composed of others.
@@ -159,7 +154,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // SO, in fact we createObject a different class that acts as Facade of this
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
-  return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6);
+  return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, useIpv6);
 }
 
 
@@ -205,6 +200,7 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (const 
 {
 	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6));
 
+	// Recover ports (sockets) from last SipRtpEndpoint and SSRCs to filter out old traffic
 	this->cloneToNewEndpoint (newEndpoint, sdp);
 	return newEndpoint;
 }

@@ -3,13 +3,15 @@
     {
       "name": "SipRtpEndpoint",
       "extends": "BaseRtpEndpoint",
-      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing SDP renegotiation features that allow easy implementation of <a href='https://tools.ietf.org/html/draft-ietf-sip-183-00'>SIP 183</a> like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`
+      "doc": "Endpoint that provides the same functionality and features that :rom:cls:`RtpEndpoint` providing flexibility to allow integrating with legacy VoIP SIP networks. It mainly provides two features:
+      <ul  style='list-style-type:circle'>
+          <li>providing SDP renegotiation features that allow easy implementation of <a href='https://tools.ietf.org/html/draft-ietf-sip-183-00'>SIP 183</a> like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`</li>
+          <li>PRoviding flexible adaptation to use SRTP or not. That is, if this endpoint is configured with crypto, it can also be configured to offer SRTP only or SRTP and RTP communication channels, and can also process RTP or SRTP offers transperently.</li>
+      </ul>
       </p>
       <p>
-      It is however recommended that if you do not need any renegotation feature, to use the :rom:cls:`RtpEndpoint` to avoid unneeded overload due to the components instatiated to allow renegotiation. 
+      It is however recommended that if you do not need any of thess features, to use the :rom:cls:`RtpEndpoint` to avoid unneeded overload due to the components instatiated to allow renegotiation. 
       </p>
-      <p>
-      The API and methods to establish a RTP/SRTP communication are exactly the same as in :rom:cls:`RtpEndpoint`
       <p>
       Unlike :rom:cls:`RtpEndpoint` this endpoint allows calling the SDP negotiation methods `generateOffer`, `processOffer` and `processOffer`
       at any time regardless of the status of any previous SDP negotiation.
@@ -35,6 +37,22 @@
       So, if renegotiation implies some change in codecs, the pipeline cannot change codecs in the other MediaElements, so a transocding is needed to adapt media with new codecs to the 
       already established ones.
       </p>
+      <p>
+      This Endpoint also allows for flexibility when negotiating an RTP or SRTP endpoint. This is intended for easy integration with legacy VoIP/SIP networks where you cannot know in advance if the remote endpoint will support SRTP or not.
+      In that case, the process is as follows:
+      <ul style='list-style-type:circle'>
+      	<li>To configure an endpoint to be SRTP/RTP agnostic, it must be created with the cryptoAgnostic parameter in the builder set to true. When it is set to true
+      	    it means that if processing an offer, it will process and accept both offers with RTP/AVP profile and with RTP/SAVP profiles</li>
+      	<li>If it also has configured the crypto argument when built, when generating and offer (call to generateOffer), will generate two sets of media lines, one for RTP/AVP profile and the other for RTP/SAVP profile.
+      	    Thus allowing the remote peer to select which lines it is interested in (secured or not secured). And provide the answer according to the chosen set. It is important to note that the remote peer should also 
+      	    answer to the m lines it is not interested in with the port set to 0</li>
+      	<li>Thus, if the endpoint is built with agnosticCrypto and crypto information, the offers generated will contain both RTP/AVP and RTP/SAVP lines, and it will accept answers to that offer that should accept a single
+      	    set of m lines (in those the answer should set the port of those lines to a valid number different from 0), and reject the lines (setting the port of those lines to 0). It is important to note, that if for any reason
+      	    the answer processed contains valid m lines (port set to a valid number different from 0) for both RTP/AVP and RTP/SAVP lines, the endpoint will 
+      	    just establish one of the set (if possible the one corresponding to RTP/SAVP profile)</li>
+      	<li>Then</li>
+      </ul>
+      </p>
       ",
       "constructor":
         {
@@ -51,6 +69,13 @@
               "type": "SDES",
               "optional": true,
               "defaultValue": {}
+            },
+            {
+              "name": "cryptoAgnostic",
+              "doc": "This connfigured the endpoint to be SRTP/RTP agnostic, that is to be able to offer and accept both secure and not secure profiles (SRTP/SAVP and RTP/AVP)",
+              "type": "boolean",
+              "optional": true,
+              "defaultValue": false
             },
             {
               "name": "useIpv6",

@@ -14,6 +14,7 @@
  * limitations under the License.
  *
  */
+#include <glib.h>
 #include <gst/gst.h>
 #include "MediaPipeline.hpp"
 #include "ComposedObjectImpl.hpp"
@@ -26,9 +27,11 @@
 #include <CryptoSuite.hpp>
 #include <FacadeRtpEndpointImpl.hpp>
 #include <SDES.hpp>
+#include <CryptoSuite.hpp>
 #include <memory>
 #include <string>
 #include <sstream>
+#include <list>
 #include <MediaFlowInStateChange.hpp>
 #include <MediaFlowState.hpp>
 
@@ -51,10 +54,14 @@ namespace kurento
 
 FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                   std::shared_ptr<MediaPipeline> mediaPipeline,
-                                  std::shared_ptr<SDES> crypto, bool useIpv6)
+                                  std::shared_ptr<SDES> crypto,
+								  bool cryptoAgnostic,
+								  bool useIpv6)
   : ComposedObjectImpl (conf,
                          std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline)), cryptoCache (crypto), useIpv6Cache (useIpv6)
 {
+  this->cryptoAgnostic = cryptoAgnostic;
+
   rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6));
   audioCapsSet = NULL;
   videoCapsSet = NULL;
@@ -139,19 +146,13 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 
 	try {
 		offer =  this->rtp_ep->generateOffer();
+		if (this->isCryptoAgnostic())
+			this->generateCryptoAgnosticOffer (offer);
 		GST_DEBUG("GenerateOffer: \n%s", offer.c_str());
 		return offer;
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			GST_INFO("Consecutive generate Offer on %s, cloning endpoint", this->getId().c_str());
-			std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
-
-			newEndpoint->postConstructor();
-			renewInternalEndpoint (newEndpoint);
-			offer = newEndpoint->generateOffer();
-			GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
-			GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
-			return offer;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -160,25 +161,40 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+
+	newEndpoint->postConstructor();
+	renewInternalEndpoint (newEndpoint);
+	offer = newEndpoint->generateOffer();
+	if (this->isCryptoAgnostic())
+		offer = this->generateCryptoAgnosticOffer (offer);
+	GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
+	GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
+	return offer;
 }
 
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
 	std::string answer;
-	std::shared_ptr<SDES> cryptoToUse = cryptoCache;
+	std::shared_ptr<SDES> cryptoToUse (new SDES());
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint;
+	std::string modifiableOffer (offer);
 
 	try {
-		if (isSDPCompatible (offer)) {
-			answer = this->rtp_ep->processOffer(offer);
+		bool renewEp = false;
+
+		if (this->isCryptoAgnostic ())
+			renewEp = this->checkCryptoOffer (modifiableOffer, cryptoToUse);
+
+		if (!renewEp) {
+			answer = this->rtp_ep->processOffer(modifiableOffer);
 			GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
 			return answer;
 		}
-		GST_INFO ("SRTP/RTP not compatible offer received. Adapting");
-		if (rtp_ep->isEncrypted ())
-			cryptoToUse = std::shared_ptr<SDES>(new SDES ());
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
 			GST_INFO("Consecutive process Offer on %s, cloning endpoint", this->getId().c_str());
+			cryptoToUse = cryptoCache;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -187,33 +203,57 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache));
 
+	// If we get here is either SDP offer didn't match existing endpoint regarding crypto
+	// or existing endpoint was already negotiated.
+	// In either case, cryptoToUse contains the cryptoCofniguration needed to instantiate new SipRtpEndpoint
+	newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache));
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
-	answer = newEndpoint->processOffer(offer);
+	answer = newEndpoint->processOffer(modifiableOffer);
 	GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
 	GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 	return answer;
 }
 
+static std::shared_ptr<SDES>
+copySDES (std::shared_ptr<SDES> origSdes)
+{
+	std::shared_ptr<SDES> sdes (new SDES ());
+
+	if (origSdes != NULL) {
+		if (origSdes->isSetCrypto())
+			sdes->setCrypto(origSdes->getCrypto());
+		if (origSdes->isSetKey())
+			sdes->setKey(origSdes->getKey());
+		if (origSdes->isSetKeyBase64())
+			sdes->setKeyBase64(origSdes->getKeyBase64());
+	}
+	return sdes;
+}
+
 std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 {
 	std::string result;
-	std::shared_ptr<SDES> cryptoToUse = cryptoCache;
+	std::shared_ptr<SDES> cryptoToUse  = copySDES (this->cryptoCache);
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint;
+	std::string modifiableAnswer (answer);
 
 	try {
-		if (isSDPCompatible (answer)) {
-			result = this->rtp_ep->processAnswer(answer);
+		bool renewEp = false;
+
+		if (this->isCryptoAgnostic ())
+			renewEp = this->checkCryptoAnswer (modifiableAnswer, cryptoToUse);
+
+		if (!renewEp) {
+			result = this->rtp_ep->processAnswer(modifiableAnswer);
 			GST_DEBUG ("ProcessAnswer: \n%s", result.c_str());
 			return result;
 		}
-		GST_INFO ("SRTP/RTP not compatible answer received. Adapting");
-		if (rtp_ep->isEncrypted ())
-			cryptoToUse = std::shared_ptr<SDES>(new SDES ());
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
 			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
+			cryptoToUse = cryptoCache;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -222,15 +262,15 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, answer);
 	std::string unusedOffer;
 	std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
 
+	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, answer);
 	newEndpoint->postConstructor();
 	oldEndpoint = renewInternalEndpoint (newEndpoint);
 	unusedOffer = newEndpoint->generateOffer();
 	GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
-	result = newEndpoint->processAnswer(answer);
+	result = newEndpoint->processAnswer(modifiableAnswer);
 	GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());
 	GST_INFO("Consecutive process Answer on %s, endpoint cloned and answer processed", this->getId().c_str());
 	return result;
@@ -245,6 +285,444 @@ std::string FacadeRtpEndpointImpl::getRemoteSessionDescriptor ()
 {
 	return this->rtp_ep->getRemoteSessionDescriptor();
 }
+
+
+bool
+FacadeRtpEndpointImpl::isCryptoAgnostic ()
+{
+	return this->cryptoAgnostic;
+}
+
+void
+FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsrcStr)
+{
+	const GstSDPAttribute *attr;
+	GstSDPAttribute *new_attr;
+	gchar* ssrc;
+    GRegex *regex;
+	gchar* newSsrc;
+
+	attr = gst_sdp_media_get_attribute (media, idx);
+	if (attr != NULL) {
+		new_attr = (GstSDPAttribute*) g_malloc (sizeof(GstSDPAttribute));
+		ssrc = attr->value;
+		regex = g_regex_new ("^(?<ssrc>[0-9]+)(.*)?$", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
+		newSsrc = g_regex_replace_literal (regex, ssrc, strlen (ssrc), 0, newSsrcStr, (GRegexMatchFlags)0, NULL);
+		g_regex_unref (regex);
+		gst_sdp_attribute_set  (new_attr, "ssrc", newSsrc);
+		g_free (newSsrc);
+		gst_sdp_media_replace_attribute (media, idx, new_attr);
+	}
+}
+
+void
+FacadeRtpEndpointImpl::replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs)
+{
+	// set the ssrc attribute
+	guint32 newSsrc = g_random_int ();
+	gchar newSsrcStr [11];
+
+	g_snprintf (newSsrcStr, 11, "%ud", newSsrc);
+	for (std::list<guint>::iterator it=sscrIdxs.begin(); it != sscrIdxs.end(); ++it) {
+		replaceSsrc (media, *it, newSsrcStr);
+	}
+}
+
+void
+FacadeRtpEndpointImpl::removeCryptoAttrs (GstSDPMedia *media, std::list<guint> cryptoIdx)
+{
+	// Remove the crypto attributes, to not change atttribute index we go backward
+	for (std::list<guint>::reverse_iterator rit=cryptoIdx.rbegin(); rit!= cryptoIdx.rend(); ++rit) {
+		gst_sdp_media_remove_attribute (media, *rit);
+	}
+}
+
+void
+FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpOffer)
+{
+	std::list<guint> sscrIdxs, cryptoIdxs;
+	GstSDPMedia* newMedia;
+	guint idx, attrs_len;
+
+	if (gst_sdp_media_copy (media, &newMedia) != GST_SDP_OK) {
+		GST_ERROR ("Could not copy media, cannot generate secure agnostic media");
+		return;
+	}
+
+	// Only non crypto lines should need to be generated
+	if (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0) {
+		gst_sdp_media_set_proto (newMedia, "RTP/AVP");
+	} else if (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0) {
+		gst_sdp_media_set_proto (newMedia, "RTP/AVPF");
+	} else {
+		// Not supported protocol not processing
+		gst_sdp_media_free (newMedia);
+		return;
+	}
+
+	// Gets relevant attributes
+	idx = 0;
+	attrs_len = gst_sdp_media_attributes_len (newMedia);
+	while (idx < attrs_len) {
+		const GstSDPAttribute *attr;
+
+		attr = gst_sdp_media_get_attribute (newMedia, idx);
+		if (g_strcmp0(attr->key, "ssrc") == 0) {
+			sscrIdxs.push_back(idx);
+		} else 	if (g_strcmp0(attr->key, "crypto") == 0) {
+			cryptoIdxs.push_back(idx);
+		}
+		idx++;
+	}
+
+	replaceAllSsrcAttrs (newMedia, sscrIdxs);
+
+	// Remove crypto attribute
+	removeCryptoAttrs (newMedia, cryptoIdxs);
+
+	// Add new media to the offer so it is crypto agnostic
+	gst_sdp_message_add_media (sdpOffer, newMedia);
+}
+
+static GstSDPMessage*
+parseSDP (const std::string& sdp) {
+	GstSDPMessage *sdpObject = NULL;
+
+	if (gst_sdp_message_new (&sdpObject) != GST_SDP_OK) {
+		GST_ERROR("Could not create SDP object");
+		return NULL;
+	}
+	if (gst_sdp_message_parse_buffer ((const guint8*) sdp.c_str(), strlen (sdp.c_str()), sdpObject) != GST_SDP_OK) {
+		GST_ERROR("Could not parse SDP answer");
+		return NULL;
+	}
+	return sdpObject;
+}
+
+static bool
+isMediaActive (GstSDPMedia *media)
+{
+	const gchar *inactive;
+
+	inactive = gst_sdp_media_get_attribute_val (media, "inactive");
+
+	if (inactive == NULL)
+		return (gst_sdp_media_get_port (media) != 0);
+
+	return false;
+}
+
+
+static void
+splitMediaByCrypto (std::list<GstSDPMedia*> &nonCryptoList, std::list<GstSDPMedia*> &cryptoList)
+{
+	// For each media we check if it is using a crypto protocol or not
+	for (std::list<GstSDPMedia*>::iterator it=nonCryptoList.begin(); it != nonCryptoList.end(); ){
+		GstSDPMedia *media = (GstSDPMedia*) *it;
+		if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0)
+			|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0)) {
+			if (isMediaActive (media)) {
+				cryptoList.push_back(media);
+				it = nonCryptoList.erase (it);
+				continue;
+			}
+		}
+		++it;
+	}
+}
+
+static std::list<GstSDPMedia*>
+getMediasFromSdp (GstSDPMessage *sdp)
+{
+	std::list<GstSDPMedia*> mediaList;
+	guint idx = 0;
+	guint medias_len;
+
+	// Get media lines from SDP offer
+	medias_len = gst_sdp_message_medias_len  (sdp);
+	while (idx < medias_len) {
+		const GstSDPMedia*   sdpMedia;
+
+		sdpMedia = gst_sdp_message_get_media (sdp, idx);
+		if (sdpMedia != NULL) {
+			idx++;
+			mediaList.push_back((GstSDPMedia*)sdpMedia);
+		}
+	}
+
+	return mediaList;
+}
+
+bool
+FacadeRtpEndpointImpl::FacadeRtpEndpointImpl::generateCryptoAgnosticOffer (std::string& offer)
+{
+	std::list<GstSDPMedia*> mediaList;
+	GstSDPMessage *sdpOffer;
+	gchar* result;
+
+	// If not crypto configured, cannot generate crypto agnostic offer
+	if (this->cryptoCache == NULL) {
+		GST_WARNING ("cryptoAgnostic configured, but no crypto info set, cannot generate cryptoAgnostic endpoint, reverting to non crypto endpoint");
+		return false;
+	}
+
+	sdpOffer = parseSDP (offer);
+	if (sdpOffer == NULL)
+		return false;
+	mediaList = getMediasFromSdp (sdpOffer);
+
+	// For each media line we generate a new line with different ssrc, same port and different protocol (is current protocol is RTP/SAVP,
+	// new one is RTP/AVP)
+	// Keep in mind that we already have crypto lines, so only non-crypto lines must be generated
+	for (std::list<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ++it) {
+		addAgnosticMedia (*it, sdpOffer);
+	}
+
+	result = gst_sdp_message_as_text (sdpOffer);
+	offer = result;
+	g_free (result);
+	gst_sdp_message_free (sdpOffer);
+	return true;
+}
+
+static std::shared_ptr<CryptoSuite>
+get_crypto_suite_from_str (gchar* str)
+{
+	if (g_strcmp0 (str, "AES_CM_128_HMAC_SHA1_32") == 0)
+		return std::shared_ptr<CryptoSuite> (new CryptoSuite(CryptoSuite::AES_128_CM_HMAC_SHA1_32));
+	if (g_strcmp0 (str, "AES_CM_128_HMAC_SHA1_80") == 0)
+		return std::shared_ptr<CryptoSuite> (new CryptoSuite(CryptoSuite::AES_128_CM_HMAC_SHA1_80));
+	if (g_strcmp0 (str, "AES_256_CM_HMAC_SHA1_32") == 0)
+		return std::shared_ptr<CryptoSuite> (new CryptoSuite(CryptoSuite::AES_256_CM_HMAC_SHA1_32));
+	if (g_strcmp0 (str, "AES_256_CM_HMAC_SHA1_80") == 0)
+		return std::shared_ptr<CryptoSuite> (new CryptoSuite(CryptoSuite::AES_256_CM_HMAC_SHA1_80));
+	return NULL;
+}
+
+static std::string
+get_crypto_key_from_str (gchar* str)
+{
+	gchar **attrs;
+	std::string result;
+
+	attrs = g_strsplit (str, "|", 0);
+
+    if (attrs[0] == NULL) {
+    	GST_WARNING ("Noy key provided in crypto attribute");
+	    return result;
+    }
+    result = attrs [0];
+    g_strfreev (attrs);
+    return result;
+}
+
+static std::shared_ptr<SDES>
+build_crypto (std::shared_ptr<CryptoSuite> suite, std::string &key)
+{
+	std::shared_ptr<SDES> sdes (new SDES ());
+
+	sdes->setCrypto (suite);
+	sdes->setKeyBase64 (key.c_str());
+	return sdes;
+}
+
+static bool
+get_valid_crypto_info_from_offer (GstSDPMedia *media, std::shared_ptr<SDES>& crypto)
+{
+	guint idx, attrs_len;
+
+	attrs_len = gst_sdp_media_attributes_len (media);
+	for (idx = 0; idx < attrs_len; idx++) {
+		// We can only support the same crypto information for all medias (audio and video) in an offer
+		// RtpEndpoint currently only supports that
+		// And as the offer may have several crypto to select, we choose the first one that may be supported
+		const gchar* cryptoStr = gst_sdp_media_get_attribute_val_n (media, "crypto", idx);
+
+		if (cryptoStr != NULL) {
+			gchar** attrs;
+			std::string key;
+			std::shared_ptr<CryptoSuite> cryptoSuite = NULL;
+
+			attrs = g_strsplit (cryptoStr, " ", 0);
+			if (attrs[0] == NULL) {
+			    GST_WARNING ("Bad crypto attribute format");
+			    goto next_iter;
+			}
+		    if (attrs[1] == NULL) {
+		    	GST_WARNING ("No crypto suite provided");
+			    goto next_iter;
+			}
+		    cryptoSuite = get_crypto_suite_from_str (attrs[1]);
+		    if (cryptoSuite == NULL) {
+		    	GST_WARNING ("No valid crypto suite");
+			    goto next_iter;
+		    }
+		    if (attrs[2] == NULL) {
+		    	GST_WARNING ( "No key parameters provided");
+			    goto next_iter;
+		    }
+		    if (!g_str_has_prefix (attrs[2], "inline:")) {
+		    	GST_WARNING ("Unsupported key method provided");
+			    goto next_iter;
+		    }
+		    key = get_crypto_key_from_str (attrs[2] + strlen ("inline:"));
+		    if (key.length () == 0) {
+		    	GST_WARNING ("No key provided");
+			    goto next_iter;
+		    }
+		    crypto = build_crypto (cryptoSuite, key);
+		    GST_INFO ("Crypto offer and valid key found");
+		    g_strfreev (attrs);
+		    return true;
+
+next_iter:
+		    g_strfreev (attrs);
+		}
+	}
+	return false;
+}
+
+static std::shared_ptr<SDES>
+is_crypto_sdp (std::list<GstSDPMedia*> mediaList)
+{
+	std::shared_ptr<SDES> sdes (new SDES());
+	std::list<GstSDPMedia*> cryptoMediaList;
+
+	splitMediaByCrypto (mediaList, cryptoMediaList);
+
+	if (cryptoMediaList.size () > 0) {
+		// Offer has crypto info, so we need to ensure
+		// - First, that the endpoint supports crypto
+		// - Second, that crypto suite and master key correspond to that in the offer
+		if (!get_valid_crypto_info_from_offer (cryptoMediaList.front (), sdes)) {
+			// No valid key found,
+			GST_ERROR ("Crypto offer found, but no supported key found in offer, cannot answer");
+		} else {
+			GST_INFO ("Valid crypto info found in offer");
+		}
+	} else {
+		GST_INFO ("No crypto offer found");
+	}
+
+	return sdes;
+}
+
+bool
+FacadeRtpEndpointImpl::checkCryptoOffer (std::string& offer, std::shared_ptr<SDES>& crypto)
+{
+	std::list<GstSDPMedia*> mediaList;
+	GstSDPMessage* sdpOffer;
+	std::shared_ptr<SDES> sdes;
+
+	sdpOffer = parseSDP (offer);
+	if (sdpOffer == NULL)
+		return false;
+
+	mediaList = getMediasFromSdp (sdpOffer);
+
+	sdes = is_crypto_sdp (mediaList);
+
+	// The easiest way to proceed is recreate the endpoint in any case
+	crypto = sdes;
+	gst_sdp_message_free (sdpOffer);
+	return true;
+}
+
+static bool
+isCryptoCompatible (std::shared_ptr<SDES> original, std::shared_ptr<SDES> answer)
+{
+	bool result = true;
+
+	if (original->isSetCrypto() != answer->isSetCrypto()) {
+		result = false;
+	} else {
+		if (original->getCrypto() != answer->getCrypto())
+			result = false;
+	}
+	return result;
+}
+
+static bool
+removeMediaLines (GstSDPMessage* sdpAnswer, std::list<GstSDPMedia*> mediaList, bool crypto)
+{
+	std::list<guint> mediaIdxToRemove;
+	guint idx = 0;
+	bool result = false;
+
+	// For each media we check if it is using a crypto protocol or not
+	for (std::list<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ){
+		GstSDPMedia *media = (GstSDPMedia*) *it;
+		if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0)
+			|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0)) {
+			if (crypto) {
+				mediaIdxToRemove.push_back (idx);
+			}
+		} else if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/AVP") == 0)
+				|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/AVPF") == 0)){
+			if (!crypto) {
+				mediaIdxToRemove.push_back (idx);
+			}
+		}
+		++it;
+		++idx;
+	}
+
+	// Remove media lines that are not <crypto> if there are other lines
+	// on mediaIdxToRemote we have the indexes of media lines that are not <crypto>
+	// So we remove thos indexes only if there are other media lines.
+	if ((mediaIdxToRemove.size () > 0) && (mediaList.size() > mediaIdxToRemove.size ())) {
+		for (std::list<guint>::reverse_iterator it=mediaIdxToRemove.rbegin(); it != mediaIdxToRemove.rend(); ++it) {
+			g_array_remove_index (sdpAnswer->medias, *it);
+		}
+		result = true;
+	}
+
+	return result;;
+}
+
+static std::shared_ptr<SDES>
+fitMediaAnswer (std::string& answer, bool isLocalCrypto)
+{
+	std::list<GstSDPMedia*> mediaList;
+	GstSDPMessage* sdpAnswer;
+	std::shared_ptr<SDES> sdes;
+	gchar * newAnswer;
+
+	sdpAnswer = parseSDP (answer);
+	if (sdpAnswer == NULL)
+		return sdes;
+
+	mediaList = getMediasFromSdp (sdpAnswer);
+
+	sdes = is_crypto_sdp (mediaList);
+
+	if (removeMediaLines (sdpAnswer, mediaList, !isLocalCrypto)) {
+		newAnswer = gst_sdp_message_as_text (sdpAnswer);
+		answer = newAnswer;
+		g_free ((gpointer)newAnswer);
+	}
+
+	gst_sdp_message_free (sdpAnswer);
+
+	return sdes;
+}
+
+bool
+FacadeRtpEndpointImpl::checkCryptoAnswer (std::string& answer, std::shared_ptr<SDES>& crypto)
+{
+	std::shared_ptr<SDES> sdes;
+	bool isLocalCrypto = crypto->isSetCrypto() && (crypto->getCrypto() != NULL);
+
+	sdes = fitMediaAnswer (answer, isLocalCrypto);
+	// If the sdp answer is cryptocompatible with the endpoint, we need not regenerate the endpoint
+	if (isCryptoCompatible (crypto, sdes)) {
+		return false;
+	} else {
+		crypto = sdes;
+	}
+	return true;
+}
+
 
 
 void
@@ -326,37 +804,6 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 	}
 
 	return tmp;
-}
-
-static bool
-isSDPEncryptedProfile (std::string sdp)
-{
-	// Perhaps we could use GStreamer to parse SDP, but there is no point in decoding the entire SDP
-	std::istringstream iss(sdp);
-
-	std::string line;
-	while (std::getline(iss, line))
-	{
-		// Search for an m= line
-	    if (line.rfind ("m=", 0) == 0) {
-	    	// We assume all media lines use the same protocols
-	    	if (line.find ("RTP/SAVP ") != std::string::npos)
-	    		return TRUE;
-	    	else if (line.find ("RTP/SAVPF ") != std::string::npos)
-	    		return TRUE;
-	    }
-	}
-	return FALSE;
-}
-
-bool
-FacadeRtpEndpointImpl::isSDPCompatible (std::string sdp)
-{
-	bool encryptedEp = this->rtp_ep->isEncrypted ();
-	bool encryptedSDP = isSDPEncryptedProfile (sdp);
-
-	// They are compatible if both values are the same
-	return encryptedEp == encryptedSDP;
 }
 
 /*----------------- MEthods from BaseRtpEndpoint ---------------*/
@@ -502,7 +949,12 @@ void FacadeRtpEndpointImpl::setVideoFormat (std::shared_ptr<VideoCaps> caps)
 	this->rtp_ep->setVideoFormat(caps);
 }
 
-/*virtual void release () override; */
+void FacadeRtpEndpointImpl::release ()
+{
+	this->linkMediaElement(NULL, NULL);
+	ComposedObjectImpl::release ();
+
+}
 
 std::string FacadeRtpEndpointImpl::getGstreamerDot ()
 {

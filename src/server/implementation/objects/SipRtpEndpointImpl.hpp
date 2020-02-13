@@ -41,7 +41,8 @@ public:
 
 	SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                    std::shared_ptr<MediaPipeline> mediaPipeline,
-                   std::shared_ptr<SDES> crypto, bool useIpv6);
+                   std::shared_ptr<SDES> crypto,
+				   bool useIpv6);
 
   virtual ~SipRtpEndpointImpl ();
 
@@ -71,7 +72,6 @@ public:
 protected:
 private:
 
-  bool encrypted = FALSE;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 
