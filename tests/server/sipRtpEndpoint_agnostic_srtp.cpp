@@ -21,7 +21,6 @@
 #include <boost/test/included/unit_test.hpp>
 #include <MediaPipelineImpl.hpp>
 #include <objects/FacadeRtpEndpointImpl.hpp>
-//#include <IceCandidate.hpp>
 #include <mutex>
 #include <condition_variable>
 #include <ModuleManager.hpp>
@@ -56,8 +55,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-//  moduleManager.loadModulesFromDirectories ("../../src/server");
+//  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
