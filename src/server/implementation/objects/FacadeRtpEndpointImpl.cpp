@@ -146,8 +146,10 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 
 	try {
 		offer =  this->rtp_ep->generateOffer();
-		if (this->isCryptoAgnostic())
+		if (this->isCryptoAgnostic()) {
 			this->generateCryptoAgnosticOffer (offer);
+			GST_INFO ("GenerateOffer: Generated crypto agnostic offer");
+		}
 		GST_DEBUG("GenerateOffer: \n%s", offer.c_str());
 		return offer;
 	} catch (kurento::KurentoException& e) {
@@ -166,8 +168,10 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
 	offer = newEndpoint->generateOffer();
-	if (this->isCryptoAgnostic())
-		offer = this->generateCryptoAgnosticOffer (offer);
+	if (this->isCryptoAgnostic()) {
+		this->generateCryptoAgnosticOffer (offer);
+		GST_INFO ("Generated crypto agnostic offer");
+	}
 	GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
 	GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 	return offer;
@@ -190,6 +194,8 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 			answer = this->rtp_ep->processOffer(modifiableOffer);
 			GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
 			return answer;
+		} else {
+			GST_INFO("ProcessOffer: Regenerating endpoint for crypto agnostic");
 		}
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
@@ -249,6 +255,8 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 			result = this->rtp_ep->processAnswer(modifiableAnswer);
 			GST_DEBUG ("ProcessAnswer: \n%s", result.c_str());
 			return result;
+		} else {
+			GST_INFO ("ProcessAnswer: Regenerating endpoint for crypto agnostic");
 		}
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
