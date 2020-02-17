@@ -11,6 +11,7 @@ make
 make test_constructors
 make test_sip_rtp_endpoint
 make test_sip_rtp_endpoint_play
+make test_sip_rtp_endpoint_agnostic_srtp
 make test
 
 

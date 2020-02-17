@@ -454,7 +454,7 @@ getMediasFromSdp (GstSDPMessage *sdp)
 }
 
 bool
-FacadeRtpEndpointImpl::FacadeRtpEndpointImpl::generateCryptoAgnosticOffer (std::string& offer)
+FacadeRtpEndpointImpl::generateCryptoAgnosticOffer (std::string& offer)
 {
 	std::list<GstSDPMedia*> mediaList;
 	GstSDPMessage *sdpOffer;
