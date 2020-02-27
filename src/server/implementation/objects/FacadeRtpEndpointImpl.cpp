@@ -177,6 +177,44 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 	return offer;
 }
 
+static std::list<GstSDPMedia*>
+getMediasFromSdp (GstSDPMessage *sdp)
+{
+	std::list<GstSDPMedia*> mediaList;
+	guint idx = 0;
+	guint medias_len;
+
+	// Get media lines from SDP offer
+	medias_len = gst_sdp_message_medias_len  (sdp);
+	while (idx < medias_len) {
+		const GstSDPMedia*   sdpMedia;
+
+		sdpMedia = gst_sdp_message_get_media (sdp, idx);
+		if (sdpMedia != NULL) {
+			idx++;
+			mediaList.push_back((GstSDPMedia*)sdpMedia);
+		}
+	}
+
+	return mediaList;
+}
+
+static GstSDPMessage*
+parseSDP (const std::string& sdp) {
+	GstSDPMessage *sdpObject = NULL;
+
+	if (gst_sdp_message_new (&sdpObject) != GST_SDP_OK) {
+		GST_ERROR("Could not create SDP object");
+		return NULL;
+	}
+	if (gst_sdp_message_parse_buffer ((const guint8*) sdp.c_str(), strlen (sdp.c_str()), sdpObject) != GST_SDP_OK) {
+		GST_ERROR("Could not parse SDP answer");
+		return NULL;
+	}
+	return sdpObject;
+}
+
+
 std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 {
 	std::string answer;
@@ -187,12 +225,13 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	try {
 		bool renewEp = false;
 
+		GST_DEBUG("ProcessOffer: \n%s", offer.c_str());
 		if (this->isCryptoAgnostic ())
 			renewEp = this->checkCryptoOffer (modifiableOffer, cryptoToUse);
 
 		if (!renewEp) {
 			answer = this->rtp_ep->processOffer(modifiableOffer);
-			GST_DEBUG ("ProcessOffer: \n%s", answer.c_str());
+			GST_DEBUG ("Generated Answer: \n%s", answer.c_str());
 			return answer;
 		} else {
 			GST_INFO("ProcessOffer: Regenerating endpoint for crypto agnostic");
@@ -217,7 +256,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
 	answer = newEndpoint->processOffer(modifiableOffer);
-	GST_DEBUG ("2nd try ProcessOffer: \n%s", answer.c_str());
+	GST_DEBUG ("2nd try Generated Answer: \n%s", answer.c_str());
 	GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 	return answer;
 }
@@ -248,6 +287,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	try {
 		bool renewEp = false;
 
+		GST_DEBUG("ProcessAnswer: \n%s", answer.c_str());
 		if (this->isCryptoAgnostic ())
 			renewEp = this->checkCryptoAnswer (modifiableAnswer, cryptoToUse);
 
@@ -306,19 +346,32 @@ FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsr
 {
 	const GstSDPAttribute *attr;
 	GstSDPAttribute *new_attr;
-	gchar* ssrc;
+	std::string ssrc;
+	std::string oldSsrc;
     GRegex *regex;
-	gchar* newSsrc;
+	std::string newSsrc;
+	std::size_t ssrcIdx;
+    GMatchInfo *match_info = NULL;
 
 	attr = gst_sdp_media_get_attribute (media, idx);
 	if (attr != NULL) {
 		new_attr = (GstSDPAttribute*) g_malloc (sizeof(GstSDPAttribute));
 		ssrc = attr->value;
+
 		regex = g_regex_new ("^(?<ssrc>[0-9]+)(.*)?$", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-		newSsrc = g_regex_replace_literal (regex, ssrc, strlen (ssrc), 0, newSsrcStr, (GRegexMatchFlags)0, NULL);
+		g_regex_match (regex, ssrc.c_str(), (GRegexMatchFlags)0, &match_info);
+		if (g_match_info_matches (match_info)) {
+			oldSsrc = g_match_info_fetch_named (match_info, "ssrc");
+		}
+		g_match_info_free (match_info);
 		g_regex_unref (regex);
-		gst_sdp_attribute_set  (new_attr, "ssrc", newSsrc);
-		g_free (newSsrc);
+
+		ssrcIdx = ssrc.find(oldSsrc);
+		if (ssrcIdx != std::string::npos) {
+			newSsrc = ssrc.substr(0, ssrcIdx).append(newSsrcStr).append (ssrc.substr(ssrcIdx+oldSsrc.length(), std::string::npos));
+		}
+
+		gst_sdp_attribute_set  (new_attr, "ssrc", newSsrc.c_str());
 		gst_sdp_media_replace_attribute (media, idx, new_attr);
 	}
 }
@@ -392,21 +445,6 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 	gst_sdp_message_add_media (sdpOffer, newMedia);
 }
 
-static GstSDPMessage*
-parseSDP (const std::string& sdp) {
-	GstSDPMessage *sdpObject = NULL;
-
-	if (gst_sdp_message_new (&sdpObject) != GST_SDP_OK) {
-		GST_ERROR("Could not create SDP object");
-		return NULL;
-	}
-	if (gst_sdp_message_parse_buffer ((const guint8*) sdp.c_str(), strlen (sdp.c_str()), sdpObject) != GST_SDP_OK) {
-		GST_ERROR("Could not parse SDP answer");
-		return NULL;
-	}
-	return sdpObject;
-}
-
 static bool
 isMediaActive (GstSDPMedia *media)
 {
@@ -437,28 +475,6 @@ splitMediaByCrypto (std::list<GstSDPMedia*> &nonCryptoList, std::list<GstSDPMedi
 		}
 		++it;
 	}
-}
-
-static std::list<GstSDPMedia*>
-getMediasFromSdp (GstSDPMessage *sdp)
-{
-	std::list<GstSDPMedia*> mediaList;
-	guint idx = 0;
-	guint medias_len;
-
-	// Get media lines from SDP offer
-	medias_len = gst_sdp_message_medias_len  (sdp);
-	while (idx < medias_len) {
-		const GstSDPMedia*   sdpMedia;
-
-		sdpMedia = gst_sdp_message_get_media (sdp, idx);
-		if (sdpMedia != NULL) {
-			idx++;
-			mediaList.push_back((GstSDPMedia*)sdpMedia);
-		}
-	}
-
-	return mediaList;
 }
 
 bool
@@ -650,29 +666,45 @@ isCryptoCompatible (std::shared_ptr<SDES> original, std::shared_ptr<SDES> answer
 	return result;
 }
 
-static bool
-removeMediaLines (GstSDPMessage* sdpAnswer, std::list<GstSDPMedia*> mediaList, bool crypto)
+static void
+removeMediaLines (GstSDPMessage* sdpAnswer, std::list<GstSDPMedia*> mediaList)
 {
 	std::list<guint> mediaIdxToRemove;
 	guint idx = 0;
-	bool result = false;
+	bool got_audio = false, got_video = false;
 
 	// For each media we check if it is using a crypto protocol or not
 	for (std::list<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ){
 		GstSDPMedia *media = (GstSDPMedia*) *it;
-		if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0)
-			|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0)) {
-			if (crypto) {
-				mediaIdxToRemove.push_back (idx);
-			}
-		} else if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/AVP") == 0)
-				|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/AVPF") == 0)){
-			if (!crypto) {
-				mediaIdxToRemove.push_back (idx);
+
+		// We just get the first audio and first video that are active (or port != 0
+		if (!isMediaActive (media)) {
+			mediaIdxToRemove.push_back (idx);
+		} else {
+			if (g_strcmp0 (media->media, "audio") == 0) {
+				if (!got_audio) {
+					got_audio = true;
+				} else {
+					mediaIdxToRemove.push_back (idx);
+				}
+			} else if (g_strcmp0 (media->media, "video") == 0) {
+				if (!got_video) {
+					got_video = true;
+				} else {
+					mediaIdxToRemove.push_back (idx);
+				}
+
 			}
 		}
 		++it;
 		++idx;
+	}
+
+	// We cannot remove all medias, we need to leave at least one audio and one video
+	// If mediaIdxToRemove has all medias, we just remove two last ones
+	if (mediaIdxToRemove.size () == mediaList.size()) {
+		mediaIdxToRemove.pop_back ();
+		mediaIdxToRemove.pop_back ();
 	}
 
 	// Remove media lines that are not <crypto> if there are other lines
@@ -682,10 +714,7 @@ removeMediaLines (GstSDPMessage* sdpAnswer, std::list<GstSDPMedia*> mediaList, b
 		for (std::list<guint>::reverse_iterator it=mediaIdxToRemove.rbegin(); it != mediaIdxToRemove.rend(); ++it) {
 			g_array_remove_index (sdpAnswer->medias, *it);
 		}
-		result = true;
 	}
-
-	return result;;
 }
 
 static std::shared_ptr<SDES>
@@ -704,11 +733,10 @@ fitMediaAnswer (std::string& answer, bool isLocalCrypto)
 
 	sdes = is_crypto_sdp (mediaList);
 
-	if (removeMediaLines (sdpAnswer, mediaList, !isLocalCrypto)) {
-		newAnswer = gst_sdp_message_as_text (sdpAnswer);
-		answer = newAnswer;
-		g_free ((gpointer)newAnswer);
-	}
+	removeMediaLines (sdpAnswer, mediaList);
+	newAnswer = gst_sdp_message_as_text (sdpAnswer);
+	answer = newAnswer;
+	g_free ((gpointer)newAnswer);
 
 	gst_sdp_message_free (sdpAnswer);
 

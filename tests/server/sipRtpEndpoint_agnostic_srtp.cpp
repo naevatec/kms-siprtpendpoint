@@ -272,6 +272,48 @@ removeCryptoMedias (std::string sdp)
 	return sdp;
 }
 
+static std::string
+addCryptoMedias (std::string sdp)
+{
+	std::string mline ("m=");
+	std::size_t mediaStart;
+	std::string cryptoLines ("m=audio 0 RTP/SAVPF 96\r\na=inactive\r\nm=video 0 RTP/SAVPF 111\r\na=inactive\r\n");
+
+	mediaStart = sdp.find (mline);
+	if (mediaStart != std::string::npos) {
+		return sdp.substr(0, mediaStart).append(cryptoLines).append(sdp.substr(mediaStart, std::string::npos));
+	}
+	return sdp;
+}
+
+static std::string
+removeNonCryptoMedias (std::string sdp)
+{
+	std::string mline ("m=");
+	std::size_t mediaStart, nonCryptoMediaStart;
+
+	mediaStart = sdp.find (mline);
+	if (mediaStart != std::string::npos) {
+		nonCryptoMediaStart = sdp.find(mline, mediaStart+1);
+		if (nonCryptoMediaStart != std::string::npos) {
+			nonCryptoMediaStart = sdp.find(mline, nonCryptoMediaStart+1);
+			if (nonCryptoMediaStart != std::string::npos) {
+				return sdp.substr(0, nonCryptoMediaStart);
+			}
+		}
+	}
+	return sdp;
+}
+
+static std::string
+addNonCryptoMedias (std::string sdp)
+{
+	std::string mline ("m=");
+	std::string nonCryptoLines ("m=audio 0 RTP/AVPF 96\r\na=inactive\r\nm=video 0 RTP/AVPF 111\r\na=inactive\r\n");
+
+	return sdp.append(nonCryptoLines);
+}
+
 static void
 reconnection_generate_offer_state_changes_impl_alt ()
 {
@@ -308,6 +350,220 @@ reconnection_generate_offer_state_changes_impl_alt ()
 
 	  std::string answer = rtpEpAnswerer->processOffer (offer);
 	  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+	  rtpEpOfferer->processAnswer (answer);
+
+	  cv.wait_for (lck, std::chrono::seconds(5), [&] () {
+	    return media_state_changed.load();
+	  });
+
+	  conn.disconnect ();
+	  if (!media_state_changed && mediaShouldFlow) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+  releaseTestSrc (src);
+}
+
+static void
+reconnection_generate_offer_state_changes_impl_alt2 ()
+{
+  bool cryptoOffer = true, agnosticOffer = true, cryptoAnswer = false, agnosticAnswer = false, mediaShouldFlow = false;
+  std::atomic<bool> media_state_changed (false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (cryptoOffer, agnosticOffer);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (cryptoAnswer, agnosticAnswer);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+  std::atomic<bool> conn_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  src->connect(rtpEpOfferer);
+  rtpEpAnswerer->connect(pt);
+
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+		  	  	  media_state_changed = true;
+		  	  	  cv.notify_one();
+	  	  	  }
+  	  	  }
+  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer1: " + offer);
+
+	  offer = removeCryptoMedias (offer);
+
+	  std::string answer = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+	  answer = addCryptoMedias (answer);
+
+	  rtpEpOfferer->processAnswer (answer);
+
+	  cv.wait_for (lck, std::chrono::seconds(5), [&] () {
+	    return media_state_changed.load();
+	  });
+
+	  conn.disconnect ();
+	  if (!media_state_changed && mediaShouldFlow) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+  releaseTestSrc (src);
+}
+
+static void
+reconnection_generate_offer_state_changes_impl_alt_crypto ()
+{
+  bool cryptoOffer = true, agnosticOffer = true, cryptoAnswer = true, agnosticAnswer = false, mediaShouldFlow = false;
+  std::atomic<bool> media_state_changed (false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (cryptoOffer, agnosticOffer);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (cryptoAnswer, agnosticAnswer);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+  std::atomic<bool> conn_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  src->connect(rtpEpOfferer);
+  rtpEpAnswerer->connect(pt);
+
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+		  	  	  media_state_changed = true;
+		  	  	  cv.notify_one();
+	  	  	  }
+  	  	  }
+  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer1: " + offer);
+
+	  offer = removeNonCryptoMedias (offer);
+
+	  std::string answer = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+	  rtpEpOfferer->processAnswer (answer);
+
+	  cv.wait_for (lck, std::chrono::seconds(5), [&] () {
+	    return media_state_changed.load();
+	  });
+
+	  conn.disconnect ();
+	  if (!media_state_changed && mediaShouldFlow) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+  releaseTestSrc (src);
+}
+
+static void
+reconnection_generate_offer_state_changes_impl_alt2_crypto ()
+{
+  bool cryptoOffer = true, agnosticOffer = true, cryptoAnswer = true, agnosticAnswer = false, mediaShouldFlow = false;
+  std::atomic<bool> media_state_changed (false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (cryptoOffer, agnosticOffer);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (cryptoAnswer, agnosticAnswer);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+  std::atomic<bool> conn_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  src->connect(rtpEpOfferer);
+  rtpEpAnswerer->connect(pt);
+
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+		  	  	  media_state_changed = true;
+		  	  	  cv.notify_one();
+	  	  	  }
+  	  	  }
+  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer1: " + offer);
+
+	  offer = removeNonCryptoMedias (offer);
+
+	  std::string answer = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+	  answer = addNonCryptoMedias (answer);
 
 	  rtpEpOfferer->processAnswer (answer);
 
@@ -442,6 +698,14 @@ srtp_agnostic_case_13_b()
 }
 
 static void
+srtp_agnostic_case_13_c()
+{
+	  BOOST_TEST_MESSAGE ("Start test: offerer: yes crypto yes agnostic, answerer: no crypto no agnostic (alternate version full media answer)");
+	  reconnection_generate_offer_state_changes_impl_alt2 ();
+}
+
+
+static void
 srtp_agnostic_case_14()
 {
 	  BOOST_TEST_MESSAGE ("Start test: offerer: yes crypto yes agnostic, answerer: no crypto yes agnostic");
@@ -453,6 +717,20 @@ srtp_agnostic_case_15()
 {
 	  BOOST_TEST_MESSAGE ("Start test: offerer: yes crypto yes agnostic, answerer: yes crypto no agnostic");
 	  reconnection_generate_offer_state_changes_impl (true, true, true, false, true);
+}
+
+static void
+srtp_agnostic_case_15_b()
+{
+	  BOOST_TEST_MESSAGE ("Start test: offerer: yes crypto yes agnostic, answerer: yes crypto no agnostic (alternate version)");
+	  reconnection_generate_offer_state_changes_impl_alt_crypto ();
+}
+
+static void
+srtp_agnostic_case_15_c()
+{
+	  BOOST_TEST_MESSAGE ("Start test: offerer: yes crypto yes agnostic, answerer: yes crypto no agnostic (alternate veriosn full media answer");
+	  reconnection_generate_offer_state_changes_impl_alt2_crypto ();
 }
 
 static void
@@ -511,9 +789,12 @@ init_unit_test_suite ( int , char *[] )
 
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_b), 0, /* timeout */ 15000);
 
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_c), 0, /* timeout */ 15000);
+
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_14), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_b), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 15000);
-
   return test;
 }
