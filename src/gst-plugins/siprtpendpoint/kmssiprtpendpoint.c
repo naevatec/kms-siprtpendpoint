@@ -31,6 +31,10 @@
 
 #define PLUGIN_NAME "siprtpendpoint"
 
+#define DEFAULT_AUDIO_SSRC 0
+#define DEFAULT_VIDEO_SSRC 0
+
+
 GST_DEBUG_CATEGORY_STATIC (kms_sip_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
 
@@ -67,6 +71,15 @@ struct _KmsSipRtpEndpointPrivate
 
   GList *sessionData;
 };
+
+/* Properties */
+enum
+{
+  PROP_0,
+  PROP_AUDIO_SSRC,
+  PROP_VIDEO_SSRC
+};
+
 
 /* Signals and args */
 enum
@@ -124,6 +137,8 @@ kms_sip_rtp_endpoint_get_rtpbin (KmsSipRtpEndpoint * self)
 static KmsSipRtpEndpointCloneData*
 kms_sip_rtp_endpoint_get_clone_data (GList *sessionData)
 {
+	if (sessionData == NULL)
+		return NULL;
 	return ((KmsSipRtpEndpointCloneData*)sessionData->data);
 }
 
@@ -579,6 +594,25 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
+	KmsSipRtpEndpointCloneData* clone;
+	guint32 ssrc;
+
+  	  case PROP_AUDIO_SSRC:
+    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
+    	ssrc = g_value_get_uint (value);
+
+    	if (clone != NULL) {
+    		clone->local_audio_ssrc = ssrc;
+    	}
+    	break;
+    case PROP_VIDEO_SSRC:
+    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
+    	ssrc = g_value_get_uint (value);
+
+    	if (clone != NULL) {
+    		clone->local_video_ssrc = ssrc;
+    	}
+    	break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -596,6 +630,22 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
+	KmsSipRtpEndpointCloneData* clone;
+
+    case PROP_AUDIO_SSRC:
+        clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
+
+    	if (clone != NULL) {
+        	g_value_set_uint (value, clone->local_audio_ssrc);
+    	}
+    	break;
+    case PROP_VIDEO_SSRC:
+    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
+
+    	if (clone != NULL) {
+        	g_value_set_uint (value, clone->local_video_ssrc);
+    	}
+    	break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -661,6 +711,19 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
   base_sdp_endpoint_class->configure_media = kms_sip_rtp_endpoint_configure_media;
 
   klass->clone_to_new_ep = kms_sip_rtp_endpoint_clone_to_new_ep;
+
+  g_object_class_install_property (gobject_class, PROP_AUDIO_SSRC,
+      g_param_spec_uint ("audio-ssrc",
+          "Audio SSRC", "Set to assign the local audio SSRC",
+          0, G_MAXUINT, DEFAULT_AUDIO_SSRC,
+		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_VIDEO_SSRC,
+      g_param_spec_uint ("video-ssrc",
+          "Video SSRC", "Set to assign the local video SSRC",
+		  0, G_MAXUINT, DEFAULT_VIDEO_SSRC,
+		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 
   obj_signals[SIGNAL_CLONE_TO_NEW_EP] =
       g_signal_new ("clone-to-new-ep",

@@ -66,6 +66,10 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
   audioCapsSet = NULL;
   videoCapsSet = NULL;
   rembParamsSet = NULL;
+
+  // Magic values to assess no change on SSRC
+  this->agnosticMediaAudioSsrc = 0;
+  this->agnosticMediaVideoSsrc = 0;
 }
 
 FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
@@ -314,6 +318,12 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
 
 	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, answer);
+	if (this->agnosticMediaAudioSsrc != 0) {
+		newEndpoint->setAudioSsrc (this->agnosticMediaAudioSsrc);
+	}
+	if (this->agnosticMediaVideoSsrc != 0) {
+		newEndpoint->setVideoSsrc (this->agnosticMediaVideoSsrc);
+	}
 	newEndpoint->postConstructor();
 	oldEndpoint = renewInternalEndpoint (newEndpoint);
 	unusedOffer = newEndpoint->generateOffer();
@@ -376,17 +386,18 @@ FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsr
 	}
 }
 
-void
+guint32
 FacadeRtpEndpointImpl::replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs)
 {
 	// set the ssrc attribute
 	guint32 newSsrc = g_random_int ();
 	gchar newSsrcStr [11];
 
-	g_snprintf (newSsrcStr, 11, "%ud", newSsrc);
+	g_snprintf (newSsrcStr, 11, "%u", newSsrc);
 	for (std::list<guint>::iterator it=sscrIdxs.begin(); it != sscrIdxs.end(); ++it) {
 		replaceSsrc (media, *it, newSsrcStr);
 	}
+	return newSsrc;
 }
 
 void
@@ -404,6 +415,7 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 	std::list<guint> sscrIdxs, cryptoIdxs;
 	GstSDPMedia* newMedia;
 	guint idx, attrs_len;
+	guint32 agnosticMediaSsrc;
 
 	if (gst_sdp_media_copy (media, &newMedia) != GST_SDP_OK) {
 		GST_ERROR ("Could not copy media, cannot generate secure agnostic media");
@@ -436,7 +448,12 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 		idx++;
 	}
 
-	replaceAllSsrcAttrs (newMedia, sscrIdxs);
+	agnosticMediaSsrc = replaceAllSsrcAttrs (newMedia, sscrIdxs);
+	if (g_strcmp0(gst_sdp_media_get_media (newMedia), "audio") == 0) {
+		this->agnosticMediaAudioSsrc = agnosticMediaSsrc;
+	} else if (g_strcmp0(gst_sdp_media_get_media (newMedia), "video") == 0) {
+		this->agnosticMediaVideoSsrc = agnosticMediaSsrc;
+	}
 
 	// Remove crypto attribute
 	removeCryptoAttrs (newMedia, cryptoIdxs);
@@ -660,8 +677,12 @@ isCryptoCompatible (std::shared_ptr<SDES> original, std::shared_ptr<SDES> answer
 	if (original->isSetCrypto() != answer->isSetCrypto()) {
 		result = false;
 	} else {
-		if (original->getCrypto() != answer->getCrypto())
-			result = false;
+		if (original->isSetCrypto()) {
+			if (original->getCrypto()->getValue() != answer->getCrypto()->getValue())
+				result = false;
+		} else {
+			return !(answer->isSetCrypto ());
+		}
 	}
 	return result;
 }

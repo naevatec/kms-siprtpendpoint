@@ -212,6 +212,16 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::cloneToNewEndpoint (std:
 	return newEp;
 }
 
+void SipRtpEndpointImpl::setAudioSsrc (guint32 ssrc)
+{
+	g_object_set (element, "audio_ssrc", ssrc, NULL);
+}
+
+void SipRtpEndpointImpl::setVideoSsrc (guint32 ssrc)
+{
+	g_object_set (element, "video_ssrc", ssrc, NULL);
+}
+
 
 
 } /* kurento */

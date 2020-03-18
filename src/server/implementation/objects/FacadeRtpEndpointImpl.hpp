@@ -175,6 +175,11 @@ private:
   sigc::connection connMediaSessionTerminated;
   sigc::connection connOnKeySoftLimit;
 
+
+
+  guint32 agnosticMediaAudioSsrc;
+  guint32 agnosticMediaVideoSsrc;
+
   bool
   isCryptoAgnostic ();
 
@@ -190,7 +195,7 @@ private:
   void
   replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsrcStr);
 
-  void
+  guint32
   replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs);
 
   void

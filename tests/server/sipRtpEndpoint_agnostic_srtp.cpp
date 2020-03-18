@@ -55,8 +55,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-//  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+//  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -252,6 +252,96 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
   releasePassTrhough (pt);
   releaseTestSrc (src);
 }
+
+static void
+test_error_on_answer_without_one_media ()
+{
+  bool cryptoOffer = true;
+  bool agnosticOffer = true;
+  bool mediaShouldFlow = true;
+
+  std::atomic<bool> media_state_changed (false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (cryptoOffer, agnosticOffer);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (true, false);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+  std::atomic<bool> conn_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  src->connect(rtpEpOfferer);
+  rtpEpAnswerer->connect(pt);
+
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+		  	  	  media_state_changed = true;
+		  	  	  cv.notify_one();
+	  	  	  }
+  	  	  }
+  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer1: " + offer);
+
+	  	std::string mline ("m=");
+	  	std::size_t mediaStart, removedMediaStart;
+
+	  	mediaStart = offer.find (mline);
+	  	if (mediaStart != std::string::npos) {
+	  		removedMediaStart = offer.find(mline, mediaStart+1);
+	  		if (removedMediaStart != std::string::npos) {
+  				offer = offer.substr(0, removedMediaStart);
+	  		}
+	  	}
+
+	  std::string answer = rtpEpAnswerer->processOffer(offer);
+
+	  answer = answer.append("m=video 0 RTP/SAVP 98\r\n"
+			  	  	  	  	 "a=crypto:1 AES_CM_128_HMAC_SHA1_80 dummy\r\n"
+			  	  	  	  	 "a=inactive\r\n"
+			  	  	  	  	 "m=audio 0 RTP/AVP 0\r\n"
+			  	  	  	  	 "a=inactive\r\n"
+			  	  	  	  	 "m=video 0 RTP/AVP 98\r\n"
+			  	  	  	  	 "a=inactive");
+
+	  rtpEpOfferer->processAnswer (answer);
+
+	  cv.wait_for (lck, std::chrono::milliseconds(1500), [&] () {
+	    return media_state_changed.load();
+	  });
+
+	  conn.disconnect ();
+	  if (!media_state_changed && mediaShouldFlow) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect (pt);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+  releaseTestSrc (src);
+}
+
 
 static std::string
 removeCryptoMedias (std::string sdp)
@@ -796,5 +886,6 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_b), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &test_error_on_answer_without_one_media), 0, /* timeout */ 15000);
   return test;
 }
