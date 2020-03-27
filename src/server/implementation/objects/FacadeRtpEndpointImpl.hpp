@@ -177,8 +177,10 @@ private:
 
 
 
-  guint32 agnosticMediaAudioSsrc;
-  guint32 agnosticMediaVideoSsrc;
+  guint32 agnosticCryptoAudioSsrc;
+  guint32 agnosticCryptoVideoSsrc;
+  guint32 agnosticNonCryptoAudioSsrc;
+  guint32 agnosticNonCryptoVideoSsrc;
 
   bool
   isCryptoAgnostic ();
@@ -193,10 +195,10 @@ private:
   checkCryptoAnswer (std::string& answer, std::shared_ptr<SDES>& crypto);
 
   void
-  replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsrcStr);
+  replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsrcStr, guint32 &oldSsrc);
 
-  guint32
-  replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs);
+  void
+  replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs, guint32 &oldSsrc, guint32 &newSsrc);
 
   void
   removeCryptoAttrs (GstSDPMedia *media, std::list<guint> cryptoIdx);

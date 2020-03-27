@@ -170,6 +170,115 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
   return std::dynamic_pointer_cast <MediaElementImpl> (src);
 }
 
+static std::string sdp_test_1 = "v=0\r\n"
+								"o=iPECSCM 7619561 7619561 IN IP4 192.168.131.114\r\n"
+								"s=SIP Call\r\n"
+								"c=IN IP4 192.168.131.114\r\n"
+								"t=0 0\r\n"
+								"m=audio 0 RTP/SAVP 0\r\n"
+								"a=crypto:1 AES_CM_128_HMAC_SHA1_80 dummy\r\n"
+								"a=inactive\r\n"
+								"m=video 0 RTP/SAVP 98\r\n"
+								"a=crypto:1 AES_CM_128_HMAC_SHA1_80 dummy\r\n"
+								"a=inactive\r\n"
+								"m=audio 23042 RTP/AVP 8 0 18 111\r\n"
+								"a=rtpmap:8 PCMA/8000\r\n"
+								"a=rtpmap:0 PCMU/8000\r\n"
+								"a=rtpmap:18 G729/8000\r\n"
+								"a=rtpmap:111 X-nt-inforeq/8000\r\n"
+								"a=fmtp:18 annexb=no\r\n"
+								"a=ptime:20\r\n"
+								"a=sendrecv\r\n"
+								"m=video 0 RTP/AVP 98\r\n"
+								"a=inactive\r\n";
+
+static std::string sdp_test_2 = "v=0\r\n"
+								"o=iPECSCM 7619561 7619561 IN IP4 192.168.131.114\r\n"
+								"s=SIP Call\r\n"
+								"c=IN IP4 192.168.131.114\r\n"
+								"t=0 0\r\n"
+								"m=audio 0 RTP/SAVPF 0\r\n"
+								"a=crypto:1 AES_CM_128_HMAC_SHA1_80 dummy\r\n"
+								"a=inactive\r\n"
+								"m=audio 23042 RTP/AVPF 8 0 18 111\r\n"
+								"a=rtpmap:8 PCMA/8000\r\n"
+								"a=rtpmap:0 PCMU/8000\r\n"
+								"a=rtpmap:18 G729/8000\r\n"
+								"a=rtpmap:111 X-nt-inforeq/8000\r\n"
+								"a=fmtp:18 annexb=no\r\n"
+								"a=ptime:20\r\n"
+								"a=sendrecv\r\n";
+
+
+static std::string sdp_test_3 = "v=0\r\n"
+								"o=iPECSCM 7619561 7619561 IN IP4 192.168.131.114\r\n"
+								"s=SIP Call\r\n"
+								"c=IN IP4 192.168.131.114\r\n"
+								"t=0 0\r\n"
+								"m=audio 23042 RTP/AVP 8 0 18 111\r\n"
+								"a=rtpmap:8 PCMA/8000\r\n"
+								"a=rtpmap:0 PCMU/8000\r\n"
+								"a=rtpmap:18 G729/8000\r\n"
+								"a=rtpmap:111 X-nt-inforeq/8000\r\n"
+								"a=fmtp:18 annexb=no\r\n"
+								"a=ptime:20\r\n"
+								"a=sendrecv\r\n";
+
+static std::string sdp_test_4  = "v=0\r\n"
+                                 "o=- 3794323608 3794323608 IN IP4 172.17.0.2\r\n"
+                                 "s=Kurento Media Server\r\n"
+                                 "c=IN IP4 172.17.0.2\r\n"
+                                 "t=0 0\r\n"
+                                 "m=audio 1268 RTP/SAVPF 96 0 97\r\n"
+                                 "a=setup:actpass\r\n"
+                                 "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+                                 "a=rtpmap:96 opus/48000/2\r\n"
+                                 "a=rtpmap:97 AMR/8000\r\n"
+                                 "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:MDAxMDgzMTA1MTg3MjA5MjhiMzBkMzhmNDExNDkz\r\n"
+                                 "a=sendrecv\r\n"
+                                 "a=mid:audio0\r\n"
+                                 "a=ssrc:2630252136 cname:user2385001219@host-3046046\r\n"
+                                 "m=video 54142 RTP/SAVPF 102 103\r\n"
+                                 "a=setup:actpass\r\n"
+                                 "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+                                 "a=rtpmap:102 VP8/90000\r\n"
+                                 "a=rtpmap:103 H264/90000\r\n"
+                                 "a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:MDAxMDgzMTA1MTg3MjA5MjhiMzBkMzhmNDExNDkz\r\n"
+                                 "a=sendrecv\r\n"
+                                 "a=mid:video0\r\n"
+                                 "a=rtcp-fb:102 nack\r\n"
+                                 "a=rtcp-fb:102 nack pli\r\n"
+                                 "a=rtcp-fb:102 goog-remb\r\n"
+                                 "a=rtcp-fb:102 ccm fir\r\n"
+                                 "a=rtcp-fb:103 nack\r\n"
+                                 "a=rtcp-fb:103 nack pli\r\n"
+                                 "a=rtcp-fb:103 ccm fir\r\n"
+                                 "a=ssrc:1395487615 cname:user2385001219@host-3046046\r\n"
+                                 "m=audio 1268 RTP/AVPF 96 0 97\r\n"
+                                 "a=setup:actpass\r\n"
+                                 "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+                                 "a=rtpmap:96 opus/48000/2\r\n"
+                                 "a=rtpmap:97 AMR/8000\r\n"
+                                 "a=sendrecv\r\n"
+                                 "a=mid:audio0\r\n"
+                                 "a=ssrc:868439451 cname:user2385001219@host-3046046\r\n"
+                                 "m=video 54142 RTP/AVPF 102 103\r\n"
+                                 "a=setup:actpass\r\n"
+                                 "a=extmap:3 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\n"
+                                 "a=rtpmap:102 VP8/90000\r\n"
+                                 "a=rtpmap:103 H264/90000\r\n"
+                                 "a=sendrecv\r\n"
+                                 "a=mid:video0\r\n"
+                                 "a=rtcp-fb:102 nack\r\n"
+                                 "a=rtcp-fb:102 nack pli\r\n"
+                                 "a=rtcp-fb:102 goog-remb\r\n"
+                                 "a=rtcp-fb:102 ccm fir\r\n"
+                                 "a=rtcp-fb:103 nack\r\n"
+                                 "a=rtcp-fb:103 nack pli\r\n"
+                                 "a=rtcp-fb:103 ccm fir\r\n"
+                                 "a=ssrc:756966127 cname:user2385001219@host-3046046\r\n";
+
+
 static void
 releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
 {
@@ -184,6 +293,51 @@ static std::shared_ptr<MediaElementImpl> getMediaElement (std::shared_ptr<PassTh
 	return std::dynamic_pointer_cast<MediaElementImpl> (element);
 }
 
+static bool
+check_valid_answer (std::string sdp_answer)
+{
+	GstSDPMessage *sdp;
+	const GstSDPMedia *media;
+	guint medias_number;
+	guint idx = 0;
+
+	gst_sdp_message_new (&sdp);
+	gst_sdp_message_parse_buffer  ((const guint8 *)sdp_answer.c_str(), sdp_answer.length(), sdp);
+	medias_number = gst_sdp_message_medias_len  (sdp);
+	while (idx < medias_number) {
+		const gchar *attr_value;
+
+		media = gst_sdp_message_get_media (sdp, idx);
+		attr_value = gst_sdp_media_get_attribute_val (media, "inactive");
+		if (attr_value == NULL) {
+			if (gst_sdp_media_get_port (media) != 0)
+				return true;
+		}
+
+		idx++;
+	}
+	return false;
+}
+
+static void
+test_valid_answer (std::string test_sdp)
+{
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (true, true);
+
+  try {
+	  std::string answer = rtpEpAnswerer->processOffer (test_sdp);
+	  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+	  if (!check_valid_answer (answer)) {
+		  BOOST_ERROR ("Ther must be at least one valid media");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  releaseRtpEndpoint (rtpEpAnswerer);
+}
 
 
 static void
@@ -831,6 +985,34 @@ srtp_agnostic_case_16()
 }
 
 
+static void
+test_sdp_offer_1()
+{
+	BOOST_TEST_MESSAGE ("Start test: Testing SDP 1");
+	test_valid_answer (sdp_test_1);
+}
+
+static void
+test_sdp_offer_2()
+{
+	BOOST_TEST_MESSAGE ("Start test: Testing SDP 2");
+	test_valid_answer (sdp_test_2);
+}
+
+static void
+test_sdp_offer_3()
+{
+	BOOST_TEST_MESSAGE ("Start test: Testing SDP 3");
+	test_valid_answer (sdp_test_3);
+}
+
+static void
+test_sdp_offer_4()
+{
+	BOOST_TEST_MESSAGE ("Start test: Testing SDP 4");
+	test_valid_answer (sdp_test_4);
+}
+
 
 
 
@@ -845,6 +1027,12 @@ test_suite *
 init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
+
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_4), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_3), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_2), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_1), 0, /* timeout */ 15000);
+
 
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_1), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_2), 0, /* timeout */ 15000);
@@ -887,5 +1075,6 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &test_error_on_answer_without_one_media), 0, /* timeout */ 15000);
+
   return test;
 }

@@ -32,6 +32,8 @@
 #include <string>
 #include <sstream>
 #include <list>
+#include <vector>
+#include <set>
 #include <MediaFlowInStateChange.hpp>
 #include <MediaFlowState.hpp>
 
@@ -52,6 +54,69 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 namespace kurento
 {
 
+static void
+completeSdpAnswer (std::string &answer, const std::string &offer)
+{
+	GstSDPMessage *sdpOffer, *sdpAnswer;
+	guint offerMediaNum, answerMediaNum;
+	GArray *mediaAnswer, *mediaOffer;
+	guint idx;
+	gchar *answerStr;
+
+	gst_sdp_message_new (&sdpOffer);
+	gst_sdp_message_new (&sdpAnswer);
+	gst_sdp_message_parse_buffer((const guint8*)offer.c_str(), offer.length(), sdpOffer);
+	gst_sdp_message_parse_buffer((const guint8*)answer.c_str(), answer.length(), sdpAnswer);
+
+	offerMediaNum = gst_sdp_message_medias_len (sdpOffer);
+	answerMediaNum = gst_sdp_message_medias_len (sdpAnswer);
+
+	mediaOffer = sdpOffer->medias;
+	mediaAnswer = sdpAnswer->medias;
+
+	idx = 0;
+	while (idx < offerMediaNum) {
+		GstSDPMedia *offIdxMedia;
+		GstSDPMedia *ansIdxMedia;
+		bool addFakeMedia = false;
+
+		offIdxMedia = &g_array_index (mediaOffer, GstSDPMedia, idx);
+		if (idx >= answerMediaNum) {
+			addFakeMedia = true;
+		} else {
+			ansIdxMedia = &g_array_index (mediaAnswer, GstSDPMedia, idx);
+			if (g_strcmp0(offIdxMedia->media, ansIdxMedia->media) == 0) {
+				if (g_strcmp0(offIdxMedia->proto, ansIdxMedia->proto) != 0) {
+					addFakeMedia = true;
+				}
+			} else {
+				addFakeMedia = true;
+			}
+		}
+
+		if (addFakeMedia) {
+			GstSDPMedia *fakeMedia;
+
+			gst_sdp_media_new (&fakeMedia);
+			gst_sdp_media_set_media (fakeMedia, offIdxMedia->media);
+			gst_sdp_media_set_proto (fakeMedia, offIdxMedia->proto);
+			gst_sdp_media_set_port_info (fakeMedia, 0,1);
+			gst_sdp_media_add_attribute  (fakeMedia, "inactive", NULL);
+			mediaAnswer = g_array_insert_val (mediaAnswer, idx, *fakeMedia);
+			answerMediaNum++;
+		}
+
+		idx++;
+	}
+	answerStr = gst_sdp_message_as_text  (sdpAnswer);
+	answer = answerStr;
+	gst_sdp_message_free (sdpOffer);
+	gst_sdp_message_free (sdpAnswer);
+	g_free (answerStr);
+}
+
+
+
 FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                   std::shared_ptr<MediaPipeline> mediaPipeline,
                                   std::shared_ptr<SDES> crypto,
@@ -68,8 +133,10 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
   rembParamsSet = NULL;
 
   // Magic values to assess no change on SSRC
-  this->agnosticMediaAudioSsrc = 0;
-  this->agnosticMediaVideoSsrc = 0;
+  this->agnosticCryptoAudioSsrc = 0;
+  this->agnosticCryptoVideoSsrc = 0;
+  this->agnosticNonCryptoAudioSsrc = 0;
+  this->agnosticNonCryptoVideoSsrc = 0;
 }
 
 FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
@@ -181,10 +248,10 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 	return offer;
 }
 
-static std::list<GstSDPMedia*>
+static std::vector<GstSDPMedia*>
 getMediasFromSdp (GstSDPMessage *sdp)
 {
-	std::list<GstSDPMedia*> mediaList;
+	std::vector<GstSDPMedia*> mediaList;
 	guint idx = 0;
 	guint medias_len;
 
@@ -236,6 +303,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 		if (!renewEp) {
 			answer = this->rtp_ep->processOffer(modifiableOffer);
 			GST_DEBUG ("Generated Answer: \n%s", answer.c_str());
+			completeSdpAnswer (answer, offer);
 			return answer;
 		} else {
 			GST_INFO("ProcessOffer: Regenerating endpoint for crypto agnostic");
@@ -260,6 +328,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
 	answer = newEndpoint->processOffer(modifiableOffer);
+	completeSdpAnswer (answer, offer);
 	GST_DEBUG ("2nd try Generated Answer: \n%s", answer.c_str());
 	GST_INFO("Consecutive process Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
 	return answer;
@@ -305,7 +374,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	} catch (kurento::KurentoException& e) {
 		if (e.getCode() == SDP_END_POINT_ANSWER_ALREADY_PROCCESED) {
 			GST_INFO("Consecutive process Answer on %s, cloning endpoint", this->getId().c_str());
-			cryptoToUse = cryptoCache;
+			//cryptoToUse = cryptoCache;
 		} else {
 			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
 			throw e;
@@ -317,12 +386,23 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	std::string unusedOffer;
 	std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
 
-	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, answer);
-	if (this->agnosticMediaAudioSsrc != 0) {
-		newEndpoint->setAudioSsrc (this->agnosticMediaAudioSsrc);
-	}
-	if (this->agnosticMediaVideoSsrc != 0) {
-		newEndpoint->setVideoSsrc (this->agnosticMediaVideoSsrc);
+	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, modifiableAnswer);
+	if (this->isCryptoAgnostic ()) {
+		if (cryptoToUse->isSetCrypto()) {
+			if (this->agnosticCryptoAudioSsrc != 0) {
+				newEndpoint->setAudioSsrc (this->agnosticCryptoAudioSsrc);
+			}
+			if (this->agnosticCryptoVideoSsrc != 0) {
+				newEndpoint->setVideoSsrc (this->agnosticCryptoVideoSsrc);
+			}
+		} else {
+			if (this->agnosticNonCryptoAudioSsrc != 0) {
+				newEndpoint->setAudioSsrc (this->agnosticNonCryptoAudioSsrc);
+			}
+			if (this->agnosticNonCryptoVideoSsrc != 0) {
+				newEndpoint->setVideoSsrc (this->agnosticNonCryptoVideoSsrc);
+			}
+		}
 	}
 	newEndpoint->postConstructor();
 	oldEndpoint = renewInternalEndpoint (newEndpoint);
@@ -352,12 +432,15 @@ FacadeRtpEndpointImpl::isCryptoAgnostic ()
 }
 
 void
-FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsrcStr)
+FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media,
+		guint idx,
+		gchar *newSsrcStr,
+		guint32 &oldSsrc)
 {
 	const GstSDPAttribute *attr;
 	GstSDPAttribute *new_attr;
 	std::string ssrc;
-	std::string oldSsrc;
+	std::string oldSsrcStr;
     GRegex *regex;
 	std::string newSsrc;
 	std::size_t ssrcIdx;
@@ -371,33 +454,34 @@ FacadeRtpEndpointImpl::replaceSsrc (GstSDPMedia *media, guint idx, gchar *newSsr
 		regex = g_regex_new ("^(?<ssrc>[0-9]+)(.*)?$", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
 		g_regex_match (regex, ssrc.c_str(), (GRegexMatchFlags)0, &match_info);
 		if (g_match_info_matches (match_info)) {
-			oldSsrc = g_match_info_fetch_named (match_info, "ssrc");
+			oldSsrcStr = g_match_info_fetch_named (match_info, "ssrc");
 		}
 		g_match_info_free (match_info);
 		g_regex_unref (regex);
 
-		ssrcIdx = ssrc.find(oldSsrc);
+		ssrcIdx = ssrc.find(oldSsrcStr);
 		if (ssrcIdx != std::string::npos) {
-			newSsrc = ssrc.substr(0, ssrcIdx).append(newSsrcStr).append (ssrc.substr(ssrcIdx+oldSsrc.length(), std::string::npos));
+			newSsrc = ssrc.substr(0, ssrcIdx).append(newSsrcStr).append (ssrc.substr(ssrcIdx+oldSsrcStr.length(), std::string::npos));
 		}
 
 		gst_sdp_attribute_set  (new_attr, "ssrc", newSsrc.c_str());
 		gst_sdp_media_replace_attribute (media, idx, new_attr);
+
+		oldSsrc = g_ascii_strtoull  (oldSsrcStr.c_str(), NULL, 10);
 	}
 }
 
-guint32
-FacadeRtpEndpointImpl::replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs)
+void
+FacadeRtpEndpointImpl::replaceAllSsrcAttrs (GstSDPMedia *media, std::list<guint> sscrIdxs, guint32 &oldSsrc, guint32 &newSsrc)
 {
 	// set the ssrc attribute
-	guint32 newSsrc = g_random_int ();
 	gchar newSsrcStr [11];
 
+	newSsrc = g_random_int ();
 	g_snprintf (newSsrcStr, 11, "%u", newSsrc);
 	for (std::list<guint>::iterator it=sscrIdxs.begin(); it != sscrIdxs.end(); ++it) {
-		replaceSsrc (media, *it, newSsrcStr);
+		replaceSsrc (media, *it, newSsrcStr, oldSsrc);
 	}
-	return newSsrc;
 }
 
 void
@@ -416,6 +500,7 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 	GstSDPMedia* newMedia;
 	guint idx, attrs_len;
 	guint32 agnosticMediaSsrc;
+	guint32 oldSsrc;
 
 	if (gst_sdp_media_copy (media, &newMedia) != GST_SDP_OK) {
 		GST_ERROR ("Could not copy media, cannot generate secure agnostic media");
@@ -448,11 +533,13 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 		idx++;
 	}
 
-	agnosticMediaSsrc = replaceAllSsrcAttrs (newMedia, sscrIdxs);
+	replaceAllSsrcAttrs (newMedia, sscrIdxs, oldSsrc, agnosticMediaSsrc);
 	if (g_strcmp0(gst_sdp_media_get_media (newMedia), "audio") == 0) {
-		this->agnosticMediaAudioSsrc = agnosticMediaSsrc;
+		this->agnosticCryptoAudioSsrc = oldSsrc;
+		this->agnosticNonCryptoAudioSsrc = agnosticMediaSsrc;
 	} else if (g_strcmp0(gst_sdp_media_get_media (newMedia), "video") == 0) {
-		this->agnosticMediaVideoSsrc = agnosticMediaSsrc;
+		this->agnosticCryptoVideoSsrc = oldSsrc;
+		this->agnosticNonCryptoVideoSsrc = agnosticMediaSsrc;
 	}
 
 	// Remove crypto attribute
@@ -476,33 +563,28 @@ isMediaActive (GstSDPMedia *media)
 }
 
 
-static void
-splitMediaByCrypto (std::list<GstSDPMedia*> &nonCryptoList, std::list<GstSDPMedia*> &cryptoList)
+static bool
+isCryptoSDES (std::shared_ptr<SDES> sdes)
 {
-	// For each media we check if it is using a crypto protocol or not
-	for (std::list<GstSDPMedia*>::iterator it=nonCryptoList.begin(); it != nonCryptoList.end(); ){
-		GstSDPMedia *media = (GstSDPMedia*) *it;
-		if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0)
-			|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0)) {
-			if (isMediaActive (media)) {
-				cryptoList.push_back(media);
-				it = nonCryptoList.erase (it);
-				continue;
-			}
-		}
-		++it;
-	}
+	if (sdes == NULL)
+		return false;
+
+	if (sdes->isSetCrypto())
+		return true;
+
+	return false;
 }
+
 
 bool
 FacadeRtpEndpointImpl::generateCryptoAgnosticOffer (std::string& offer)
 {
-	std::list<GstSDPMedia*> mediaList;
+	std::vector<GstSDPMedia*> mediaList;
 	GstSDPMessage *sdpOffer;
 	gchar* result;
 
 	// If not crypto configured, cannot generate crypto agnostic offer
-	if (this->cryptoCache == NULL) {
+	if (!isCryptoSDES(this->cryptoCache)) {
 		GST_WARNING ("cryptoAgnostic configured, but no crypto info set, cannot generate cryptoAgnostic endpoint, reverting to non crypto endpoint");
 		return false;
 	}
@@ -515,7 +597,7 @@ FacadeRtpEndpointImpl::generateCryptoAgnosticOffer (std::string& offer)
 	// For each media line we generate a new line with different ssrc, same port and different protocol (is current protocol is RTP/SAVP,
 	// new one is RTP/AVP)
 	// Keep in mind that we already have crypto lines, so only non-crypto lines must be generated
-	for (std::list<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ++it) {
+	for (std::vector<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ++it) {
 		addAgnosticMedia (*it, sdpOffer);
 	}
 
@@ -568,7 +650,7 @@ build_crypto (std::shared_ptr<CryptoSuite> suite, std::string &key)
 }
 
 static bool
-get_valid_crypto_info_from_offer (GstSDPMedia *media, std::shared_ptr<SDES>& crypto)
+get_valid_crypto_info_from_offer (GstSDPMedia *media, std::shared_ptr<SDES> &crypto)
 {
 	guint idx, attrs_len;
 
@@ -623,50 +705,30 @@ next_iter:
 	return false;
 }
 
-static std::shared_ptr<SDES>
-is_crypto_sdp (std::list<GstSDPMedia*> mediaList)
+static void
+makeUpSdp (bool isCrypto, GstSDPMessage* sdp,
+		std::set<guint> cryptoMedias,
+		std::set<guint> nonCryptoMedias)
 {
-	std::shared_ptr<SDES> sdes (new SDES());
-	std::list<GstSDPMedia*> cryptoMediaList;
+	std::set<guint> *mediaToAdd;
+	int numMedias, idx;
 
-	splitMediaByCrypto (mediaList, cryptoMediaList);
-
-	if (cryptoMediaList.size () > 0) {
-		// Offer has crypto info, so we need to ensure
-		// - First, that the endpoint supports crypto
-		// - Second, that crypto suite and master key correspond to that in the offer
-		if (!get_valid_crypto_info_from_offer (cryptoMediaList.front (), sdes)) {
-			// No valid key found,
-			GST_ERROR ("Crypto offer found, but no supported key found in offer, cannot answer");
-		} else {
-			GST_INFO ("Valid crypto info found in offer");
-		}
+	if (isCrypto) {
+		mediaToAdd = &cryptoMedias;
 	} else {
-		GST_INFO ("No crypto offer found");
+		mediaToAdd = &nonCryptoMedias;
 	}
 
-	return sdes;
-}
-
-bool
-FacadeRtpEndpointImpl::checkCryptoOffer (std::string& offer, std::shared_ptr<SDES>& crypto)
-{
-	std::list<GstSDPMedia*> mediaList;
-	GstSDPMessage* sdpOffer;
-	std::shared_ptr<SDES> sdes;
-
-	sdpOffer = parseSDP (offer);
-	if (sdpOffer == NULL)
-		return false;
-
-	mediaList = getMediasFromSdp (sdpOffer);
-
-	sdes = is_crypto_sdp (mediaList);
-
-	// The easiest way to proceed is recreate the endpoint in any case
-	crypto = sdes;
-	gst_sdp_message_free (sdpOffer);
-	return true;
+	if (!mediaToAdd->empty()) {
+		numMedias = gst_sdp_message_medias_len  (sdp);
+		idx = numMedias-1;
+		while (idx >= 0) {
+			if (mediaToAdd->find(idx) == mediaToAdd->end()) {
+				sdp->medias = g_array_remove_index (sdp->medias, idx);
+			}
+			idx--;
+		}
+	}
 }
 
 static bool
@@ -680,71 +742,132 @@ isCryptoCompatible (std::shared_ptr<SDES> original, std::shared_ptr<SDES> answer
 		if (original->isSetCrypto()) {
 			if (original->getCrypto()->getValue() != answer->getCrypto()->getValue())
 				result = false;
-		} else {
-			return !(answer->isSetCrypto ());
 		}
 	}
 	return result;
 }
 
 static void
-removeMediaLines (GstSDPMessage* sdpAnswer, std::list<GstSDPMedia*> mediaList)
+getActiveMedias (std::vector<GstSDPMedia*> mediaList, std::set<guint> &usableMedia)
 {
-	std::list<guint> mediaIdxToRemove;
 	guint idx = 0;
-	bool got_audio = false, got_video = false;
 
-	// For each media we check if it is using a crypto protocol or not
-	for (std::list<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ){
+	for (std::vector<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ){
 		GstSDPMedia *media = (GstSDPMedia*) *it;
-
-		// We just get the first audio and first video that are active (or port != 0
-		if (!isMediaActive (media)) {
-			mediaIdxToRemove.push_back (idx);
-		} else {
-			if (g_strcmp0 (media->media, "audio") == 0) {
-				if (!got_audio) {
-					got_audio = true;
-				} else {
-					mediaIdxToRemove.push_back (idx);
-				}
-			} else if (g_strcmp0 (media->media, "video") == 0) {
-				if (!got_video) {
-					got_video = true;
-				} else {
-					mediaIdxToRemove.push_back (idx);
-				}
-
-			}
+		if (isMediaActive (media)) {
+			usableMedia.insert(idx);
 		}
 		++it;
-		++idx;
+		idx++;
+	}
+}
+
+static void
+getCryptoMedias (std::vector<GstSDPMedia*> mediaList, std::set<guint> &nonCryptoMedias, std::set<guint> &cryptoMedias)
+{
+	// For each media we check if it is using a crypto protocol or not
+	for (std::set<guint>::iterator it=nonCryptoMedias.begin(); it != nonCryptoMedias.end(); ){
+		guint mediaIdx = *it;
+		GstSDPMedia *media = mediaList.at(mediaIdx);
+
+		if ((g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVP") == 0)
+			|| (g_strcmp0 (gst_sdp_media_get_proto (media), "RTP/SAVPF") == 0)) {
+			cryptoMedias.insert(mediaIdx);
+		}
+		++it;
 	}
 
-	// We cannot remove all medias, we need to leave at least one audio and one video
-	// If mediaIdxToRemove has all medias, we just remove two last ones
-	if (mediaIdxToRemove.size () == mediaList.size()) {
-		mediaIdxToRemove.pop_back ();
-		mediaIdxToRemove.pop_back ();
+	// And remove cryptos found from noncrypto list
+	for (std::set<guint>::iterator it=cryptoMedias.begin(); it != cryptoMedias.end (); ++it) {
+		nonCryptoMedias.erase (*it);
 	}
+}
 
-	// Remove media lines that are not <crypto> if there are other lines
-	// on mediaIdxToRemote we have the indexes of media lines that are not <crypto>
-	// So we remove thos indexes only if there are other media lines.
-	if ((mediaIdxToRemove.size () > 0) && (mediaList.size() > mediaIdxToRemove.size ())) {
-		for (std::list<guint>::reverse_iterator it=mediaIdxToRemove.rbegin(); it != mediaIdxToRemove.rend(); ++it) {
-			g_array_remove_index (sdpAnswer->medias, *it);
+static bool
+getCryptoInfoFromMedia(std::vector<GstSDPMedia*> mediaList,
+		std::set<guint> cryptoMedias,
+		std::shared_ptr<SDES> &sdes)
+{
+	if (cryptoMedias.size () > 0) {
+		GstSDPMedia *media = mediaList.at (*(cryptoMedias.begin ()));
+
+		// Offer has crypto info, so we need to ensure
+		// - First, that the endpoint supports crypto
+		// - Second, that crypto suite and master key correspond to that in the offer
+		if (!get_valid_crypto_info_from_offer (media, sdes)) {
+			// No valid key found,
+			GST_ERROR ("Crypto offer found, but no supported key found in offer, cannot answer");
+			return false;
+		} else {
+			GST_INFO ("Valid crypto info found in offer");
+			return true;
+		}
+	} else {
+		GST_INFO ("No crypto offer found");
+	}
+	return false;
+}
+
+bool
+FacadeRtpEndpointImpl::checkCryptoOffer (std::string& offer, std::shared_ptr<SDES>& crypto)
+{
+	std::vector<GstSDPMedia*> mediaList;
+	std::set<guint> nonCryptoMedias;
+	std::set<guint> cryptoMedias;
+	GstSDPMessage* sdpOffer;
+	bool isCrypto = false;
+	std::shared_ptr<SDES> sdes (new SDES());
+	gchar *modifiedSdpStr;
+
+	sdpOffer = parseSDP (offer);
+	if (sdpOffer == NULL)
+		return false;
+
+	mediaList = getMediasFromSdp (sdpOffer);
+
+	getActiveMedias (mediaList, nonCryptoMedias);
+
+	if (nonCryptoMedias.size() == 0) {
+		// No active medias offered
+		// We just leave the first 2 medias as base RtpEndpoint is what it needs
+		guint idx = 0;
+
+		while (idx < mediaList.size ()) {
+			nonCryptoMedias.insert(idx);
+			idx++;
 		}
 	}
+	getCryptoMedias (mediaList, nonCryptoMedias, cryptoMedias);
+
+	isCrypto = getCryptoInfoFromMedia (mediaList, cryptoMedias, sdes);
+
+	makeUpSdp (isCrypto, sdpOffer, cryptoMedias, nonCryptoMedias);
+
+	crypto = sdes;
+	modifiedSdpStr = gst_sdp_message_as_text  (sdpOffer);
+	offer = modifiedSdpStr;
+
+	gst_sdp_message_free (sdpOffer);
+	g_free (modifiedSdpStr);
+
+	crypto = sdes;
+
+	if (isCryptoCompatible(cryptoCache, sdes))
+		return false;
+
+	return true;
 }
 
 static std::shared_ptr<SDES>
 fitMediaAnswer (std::string& answer, bool isLocalCrypto)
 {
-	std::list<GstSDPMedia*> mediaList;
+	std::vector<GstSDPMedia*> mediaList;
+	std::set<guint> nonCryptoMedias;
+	std::set<guint> cryptoMedias;
 	GstSDPMessage* sdpAnswer;
-	std::shared_ptr<SDES> sdes;
+	std::shared_ptr<SDES> sdes (new SDES());
 	gchar * newAnswer;
+	bool isCrypto;
 
 	sdpAnswer = parseSDP (answer);
 	if (sdpAnswer == NULL)
@@ -752,9 +875,23 @@ fitMediaAnswer (std::string& answer, bool isLocalCrypto)
 
 	mediaList = getMediasFromSdp (sdpAnswer);
 
-	sdes = is_crypto_sdp (mediaList);
+	getActiveMedias (mediaList, nonCryptoMedias);
 
-	removeMediaLines (sdpAnswer, mediaList);
+	if (nonCryptoMedias.size() == 0) {
+		// No active medias found, so we must restrict answer to first 2 medias
+		// as they should be crypto ones
+		guint idx = 0;
+
+		while (idx < mediaList.size ()) {
+			nonCryptoMedias.insert (idx);
+			idx++;
+		}
+	}
+
+	getCryptoMedias (mediaList, nonCryptoMedias, cryptoMedias);
+	isCrypto = getCryptoInfoFromMedia (mediaList, cryptoMedias, sdes);
+
+	makeUpSdp (isCrypto, sdpAnswer, cryptoMedias, nonCryptoMedias);
 	newAnswer = gst_sdp_message_as_text (sdpAnswer);
 	answer = newAnswer;
 	g_free ((gpointer)newAnswer);
