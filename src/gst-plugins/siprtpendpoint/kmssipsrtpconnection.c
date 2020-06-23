@@ -295,9 +295,7 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	  priv->rtcp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  priv->rtcp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 
-	  if (filter_info != NULL) {
-		  kms_sip_srtp_connection_add_probes (conn, filter_info, rtp_probe_id, rtcp_probe_id);
-	  }
+	  kms_sip_srtp_connection_add_probes (conn, filter_info, rtp_probe_id, rtcp_probe_id);
 
 	  g_object_set (priv->rtp_udpsink, "socket", priv->rtp_socket,
 	      "sync", FALSE, "async", FALSE, NULL);

@@ -50,8 +50,10 @@
       	    set of m lines (in those the answer should set the port of those lines to a valid number different from 0), and reject the lines (setting the port of those lines to 0). It is important to note, that if for any reason
       	    the answer processed contains valid m lines (port set to a valid number different from 0) for both RTP/AVP and RTP/SAVP lines, the endpoint will 
       	    just establish one of the set (if possible the one corresponding to RTP/SAVP profile)</li>
-      	<li>Then</li>
       </ul>
+      </p>
+      <p>
+      Another element that many VoIP providers present is that they can change SSRC on the fly  of a live RTP flow. This may be due to internal switching of media in VoIP provider, but it makes the RtpEndpoint useless as any change on the fly to the SSRC takes the RtpEndpoint to an open ended pipeline that causes a 'not linked' error and pauses the RtpEndpoint. SipRtpEndpoint supports SSRC switcjing on the fly by examining incoming SSRC in RTP/RTCP packets and if not used in previous media connections it let them pass, but changing in the RTP/RTCP packet the SSRC to the one of the first packet received in current RTP flow.
       </p>
       ",
       "constructor":

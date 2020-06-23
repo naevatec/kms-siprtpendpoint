@@ -87,7 +87,7 @@ kms_sip_rtp_session_store_rtp_filtering_info (KmsSipRtpSession *ses, KmsRtpConne
 		  GST_WARNING ("No memory, some leak may happen");
 	  }
 
-	  info->conn = g_object_ref (conn);
+	  info->conn = conn;
 	  info->rtp_probe = rtp_probe;
 	  info->rtcp_probe = rtcp_probe;
 
@@ -124,6 +124,32 @@ kms_sip_rtp_session_retrieve_sockets (GHashTable *conns, const GstSDPMedia * med
 	}
 }
 
+static SipFilterSsrcInfo*
+km_sip_rtp_session_setup_filter_info (KmsSipRtpSession *self, const gchar *media_str)
+{
+	SipFilterSsrcInfo* filter_info;
+	guint32 media_type;
+
+	  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
+		  filter_info = self->video_filter_info;
+		  media_type = VIDEO_RTP_SESSION;
+	  }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
+		  filter_info = self->audio_filter_info;
+		  media_type = AUDIO_RTP_SESSION;
+	  }
+
+	  if (filter_info == NULL) {
+		  filter_info = kms_sip_rtp_filter_create_filtering_info (0, NULL, media_type);
+		  if (media_type == AUDIO_RTP_SESSION) {
+			  self->audio_filter_info = filter_info;
+		  } else if (media_type == VIDEO_RTP_SESSION) {
+			  self->video_filter_info = filter_info;
+		  }
+	  }
+
+	  return filter_info;
+}
+
 static KmsIRtpConnection *
 kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
     const GstSDPMedia * media, const gchar * name, guint16 min_port,
@@ -153,11 +179,8 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
 
   media_str = gst_sdp_media_get_media (media);
 
-  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
-	  filter_info = self->video_filter_info;
-  }else if (g_strcmp0 (AUDIO_STREAM_NAME, media_str) == 0) {
-	  filter_info = self->audio_filter_info;
-  }
+  filter_info = km_sip_rtp_session_setup_filter_info (self, media_str);
+
   conn = kms_sip_rtp_connection_new (min_port, max_port,
       KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe);
 

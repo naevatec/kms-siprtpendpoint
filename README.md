@@ -23,6 +23,8 @@ This is a drawback when integrating. among other cases, with SIP VoIP networks t
 
 To this aim, SipRtpEndpoint behaves exactly as an RtpEndpoint but allows to call any of the SDP negotitation APIs (`generateOffer`, `processOffer` or `processAnswer`) any time and as much times as needed. Each time one of this APIs are called, old media is discarded and the correspoding new media is established.
 
+Another element that many VoIP providers present is that they can change SSRC on the fly  of a live RTP flow. This may be due to internal switching of media in VoIP provider, but it makes the RtpEndpoint useless as any change on the fly to the SSRC takes the RtpEndpoint to an open ended pipeline that causes a "not linked" error and pauses the RtpEndpoint. SipRtpEndpoint supports SSRC switching on the fly by examining incoming SSRC in RTP/RTCP packets and if not used in previous media connections it let them pass, but changing in the RTP/RTCP packet the SSRC to the one of the first packet received in current RTP flow. We also need to adapt timestamping on switched media so that Kurento pipeline does not get disrupted.
+
 SipRtpEndpoint is implemented as a derived class from BaseRtpEndpoint to provide the same features that RtrEndpoint. And internally is implemented as a RtpEndpoint connected through a pair of PassThrough elements (one for input media and the other for output media). First time SDP is negotiated, that negotiation is delegated on internal RtpEndpoint. Whenever a renegotiation is done, old internal RtpEndpoint is closed and discarded and a new one is instantiated and reconnected to Passthrough elements and negotiation is delegated on that new RtpEndpoint.
 
 The main involved APIs are:

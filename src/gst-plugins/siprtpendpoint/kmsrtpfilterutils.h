@@ -25,7 +25,16 @@ typedef struct _SipFilterSsrcInfo SipFilterSsrcInfo;
 
 struct _SipFilterSsrcInfo {
 	guint32 expected;
-	GList*  old;
+	guint32 current;
+	GList* old;
+	guint32 media_session;
+	GRecMutex mutex;
+
+	// Needed for fixing RTP streams internally switched on VoiP applications (MEDIA_AUDIO)
+	guint32 last_ts;
+	guint16 last_seq;
+	guint32 last_ts_delta;
+	gint64  jump_ts;
 };
 
 gulong
@@ -41,7 +50,7 @@ void
 kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id);
 
 SipFilterSsrcInfo*
-kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous);
+kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session);
 
 void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info);
 

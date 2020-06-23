@@ -106,22 +106,30 @@ ComposedObjectImpl::connectForwardSignals ()
 
 	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ & ] (
 			  ElementDisconnected event) {
-		  //We don't raise internal connection events'
-		  if (event.getSource()==srcPt)
-			  return;
-		  if (event.getSink () == sinkPt)
-			  return;
-		  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+		  try {
+			  //We don't raise internal connection events'
+			  if (event.getSource()==srcPt)
+				  return;
+			  if (event.getSink () == sinkPt)
+				  return;
+			  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+		  } catch (const std::bad_weak_ptr &e) {
+		    // shared_from_this()
+		  }
 	  });
 
 	  connElementDisconnectedSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalElementDisconnected.connect([ & ] (
 			  ElementDisconnected event) {
-		  //We don't raise internal connection events'
-		  if (event.getSource()==srcPt)
-			  return;
-		  if (event.getSink () == sinkPt)
-			  return;
-		  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+		  try {
+			  //We don't raise internal connection events'
+			  if (event.getSource()==srcPt)
+				  return;
+			  if (event.getSink () == sinkPt)
+				  return;
+			  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+		  } catch (const std::bad_weak_ptr &e) {
+			    // shared_from_this()
+		  }
 	  });
 
 	  connMediaTranscodingStateChangeSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaTranscodingStateChange.connect([ & ] (

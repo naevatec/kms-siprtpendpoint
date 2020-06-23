@@ -511,13 +511,15 @@ kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSessi
 	if (KMS_IS_SIP_RTP_SESSION (ses)) {
 		KmsSipRtpSession* sip_ses = KMS_SIP_RTP_SESSION (ses);
 
-		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info);
-		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info);
+		GST_DEBUG ("kms_sip_rtp_endpoint_create_clone_data audio filter %p, video filter %p", sip_ses->audio_filter_info, sip_ses->video_filter_info);
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION);
 	} else if (KMS_IS_SIP_SRTP_SESSION (ses)) {
 		KmsSipSrtpSession* sip_ses = KMS_SIP_SRTP_SESSION (ses);
 
-		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info);
-		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info);
+		GST_DEBUG ("kms_sip_rtp_endpoint_create_clone_data srtp  audio filter %p, video filter %p", sip_ses->audio_filter_info, sip_ses->video_filter_info);
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION);
 	}
 
 	data->audio_filter_info = audio_filter_info;

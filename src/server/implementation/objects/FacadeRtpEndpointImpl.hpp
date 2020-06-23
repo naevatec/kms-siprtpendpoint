@@ -77,6 +77,8 @@ public:
   sigc::signal<void, MediaStateChanged> getSignalMediaStateChanged ();
   sigc::signal<void, ConnectionStateChanged> getSignalConnectionStateChanged ();
 
+  int getMtu ();
+  void setMtu (int mtu);
 
   /*---------------- Overloaded methods from SDP Endpoint ---------------*/
   int getMaxVideoRecvBandwidth () override;

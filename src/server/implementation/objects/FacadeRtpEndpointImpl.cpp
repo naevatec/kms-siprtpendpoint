@@ -1058,6 +1058,16 @@ sigc::signal<void, ConnectionStateChanged> FacadeRtpEndpointImpl::getSignalConne
 	return this->rtp_ep->signalConnectionStateChanged;
 }
 
+int FacadeRtpEndpointImpl::getMtu ()
+{
+	return this->rtp_ep->getMtu ();
+}
+
+void FacadeRtpEndpointImpl::setMtu (int mtu)
+{
+	this->rtp_ep->setMtu (mtu);
+}
+
 
 
 
