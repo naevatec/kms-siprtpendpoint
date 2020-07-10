@@ -51,7 +51,9 @@ public:
   std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint (const boost::property_tree::ptree &conf,
           std::shared_ptr<MediaPipeline> mediaPipeline,
           std::shared_ptr<SDES> crypto, bool useIpv6,
-		  const std::string &sdp);
+		  const std::string &sdp,
+		  bool continue_audio_stream,
+		  bool continue_video_stream);
 
   void setAudioSsrc (guint32 ssrc);
   void setVideoSsrc (guint32 ssrc);
@@ -76,7 +78,7 @@ private:
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 
-  std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp, const std::string &sdp);
+  std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp, const std::string &sdp, bool continue_audio_stream, bool continue_video_stream);
 
   class StaticConstructor
   {

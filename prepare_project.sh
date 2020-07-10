@@ -1,8 +1,8 @@
 #!/bin/sh
 
-#BUILD_TYPE=Release
+BUILD_TYPE=Release
 #BUILD_TYPE=RelWithDebInfo
-BUILD_TYPE=Debug
+#BUILD_TYPE=Debug
 BUILD_DIR="build-$BUILD_TYPE"
 mkdir "$BUILD_DIR" && cd "$BUILD_DIR"
 cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DGENERATE_JS_CLIENT_PROJECT=TRUE ..
@@ -18,6 +18,9 @@ make test
 make java_install
 cd java
 mvn javadoc:javadoc
+cd target
+tar cvf siprtp-javadoc-1.0.0-SNAPSHOT.jar site
+cd ..
 cd ..
 
 cd js

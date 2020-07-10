@@ -499,11 +499,11 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
 }
 
 static KmsSipRtpEndpointCloneData*
-kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses, guint32 audio_ssrc, guint32 video_ssrc)
+kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses, guint32 audio_ssrc, guint32 video_ssrc, gboolean continue_audio_stream, gboolean continue_video_stream)
 {
 	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
-	SipFilterSsrcInfo* audio_filter_info;
-	SipFilterSsrcInfo* video_filter_info;
+	SipFilterSsrcInfo* audio_filter_info = NULL;
+	SipFilterSsrcInfo* video_filter_info = NULL;
 
 	data->local_audio_ssrc = ses->local_audio_ssrc;
 	data->local_video_ssrc = ses->local_video_ssrc;
@@ -512,14 +512,14 @@ kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSessi
 		KmsSipRtpSession* sip_ses = KMS_SIP_RTP_SESSION (ses);
 
 		GST_DEBUG ("kms_sip_rtp_endpoint_create_clone_data audio filter %p, video filter %p", sip_ses->audio_filter_info, sip_ses->video_filter_info);
-		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION);
-		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION);
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION, continue_audio_stream);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION, continue_video_stream);
 	} else if (KMS_IS_SIP_SRTP_SESSION (ses)) {
 		KmsSipSrtpSession* sip_ses = KMS_SIP_SRTP_SESSION (ses);
 
 		GST_DEBUG ("kms_sip_rtp_endpoint_create_clone_data srtp  audio filter %p, video filter %p", sip_ses->audio_filter_info, sip_ses->video_filter_info);
-		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION);
-		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION);
+		audio_filter_info = kms_sip_rtp_filter_create_filtering_info (audio_ssrc, sip_ses->audio_filter_info, AUDIO_RTP_SESSION, continue_audio_stream);
+		video_filter_info = kms_sip_rtp_filter_create_filtering_info (video_ssrc, sip_ses->video_filter_info, VIDEO_RTP_SESSION, continue_video_stream);
 	}
 
 	data->audio_filter_info = audio_filter_info;
@@ -549,7 +549,7 @@ kms_sip_rtp_endpoint_free_clone_data (GList *data)
 }
 
 static void
-kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint *cloned, const gchar* sdp_str)
+kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint *cloned, const gchar* sdp_str, gboolean continue_audio_stream, gboolean continue_video_stream)
 {
 	GHashTable * sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT(self));
 	GList *sessionKeys = g_hash_table_get_keys (sessions);
@@ -573,7 +573,7 @@ kms_sip_rtp_endpoint_clone_to_new_ep (KmsSipRtpEndpoint *self, KmsSipRtpEndpoint
 	for (i = 0; i < g_hash_table_size(sessions); i++) {
 		gpointer sesKey = sessionKeys->data;
 		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
-		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (self, ses, remote_audio_ssrc, remote_video_ssrc);
+		KmsSipRtpEndpointCloneData *data = kms_sip_rtp_endpoint_create_clone_data (self, ses, remote_audio_ssrc, remote_video_ssrc, continue_audio_stream, continue_video_stream);
 
 		sessionsData = g_list_append (sessionsData, (gpointer)data);
 	}
@@ -732,7 +732,7 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
       G_TYPE_FROM_CLASS (klass),
       G_SIGNAL_ACTION | G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET (KmsSipRtpEndpointClass, clone_to_new_ep), NULL, NULL,
-      NULL, G_TYPE_NONE, 2, G_TYPE_POINTER, G_TYPE_STRING);
+      NULL, G_TYPE_NONE, 4, G_TYPE_POINTER, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
 
 
   g_type_class_add_private (klass, sizeof (KmsSipRtpEndpointPrivate));

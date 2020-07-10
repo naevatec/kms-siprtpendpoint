@@ -74,10 +74,10 @@ kms_sip_srtp_connection_retrieve_sockets (KmsSrtpConnection *conn, GSocket **rtp
 		g_object_set (conn->priv->rtcp_udpsink, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtp_udpsrc, "close-socket", FALSE, NULL);
 		g_object_set (conn->priv->rtcp_udpsrc, "close-socket", FALSE, NULL);
-		g_object_set (conn->priv->rtp_udpsink, "socket", NULL);
-	    g_object_set (conn->priv->rtp_udpsrc, "socket", NULL);
-		g_object_set (conn->priv->rtcp_udpsink, "socket", NULL);
-		g_object_set (conn->priv->rtcp_udpsrc, "socket", NULL);
+//		g_object_set (conn->priv->rtp_udpsink, "socket", NULL);
+//	    g_object_set (conn->priv->rtp_udpsrc, "socket", NULL);
+//		g_object_set (conn->priv->rtcp_udpsink, "socket", NULL);
+//		g_object_set (conn->priv->rtcp_udpsrc, "socket", NULL);
 
 		conn->priv->rtcp_socket = NULL;
 		conn->priv->rtp_socket = NULL;

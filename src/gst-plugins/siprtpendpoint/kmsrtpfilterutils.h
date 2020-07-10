@@ -50,7 +50,7 @@ void
 kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id);
 
 SipFilterSsrcInfo*
-kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session);
+kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session, gboolean continue_stream);
 
 void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info);
 

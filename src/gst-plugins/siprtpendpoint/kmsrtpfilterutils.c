@@ -451,7 +451,7 @@ filtering_info_add_ssrc_info (GList** target, GList* source)
 }
 
 SipFilterSsrcInfo*
-kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session)
+kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session, gboolean continue_stream)
 {
 	SipFilterSsrcInfo* info = g_new (SipFilterSsrcInfo, 1);
 
@@ -471,7 +471,7 @@ kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* p
 	if (previous != NULL) {
 		GST_DEBUG("create_filtering_info, setting old ssrc: %u", previous->expected);
 		// If we have previous media connection, we need to take note of previous SSRC to discard late packets
-		if (previous->expected != 0) {
+		if ((previous->expected != 0) && !continue_stream) {
 			info->old = g_list_append (info->old, GUINT_TO_POINTER(previous->expected));
 		}
 		// We add all previous media connections old SSRC as old ones for current media connection (just in case old packets happen)

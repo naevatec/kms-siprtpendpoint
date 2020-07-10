@@ -385,8 +385,15 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	}
 	std::string unusedOffer;
 	std::shared_ptr<SipRtpEndpointImpl> oldEndpoint;
+	bool continue_audio_stream, continue_video_stream;
 
-	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, modifiableAnswer);
+	answerHasCompatibleMedia (answer, continue_audio_stream, continue_video_stream);
+
+	if (continue_audio_stream)
+		GST_INFO ("No change in audio stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
+	if (continue_video_stream)
+		GST_INFO ("No change in video stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
+	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, modifiableAnswer, continue_audio_stream, continue_video_stream);
 	if (this->isCryptoAgnostic ()) {
 		if (cryptoToUse->isSetCrypto()) {
 			if (this->agnosticCryptoAudioSsrc != 0) {
@@ -429,6 +436,100 @@ bool
 FacadeRtpEndpointImpl::isCryptoAgnostic ()
 {
 	return this->cryptoAgnostic;
+}
+
+bool
+FacadeRtpEndpointImpl::findCompatibleMedia (GstSDPMedia* media, GstSDPMessage *oldAnswer)
+{
+	std::vector<GstSDPMedia*> mediaList;
+
+	mediaList = getMediasFromSdp (oldAnswer);
+	for (std::vector<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ++it) {
+		if (g_strcmp0(gst_sdp_media_get_media(*it), gst_sdp_media_get_media(media)) == 0) {
+			// Same media
+			if (g_strcmp0(gst_sdp_media_get_proto (*it), gst_sdp_media_get_proto (media)) == 0) {
+				// same proto
+				if (gst_sdp_media_get_port  (*it) == gst_sdp_media_get_port (media)) {
+					// same port, so it is compatible
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+bool
+FacadeRtpEndpointImpl::sameConnection (GstSDPMessage *sdp1, GstSDPMessage *sdp2)
+{
+	const GstSDPConnection  *conn1, *conn2;
+
+	conn1 = gst_sdp_message_get_connection  (sdp1);
+	conn2 = gst_sdp_message_get_connection  (sdp2);
+
+	return (g_strcmp0(conn1->nettype, conn2->nettype) == 0) &&
+			(g_strcmp0(conn1->nettype, conn2->nettype) == 0) &&
+			(g_strcmp0(conn1->address , conn2->address) == 0);
+}
+
+static bool
+isMediaActive (GstSDPMedia *media)
+{
+	const gchar *inactive;
+
+	inactive = gst_sdp_media_get_attribute_val (media, "inactive");
+
+	if (inactive == NULL)
+		return (gst_sdp_media_get_port (media) != 0);
+
+	return false;
+}
+
+
+
+
+void
+FacadeRtpEndpointImpl::answerHasCompatibleMedia (const std::string& answer, bool& audio_compatible, bool& video_compatible)
+{
+	GstSDPMessage *sdpAnswer;
+	GstSDPMessage *oldSdpAnswer;
+	std::vector<GstSDPMedia*> mediaList;
+	std::string oldAnswer;
+
+	audio_compatible = false;
+	video_compatible = false;
+	try {
+		oldAnswer = this->rtp_ep->getRemoteSessionDescriptor ();
+	} catch (KurentoException& xcp) {
+		// No remote descriptor, no compatible medias possible
+		return;
+	}
+
+	sdpAnswer = parseSDP (answer);
+	oldSdpAnswer = parseSDP (oldAnswer);
+
+	if (!sameConnection (sdpAnswer, oldSdpAnswer)) {
+		// Not same connection no compatible medias possible
+		return;
+	}
+
+	mediaList = getMediasFromSdp (sdpAnswer);
+
+	for (std::vector<GstSDPMedia*>::iterator it=mediaList.begin(); it != mediaList.end(); ++it) {
+		if (isMediaActive (*it)) {
+			if (findCompatibleMedia (*it, oldSdpAnswer)) {
+				if (g_strcmp0(gst_sdp_media_get_media (*it), "audio") == 0) {
+					audio_compatible = true;
+				} else if (g_strcmp0(gst_sdp_media_get_media (*it), "video") == 0) {
+					video_compatible = true;
+				}
+			}
+		}
+	}
+
+
+	gst_sdp_message_free (sdpAnswer);
+	gst_sdp_message_free (oldSdpAnswer);
 }
 
 void
@@ -548,20 +649,6 @@ FacadeRtpEndpointImpl::addAgnosticMedia (GstSDPMedia *media, GstSDPMessage *sdpO
 	// Add new media to the offer so it is crypto agnostic
 	gst_sdp_message_add_media (sdpOffer, newMedia);
 }
-
-static bool
-isMediaActive (GstSDPMedia *media)
-{
-	const gchar *inactive;
-
-	inactive = gst_sdp_media_get_attribute_val (media, "inactive");
-
-	if (inactive == NULL)
-		return (gst_sdp_media_get_port (media) != 0);
-
-	return false;
-}
-
 
 static bool
 isCryptoSDES (std::shared_ptr<SDES> sdes)

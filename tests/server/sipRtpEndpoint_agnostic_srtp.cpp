@@ -55,8 +55,8 @@ GF::GF()
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
   gst_init(nullptr, nullptr);
 
-  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-//  moduleManager.loadModulesFromDirectories ("../../src/server");
+//  moduleManager.loadModulesFromDirectories ("./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
+  moduleManager.loadModulesFromDirectories ("../../src/server");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
@@ -122,6 +122,19 @@ createRtpEndpoint (bool useCrypto, bool cryptoAgnostic)
 
   return std::dynamic_pointer_cast <FacadeRtpEndpointImpl> (rtpEndpoint);
 }
+
+static std::shared_ptr<MediaElementImpl> createTestAudioSrc() {
+  std::shared_ptr <MediaElementImpl> src = std::dynamic_pointer_cast
+      <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
+                            boost::property_tree::ptree(),
+                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                            "dummysrc") ) );
+
+  g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", FALSE, NULL);
+
+  return std::dynamic_pointer_cast <MediaElementImpl> (src);
+}
+
 
 static void
 releaseRtpEndpoint (std::shared_ptr<FacadeRtpEndpointImpl> &ep)
@@ -405,6 +418,202 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
   releaseTestSrc (src);
+}
+
+static std::string offer_1_group_call_crash =
+		"v=0\n"
+        "o=iPECSCM 356207 356207 IN IP4 192.168.125.52\n"
+		"s=iPECSCM Call\n"
+		"c=IN IP4 192.168.125.52\n"
+		"t=0 0\n"
+		"m=audio 0 RTP/SAVP 0\n"
+		"a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:YzQ2NTQzOGNhZThhODU4YjA5ZDIzMjkxYjE2NjIy\n"
+		"a=inactive\n"
+		"m=video 0 RTP/SAVP 98\n"
+		"a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:ZDU0MTJmODdkNzViYmY4NjQ5MDI5ZDFlMGZhMDhh\n"
+		"a=inactive\n"
+		"m=audio 8092 RTP/AVP 8 0 18 111\n"
+		"a=rtpmap:8 PCMA/8000\n"
+		"a=rtpmap:0 PCMU/8000\n"
+		"a=rtpmap:18 G729/8000\n"
+		"a=rtpmap:111 X-nt-inforeq/8000\n"
+		"a=fmtp:18 annexb=no\n"
+		"a=ptime:20\n"
+		"a=sendrecv\n"
+		"m=video 0 RTP/AVP 98\n"
+		"a=inactive";
+
+static std::string offer_2_group_call_crash =
+		"v=0\n"
+        "o=iPECSCM 356272 356272 IN IP4 192.168.125.52\n"
+		"s=iPECSCM Call\n"
+		"c=IN IP4 192.168.125.52\n"
+		"t=0 0\n"
+		"m=audio 0 RTP/SAVP 0\n"
+		"a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:MjcxNzRkZjI2YjJiOTlkYTA3MmNmOWRiNmZlZjk0\n"
+		"a=inactive\n"
+		"m=video 0 RTP/SAVP 98\n"
+		"a=crypto:1 AES_CM_128_HMAC_SHA1_80 inline:ZjgzOGI1ODY1OTkyNDU1ODc2YWY5MmMxMWM3MTgx\n"
+		"a=inactive\n"
+		"m=audio 8092 RTP/AVP 0 111\n"
+		"a=rtpmap:0 PCMU/8000\n"
+		"a=rtpmap:111 X-nt-inforeq/8000\n"
+		"a=ptime:20\n"
+		"a=sendrecv\n"
+		"m=video 0 RTP/AVP 98\n"
+		"a=inactive";
+
+
+static std::string same_port_answer =
+		"v=0\n"
+		"o=iPECSCM 973597 973597 IN IP4 192.168.122.185\n"
+		"s=iPECSCM Call\n"
+		"c=IN IP4 192.168.122.185\n"
+		"t=0 0\n"
+		"m=audio 6050 RTP/AVP 0 111\n"
+		"a=rtpmap:0 PCMU/8000\n"
+		"a=rtpmap:111 X-nt-inforeq/8000\n"
+		"a=ptime:20\n"
+		"a=sendrecv";
+
+static void
+test_same_port_crash ()
+{
+	  std::atomic<bool> media_state_changed (false);
+	  std::atomic<bool> media_state_changed2 (false);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (true, true);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (false, true);
+	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+	  std::shared_ptr <PassThroughImpl> pt2 = createPassThrough ();
+	  std::shared_ptr <MediaElementImpl> src = createTestAudioSrc();
+	  std::condition_variable cv;
+	  std::condition_variable cv2;
+	  std::mutex mtx;
+	  std::unique_lock<std::mutex> lck (mtx);
+	  std::mutex mtx2;
+	  std::unique_lock<std::mutex> lck2 (mtx2);
+
+	  rtpEpOfferer->connect(pt);
+	  src->connect(rtpEpAnswerer);
+
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+			  MediaFlowInStateChange event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::AUDIO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed = true;
+			  	  	  cv.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+	  std::string answer = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer1: " + answer);
+
+	  rtpEpOfferer->processAnswer(answer);
+
+	  // First stream
+	  cv.wait (lck, [&] () {
+	    return media_state_changed.load();
+	  });
+	  conn.disconnect ();
+	  rtpEpOfferer->disconnect(pt);
+
+	  if (!media_state_changed) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+	  rtpEpOfferer->processAnswer (answer);
+
+	  conn = getMediaElement(pt2)->signalMediaFlowInStateChange.connect([&] (
+			  MediaFlowInStateChange event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::AUDIO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed2 = true;
+			  	  	  cv2.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+	  rtpEpOfferer->connect(pt2);
+
+//	  std::shared_ptr<MediaType> audioTypePtr (new MediaType (MediaType::AUDIO));
+//	  while (!(pt->isMediaFlowingIn(audioTypePtr))) {
+//		  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+//	  }
+
+	  // First stream
+	  cv2.wait (lck2, [&] () {
+	    return media_state_changed2.load();
+	  });
+	  conn.disconnect ();
+
+//	  if (!media_state_changed2) {
+//	    BOOST_ERROR ("Not media Flowing");
+//	  }
+
+
+} catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+}
+
+if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+  ConnectionState::CONNECTED) {
+BOOST_ERROR ("Connection must be connected");
+}
+
+if (rtpEpOfferer->getConnectionState ()->getValue () !=
+  ConnectionState::CONNECTED) {
+BOOST_ERROR ("Connection must be connected");
+}
+
+releaseRtpEndpoint (rtpEpOfferer);
+releaseRtpEndpoint (rtpEpAnswerer);
+releasePassTrhough (pt);
+releaseTestSrc (src);
+}
+
+static void
+test_group_call_crash ()
+{
+	  bool cryptoOffer = false;
+	  bool agnosticOffer = true;
+
+	  std::atomic<bool> media_state_changed (false);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpElement = createRtpEndpoint (cryptoOffer, agnosticOffer);
+	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+
+
+	  rtpElement->connect(pt);
+	  try {
+		  std::string offer = offer_1_group_call_crash;
+		  BOOST_TEST_MESSAGE ("offer1: " + offer);
+
+		  std::string answer = rtpElement->processOffer(offer);
+
+		  BOOST_TEST_MESSAGE ("answer1: " + answer);
+
+		  offer = offer_2_group_call_crash;
+		  BOOST_TEST_MESSAGE ("offer1: " + offer);
+		  answer = rtpElement->processOffer(offer);
+		  BOOST_TEST_MESSAGE ("answer1: " + answer);
+
+	  } catch (kurento::KurentoException& e) {
+		 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+	  }
+
+	  rtpElement->disconnect(pt);
+
+	  releaseRtpEndpoint (rtpElement);
+	  releasePassTrhough (pt);
 }
 
 static void
@@ -1075,6 +1284,7 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &test_error_on_answer_without_one_media), 0, /* timeout */ 15000);
-
+  test->add (BOOST_TEST_CASE ( &test_group_call_crash), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &test_same_port_crash), 0, /* timeout */ 15000);
   return test;
 }
