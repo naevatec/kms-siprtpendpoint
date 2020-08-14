@@ -230,7 +230,6 @@ kms_sip_rtp_session_free_filter_info (gpointer data)
 
 	GST_DEBUG ("Releasing RTP/RTCP filtering probes");
 	kms_sip_rtp_connection_release_probes (info->conn, info->rtp_probe, info->rtcp_probe);
-	g_object_unref (info->conn);
 	g_free (data);
 }
 
@@ -257,6 +256,10 @@ kms_sip_rtp_session_finalize (GObject *object)
 
   }
   GST_DEBUG ("Finalized RTP Session %p", object);
+
+  /* chain up */
+  G_OBJECT_CLASS (parent_class)->finalize (object);
+
 }
 
 static void
