@@ -131,6 +131,7 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
   audioCapsSet = NULL;
   videoCapsSet = NULL;
   rembParamsSet = NULL;
+  this->offerOptions = NULL;
 
   // Magic values to assess no change on SSRC
   this->agnosticCryptoAudioSsrc = 0;
@@ -210,6 +211,44 @@ void FacadeRtpEndpointImpl::invoke (std::shared_ptr<MediaObjectImpl> obj,
 
 
 /*--------------------- Implementation of SipRtpEndpoint specific features ---------------------------------*/
+std::string FacadeRtpEndpointImpl::generateOffer (std::shared_ptr<OfferOptions> options)
+{
+	std::string offer;
+
+	try {
+		offerOptions = options;
+		offer =  this->rtp_ep->generateOffer(options);
+		if (this->isCryptoAgnostic()) {
+			this->generateCryptoAgnosticOffer (offer);
+			GST_INFO ("GenerateOffer: Generated crypto agnostic offer");
+		}
+		GST_DEBUG("GenerateOffer: \n%s", offer.c_str());
+		return offer;
+	} catch (kurento::KurentoException& e) {
+		if (e.getCode() == SDP_END_POINT_ALREADY_NEGOTIATED) {
+			GST_INFO("Consecutive generate Offer on %s, cloning endpoint", this->getId().c_str());
+		} else {
+			GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s - %s", e.getType().c_str(), e.getMessage().c_str());
+			throw e;
+		}
+	} catch (std::exception& e1) {
+		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
+		throw e1;
+	}
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+
+	newEndpoint->postConstructor();
+	renewInternalEndpoint (newEndpoint);
+	offer = newEndpoint->generateOffer(options);
+	if (this->isCryptoAgnostic()) {
+		this->generateCryptoAgnosticOffer (offer);
+		GST_INFO ("Generated crypto agnostic offer");
+	}
+	GST_DEBUG("2nd try GenerateOffer: \n%s", offer.c_str());
+	GST_INFO("Consecutive generate Offer on %s, endpoint cloned and offer processed", this->getId().c_str());
+	return offer;
+
+}
 
 std::string FacadeRtpEndpointImpl::generateOffer ()
 {
@@ -413,7 +452,10 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 	}
 	newEndpoint->postConstructor();
 	oldEndpoint = renewInternalEndpoint (newEndpoint);
-	unusedOffer = newEndpoint->generateOffer();
+	if (offerOptions == NULL)
+		unusedOffer = newEndpoint->generateOffer();
+	else
+		unusedOffer = newEndpoint->generateOffer(offerOptions);
 	GST_DEBUG ("2nd try ProcessAnswer - Unused offer: \n%s", unusedOffer.c_str());
 	result = newEndpoint->processAnswer(modifiableAnswer);
 	GST_DEBUG ("2nd try ProcessAnswer: \n%s", result.c_str());

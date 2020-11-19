@@ -86,6 +86,7 @@ public:
   int getMaxAudioRecvBandwidth () override;
   void setMaxAudioRecvBandwidth (int maxAudioRecvBandwidth) override;
   std::string generateOffer () override;
+  std::string generateOffer (std::shared_ptr<OfferOptions> options) override;
   std::string processOffer (const std::string &offer) override;
   std::string processAnswer (const std::string &answer) override;
   std::string getLocalSessionDescriptor () override;
@@ -183,6 +184,8 @@ private:
   guint32 agnosticCryptoVideoSsrc;
   guint32 agnosticNonCryptoAudioSsrc;
   guint32 agnosticNonCryptoVideoSsrc;
+
+  std::shared_ptr<OfferOptions> offerOptions;
 
   bool
   sameConnection (GstSDPMessage *sdp1, GstSDPMessage *sdp2);
