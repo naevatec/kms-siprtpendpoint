@@ -19,7 +19,7 @@
 
 #include <gio/gio.h>
 #include <gst/gst.h>
-#include <kmsrtpendpoint.h>
+#include <rtpendpoint/kmsrtpendpoint.h>
 
 G_BEGIN_DECLS
 /* #defines don't like whitespacey bits */

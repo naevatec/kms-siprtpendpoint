@@ -19,7 +19,7 @@
 #define __KMS_SIP_SRTP_SESSION_H__
 
 #include <gst/gst.h>
-#include <kmssrtpsession.h>
+#include <rtpendpoint/kmssrtpsession.h>
 #include "kmssipsrtpconnection.h"
 #include "kmsrtpfilterutils.h"
 

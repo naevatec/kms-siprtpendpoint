@@ -18,7 +18,7 @@
 #ifndef __KMS_SIP_SRTP_CONNECTION_H__
 #define __KMS_SIP_SRTP_CONNECTION_H__
 
-#include "kmssrtpconnection.h"
+#include <rtpendpoint/kmssrtpconnection.h>
 #include "kmsrtpfilterutils.h"
 #include <gio/gio.h>
 #include <gst/sdp/gstsdpmessage.h>
