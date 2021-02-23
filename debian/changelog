@@ -1,0 +1,67 @@
+kms-siprtpendpoint (0.0.1~rc1.18.04~20200109155853.gbp0c5cbb) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @0c5cbbb20dd989d30eca8eb6067448aeef865b89 **
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * Started to integrate kurento buildpackage
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * buildpackage working
+
+  [ root ]
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * code cleanup
+  * more code cleanup
+  * Fixed test for several processOffer use case
+
+  [ root ]
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * Added documentation and fixed bug in test_constructors
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * bug fixing
+  * Allow working for KMS from 6.8.0 onwards
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 09 Jan 2020 16:58:59 +0100
+
+kms-datachannel-adapter (0.0.1~rc1) testing; urgency=medium
+
+  * Initial release.
+
+ -- Saul Pablo Labajo Izquierdo  Wed, 9 Oct 2019 12:30:01 +0200
