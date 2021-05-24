@@ -16,7 +16,7 @@
  */
 
 #include "kmssipsrtpconnection.h"
-#include <rtpendpoint/kmssocketutils.h>
+#include <kurento/rtpendpoint/kmssocketutils.h>
 #include "kmsrtpfilterutils.h"
 #include <commons/constants.h>
 #include <gst/rtp/gstrtpbuffer.h>

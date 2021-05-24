@@ -134,7 +134,7 @@ fix_rtp_buffer_voip_switched_ssrc (GstRTPBuffer *rtp_buffer, SipFilterSsrcInfo* 
 {
 	guint32 seq_number = gst_rtp_buffer_get_seq  (rtp_buffer);
 	guint32 ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
-	guint32 fixed_ts;
+	guint32 fixed_ts = 0;
 
 	// Fix SSRC to keep pipelime happy
 	gst_rtp_buffer_set_ssrc (rtp_buffer, filter_info->expected);

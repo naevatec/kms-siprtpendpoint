@@ -127,8 +127,8 @@ kms_sip_rtp_session_retrieve_sockets (GHashTable *conns, const GstSDPMedia * med
 static SipFilterSsrcInfo*
 km_sip_rtp_session_setup_filter_info (KmsSipRtpSession *self, const gchar *media_str)
 {
-	SipFilterSsrcInfo* filter_info;
-	guint32 media_type;
+	SipFilterSsrcInfo* filter_info = NULL;
+	guint32 media_type = 0;
 
 	  if (g_strcmp0 (VIDEO_STREAM_NAME, media_str) == 0) {
 		  filter_info = self->video_filter_info;

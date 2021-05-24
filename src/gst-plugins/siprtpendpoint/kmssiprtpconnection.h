@@ -18,7 +18,7 @@
 #ifndef __KMS_SIP_RTP_CONNECTION_H__
 #define __KMS_SIP_RTP_CONNECTION_H__
 
-#include <rtpendpoint/kmsrtpconnection.h>
+#include <kurento/rtpendpoint/kmsrtpconnection.h>
 #include <gio/gio.h>
 #include <gst/sdp/gstsdpmessage.h>
 #include "kmsrtpfilterutils.h"

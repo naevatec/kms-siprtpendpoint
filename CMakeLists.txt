@@ -77,8 +77,7 @@ generic_find(LIBNAME nice VERSION ${NICE_REQUIRED} REQUIRED)
 generic_find(LIBNAME gio-2.0 VERSION>=${GLIB_REQUIRED} REQUIRED)
 generic_find(LIBNAME uuid REQUIRED)
 generic_find(LIBNAME openssl REQUIRED)
-
-
+generic_find(LIBNAME KmsRtpEndpointLib REQUIRED)
 
 #find_package(PkgConfig)
 #pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.5>=${GST_REQUIRED})

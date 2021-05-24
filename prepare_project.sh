@@ -24,7 +24,7 @@ cd ..
 cd ..
 
 cd js
-npm install --save-dev grunt-browserify grunt-contrib-clean grunt-jsdoc grunt-npm2bower-sync minifyify
+npm install --save-dev grunt grunt-browserify grunt-contrib-clean grunt-jsdoc grunt-npm2bower-sync minifyify
 cd ..
 
 make js
