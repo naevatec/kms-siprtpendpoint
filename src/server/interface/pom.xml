@@ -15,10 +15,10 @@
 
         <developers>
           <developer>
-              <id>kurento.org</id>
-              <name>Kurento Community</name>
-              <organization>kurento.org</organization>
-              <organizationUrl>http://www.kurento.org</organizationUrl>
+              <id>naevatec.com</id>
+              <name>NaevaTec</name>
+              <organization>naevatec.com</organization>
+              <organizationUrl>http://www.naevatec.com</organizationUrl>
           </developer>
         </developers>
 

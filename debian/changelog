@@ -1,6 +1,29 @@
-kms-siprtpendpoint (0.0.1~rc1.18.04~20200109155853.gbp0c5cbb) UNRELEASED; urgency=medium
+kms-siprtpendpoint (1.0.0.18.04~20210728095528.gbp65a781) UNRELEASED; urgency=medium
 
-  ** SNAPSHOT build @0c5cbbb20dd989d30eca8eb6067448aeef865b89 **
+  ** SNAPSHOT build @65a781d8e63dc63fc9a6dc7c26c0159e85ee189a **
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * Adapted to Kurento 7
+
+kms-siprtpendpoint (0.0.1~rc1.18.04.18.04~20210723095534.gbp8e15d9) UNRELEASED; urgency=medium
+
+  ** SNAPSHOT build @8e15d9c94af2f962c2cbddd17eb4f45d22f35952 **
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * Adapted to KmsRtpEndpointLib
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+  [ Saul Pablo Labajo Izquierdo ]
+  * Adapted to KmsRtpEndpointLib
+  * Prepared for KmsRtpEndpointLib library
+
+ -- root <root@d430ee2d7617>  Wed, 28 Jul 2021 09:55:44 +0000
+
+kms-siprtpendpoint (0.0.1~rc1.18.04) bionic; urgency=medium
 
   [ root ]
   * UNRELEASED
@@ -58,7 +81,19 @@ kms-siprtpendpoint (0.0.1~rc1.18.04~20200109155853.gbp0c5cbb) UNRELEASED; urgenc
   * UNRELEASED
   * UNRELEASED
 
- -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 09 Jan 2020 16:58:59 +0100
+  [ Saul Pablo Labajo Izquierdo ]
+  * Minor update to documentation
+
+  [ root ]
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+  * UNRELEASED
+
+ -- root <root@3124ae87db19>  Fri, 21 May 2021 17:40:53 +0000
 
 kms-datachannel-adapter (0.0.1~rc1) testing; urgency=medium
 

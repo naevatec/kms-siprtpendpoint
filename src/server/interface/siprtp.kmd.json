@@ -1,26 +1,8 @@
 {
   "name": "siprtp",
   "version": "1.0.0-dev",
-  "kurentoVersion": "^6.8.0",
+  "kurentoVersion": "^7.0.0",
   "code": {
-//    "kmd": {
-//      "java": {
-//        "mavenGroupId": "org.kurento",
-//        "mavenArtifactId": "kms-siprtp"
-//      }
-//    },
-//    "api": {
-//      "java": {
-//        "packageName": "org.kurento.client",
-//        "mavenGroupId": "org.kurento",
-//        "mavenArtifactId": "kurento-client"
-//      },
-//      "js": {
-//        "nodeName": "kurento-client-siprtp",
-//        "npmDescription": "JavaScript Client API for Kurento Media Server",
-//        "npmGit": "Kurento/kurento-client-siprtp-js"
-//      }
-//    },
     "implementation": {
       "cppNamespace": "kurento"
     }

@@ -775,7 +775,7 @@ kms_sip_rtp_endpoint_plugin_init (GstPlugin * plugin)
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    kmssiprtpendpoint,
+    siprtpendpoint,
     "Kurento SIP rtp endpoint",
     kms_sip_rtp_endpoint_plugin_init, VERSION, GST_LICENSE_UNKNOWN,
-    "Kurento Elements", "http://kurento.com/")
+    "NaevaTec Kurento Elements", "http://iwww.naevatec.com/")
