@@ -71,19 +71,24 @@ protected:
   template<typename T>
   sigc::connection connectEventToExternalHandler (sigc::signal<void, T>& signal, std::weak_ptr<EventHandler>& wh)
   {
-      sigc::connection conn = signal.connect ([ &, wh] (T event) {
+      std::weak_ptr<MediaObject> wt = shared_from_this();
+
+      sigc::connection conn = signal.connect ([ &, wh, wt] (T event) {
         std::shared_ptr<EventHandler> lh = wh.lock();
         if (!lh)
           return;
 
-        std::shared_ptr<T> ev_ref (new T(event));
-        auto object = this->shared_from_this();
+        std::shared_ptr<MediaObject> sth = wt.lock ();
+        if (!sth)
+        	return;
 
-        lh->sendEventAsync ([ev_ref, object, lh] {
+        std::shared_ptr<T> ev_ref (new T(event));
+
+        lh->sendEventAsync ([ev_ref, sth, lh] {
             JsonSerializer s (true);
 
             s.Serialize ("data", ev_ref.get());
-            s.Serialize ("object", object.get());
+            s.Serialize ("object", sth.get());
             s.JsonValue["type"] = T::getName().c_str();
 
             lh->sendEvent (s.JsonValue);

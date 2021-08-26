@@ -1061,30 +1061,51 @@ FacadeRtpEndpointImpl::disconnectForwardSignals ()
 void
 FacadeRtpEndpointImpl::connectForwardSignals ()
 {
+	std::weak_ptr<MediaObject> wt = shared_from_this ();
 
-	  connMediaStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaStateChanged.connect([ & ] (
+	  connMediaStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaStateChanged.connect([ &, wt ] (
 			  MediaStateChanged event) {
-		  raiseEvent<MediaStateChanged> (event, shared_from_this(), signalMediaStateChanged);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaStateChanged> (event, sth, signalMediaStateChanged);
 	  });
 
-	  connConnectionStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalConnectionStateChanged.connect([ & ] (
+	  connConnectionStateChanged = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalConnectionStateChanged.connect([ &, wt ] (
 			  ConnectionStateChanged event) {
-		  raiseEvent<ConnectionStateChanged> (event, shared_from_this(), signalConnectionStateChanged);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<ConnectionStateChanged> (event, sth, signalConnectionStateChanged);
 	  });
 
-	  connMediaSessionStarted = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionStarted.connect([ & ] (
+	  connMediaSessionStarted = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionStarted.connect([ &, wt ] (
 			  MediaSessionStarted event) {
-		  raiseEvent<MediaSessionStarted> (event, shared_from_this(), signalMediaSessionStarted);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaSessionStarted> (event, sth, signalMediaSessionStarted);
 	  });
 
-	  connMediaSessionTerminated = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionTerminated.connect([ & ] (
+	  connMediaSessionTerminated = std::dynamic_pointer_cast<BaseRtpEndpointImpl>(rtp_ep)->signalMediaSessionTerminated.connect([ &, wt ] (
 			  MediaSessionTerminated event) {
-		  raiseEvent<MediaSessionTerminated> (event, shared_from_this(), signalMediaSessionTerminated);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaSessionTerminated> (event, sth, signalMediaSessionTerminated);
 	  });
 
-	  connOnKeySoftLimit = rtp_ep->signalOnKeySoftLimit.connect([ & ] (
+	  connOnKeySoftLimit = rtp_ep->signalOnKeySoftLimit.connect([ &, wt ] (
 			  OnKeySoftLimit event) {
-		  raiseEvent<OnKeySoftLimit> (event, shared_from_this(), signalOnKeySoftLimit);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<OnKeySoftLimit> (event, sth, signalOnKeySoftLimit);
 	  });
 
 }
