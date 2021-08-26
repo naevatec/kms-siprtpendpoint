@@ -84,82 +84,124 @@ ComposedObjectImpl::disconnectForwardSignals ()
 void
 ComposedObjectImpl::connectForwardSignals ()
 {
-	  connElementConnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementConnected.connect([ & ] (
+	std::weak_ptr<MediaObject> wt = shared_from_this ();
+
+	  connElementConnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementConnected.connect([ &, wt ] (
 			  ElementConnected event) {
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
 		  //We don't raise internal connection events'
 		  if (event.getSource()==srcPt)
 			  return;
 		  if (event.getSink () == sinkPt)
 			  return;
-		  raiseEvent<ElementConnected> (event, shared_from_this(), signalElementConnected);
+		  raiseEvent<ElementConnected> (event, sth, signalElementConnected);
 	  });
 
-	  connElementConnectedSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalElementConnected.connect([ & ] (
+	  connElementConnectedSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalElementConnected.connect([ &, wt ] (
 			  ElementConnected event) {
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
 		  //We don't raise internal connection events'
 		  if (event.getSource()==srcPt)
 			  return;
 		  if (event.getSink () == sinkPt)
 			  return;
-		  raiseEvent<ElementConnected> (event, shared_from_this(), signalElementConnected);
+		  raiseEvent<ElementConnected> (event, sth, signalElementConnected);
 	  });
 
-	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ & ] (
+	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
 			  ElementDisconnected event) {
 		  try {
+			  std::shared_ptr<MediaObject> sth = wt.lock ();
+			  if (!sth)
+				  return;
+
 			  //We don't raise internal connection events'
 			  if (event.getSource()==srcPt)
 				  return;
 			  if (event.getSink () == sinkPt)
 				  return;
-			  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+			  raiseEvent<ElementDisconnected> (event, sth, signalElementDisconnected);
 		  } catch (const std::bad_weak_ptr &e) {
 		    // shared_from_this()
 		  }
 	  });
 
-	  connElementDisconnectedSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalElementDisconnected.connect([ & ] (
+	  connElementDisconnectedSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalElementDisconnected.connect([ &, wt ] (
 			  ElementDisconnected event) {
 		  try {
+			  std::shared_ptr<MediaObject> sth = wt.lock ();
+			  if (!sth)
+				  return;
+
 			  //We don't raise internal connection events'
 			  if (event.getSource()==srcPt)
 				  return;
 			  if (event.getSink () == sinkPt)
 				  return;
-			  raiseEvent<ElementDisconnected> (event, shared_from_this(), signalElementDisconnected);
+			  raiseEvent<ElementDisconnected> (event, sth, signalElementDisconnected);
 		  } catch (const std::bad_weak_ptr &e) {
 			    // shared_from_this()
 		  }
 	  });
 
-	  connMediaTranscodingStateChangeSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaTranscodingStateChange.connect([ & ] (
+	  connMediaTranscodingStateChangeSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaTranscodingStateChange.connect([ &, wt ] (
 			  MediaTranscodingStateChange event) {
-		  raiseEvent<MediaTranscodingStateChange> (event, shared_from_this(), signalMediaTranscodingStateChange);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaTranscodingStateChange> (event, sth, signalMediaTranscodingStateChange);
 	  });
 
-	  connMediaTranscodingStateChangeSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaTranscodingStateChange.connect([ & ] (
+	  connMediaTranscodingStateChangeSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaTranscodingStateChange.connect([ &, wt ] (
 			  MediaTranscodingStateChange event) {
-		  raiseEvent<MediaTranscodingStateChange> (event, shared_from_this(), signalMediaTranscodingStateChange);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaTranscodingStateChange> (event, sth, signalMediaTranscodingStateChange);
 	  });
 
-	  connMediaFlowOutStateChange = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaFlowOutStateChange.connect([ & ] (
+	  connMediaFlowOutStateChange = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalMediaFlowOutStateChange.connect([ &, wt ] (
 			  MediaFlowOutStateChange event) {
-		  raiseEvent<MediaFlowOutStateChange> (event, shared_from_this(), signalMediaFlowOutStateChange);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaFlowOutStateChange> (event, sth, signalMediaFlowOutStateChange);
 	  });
 
-	  connMediaFlowInStateChange = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaFlowInStateChange.connect([ & ] (
+	  connMediaFlowInStateChange = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalMediaFlowInStateChange.connect([ &, wt ] (
 			  MediaFlowInStateChange event) {
-		  raiseEvent<MediaFlowInStateChange> (event, shared_from_this(), signalMediaFlowInStateChange);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaFlowInStateChange> (event, sth, signalMediaFlowInStateChange);
 	  });
 
-	  connErrorSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalError.connect([ & ] (
+	  connErrorSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalError.connect([ &, wt ] (
 			  Error event) {
-		  raiseEvent<Error> (event, shared_from_this(), signalError);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<Error> (event, sth, signalError);
 	  });
 
-	  connErrorSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalError.connect([ & ] (
+	  connErrorSink = std::dynamic_pointer_cast<MediaElementImpl>(sinkPt)->signalError.connect([ &, wt ] (
 			  Error event) {
-		  raiseEvent<Error> (event, shared_from_this(), signalError);
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<Error> (event, sth, signalError);
 	  });
 }
 
@@ -253,23 +295,35 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 
 	// Link source and sink from new composed object
 	if (linkedSource != NULL) {
+		std::weak_ptr<MediaObject> wt = shared_from_this();
+
 		// Link Source
 		linkedSource->connect(sinkPt);
 
-	    connErrorlinkedSrc = std::dynamic_pointer_cast<MediaElementImpl>(linkedSource)->signalError.connect([ & ] (
+	    connErrorlinkedSrc = std::dynamic_pointer_cast<MediaElementImpl>(linkedSource)->signalError.connect([ &, wt ] (
 				  Error event) {
-			  raiseEvent<Error> (event, shared_from_this(), signalError);
+			  std::shared_ptr<MediaObject> sth = wt.lock ();
+			  if (!sth)
+				  return;
+
+			  raiseEvent<Error> (event, sth, signalError);
 		});
 
 	}
 	if (linkedSink != NULL) {
+		std::weak_ptr<MediaObject> wt = shared_from_this();
+
 		// Link sink
 		srcPt->connect(linkedSink);
 
 		if (linkedSink != linkedSource) {
-		    connErrorlinkedSink = std::dynamic_pointer_cast<MediaElementImpl>(linkedSink)->signalError.connect([ & ] (
+		    connErrorlinkedSink = std::dynamic_pointer_cast<MediaElementImpl>(linkedSink)->signalError.connect([ &, wt ] (
 					  Error event) {
-				  raiseEvent<Error> (event, shared_from_this(), signalError);
+				  std::shared_ptr<MediaObject> sth = wt.lock ();
+				  if (!sth)
+					  return;
+
+				  raiseEvent<Error> (event, sth, signalError);
 			});
 		}
 	}
