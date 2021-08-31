@@ -34,6 +34,7 @@
 #include <MediaState.hpp>
 #include <MediaFlowInStateChange.hpp>
 #include <MediaFlowState.hpp>
+#include <chrono>
 //#include <SDES.hpp>
 //#include <CryptoSuite.hpp>
 
@@ -49,6 +50,7 @@
 
 using namespace kurento;
 using namespace boost::unit_test;
+using namespace std::chrono_literals;
 
 boost::property_tree::ptree config;
 std::string mediaPipelineId;
@@ -180,18 +182,19 @@ releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
 class TestEventHandler: public kurento::EventHandler
 {
 private:
-	std::condition_variable &testCV;
+	std::condition_variable *testCV;
 	std::string lastEvent;
 
 public:
-	TestEventHandler (std::condition_variable &cv, std::shared_ptr<MediaObjectImpl> object): kurento::EventHandler(object), testCV(cv)
+	TestEventHandler (std::condition_variable *cv, std::shared_ptr<MediaObjectImpl> object): kurento::EventHandler(object), testCV(cv)
 	{ }
 
 	virtual void sendEvent (Json::Value &value)
 	{
         BOOST_TEST_MESSAGE ("EventHandledr: " + value.toStyledString());
         lastEvent = value.toStyledString();
-		testCV.notify_one();
+        if (testCV)
+        	testCV->notify_one();
 	}
 
 	std::string getLastEvent ()
@@ -212,7 +215,7 @@ media_flow_out_forward_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
-  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
+  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
 
   src->connect (rtpEpOfferer);
 
@@ -229,7 +232,7 @@ media_flow_out_forward_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
-  cv.wait (lck, [&] () {
+  cv.wait_for (lck, 5000ms, [&] () {
     return !(testEH->getLastEvent().empty());
   });
 
@@ -270,7 +273,7 @@ media_flow_in_forward_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
-  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpOfferer)));
+  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpOfferer)));
 
   src->connect (rtpEpOfferer);
 
@@ -287,14 +290,13 @@ media_flow_in_forward_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
-  cv.wait (lck, [&] () {
+  cv.wait_for (lck, 5000ms, [&] () {
     return !(testEH->getLastEvent().empty());
   });
 
   if (testEH->getLastEvent().empty()) {
     BOOST_ERROR ("NoEvent received");
   }
-
   releaseTestSrc (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -328,7 +330,7 @@ element_connected_forward_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
-  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
+  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
 
   rtpEpAnswerer->connect (std::string("ElementConnected"), std::dynamic_pointer_cast <EventHandler>(testEH));
 
@@ -345,7 +347,7 @@ element_connected_forward_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
-  cv.wait (lck, [&] () {
+  cv.wait_for (lck, 5000ms, [&] () {
     return !(testEH->getLastEvent().empty());
   });
 
@@ -386,7 +388,7 @@ element_disconnected_forward_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
-  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
+  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
 
   rtpEpAnswerer->connect (std::string("ElementDisconnected"), std::dynamic_pointer_cast <EventHandler>(testEH));
 
@@ -406,7 +408,7 @@ element_disconnected_forward_impl (bool useIpv6, bool useCrypto)
   src->disconnect (rtpEpOfferer);
   rtpEpAnswerer->disconnect (pt);
 
-  cv.wait (lck, [&] () {
+  cv.wait_for (lck, 5000ms, [&] () {
     return !(testEH->getLastEvent().empty());
   });
 
@@ -422,6 +424,51 @@ element_disconnected_forward_impl (bool useIpv6, bool useCrypto)
 }
 
 static void
+element_release_impl ()
+{
+	std::shared_ptr<TestEventHandler> testEH;
+	std::shared_ptr<TestEventHandler> testEH2;
+
+	{
+		  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (false, false);
+		  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (false, false);
+		  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+		  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+
+		  testEH =std::shared_ptr<TestEventHandler> (new TestEventHandler (NULL,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpOfferer)));
+		  testEH2 =std::shared_ptr<TestEventHandler> (new TestEventHandler (NULL,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
+
+		  rtpEpOfferer->connect (std::string("ElementDisconnected"), std::dynamic_pointer_cast <EventHandler>(testEH));
+		  rtpEpAnswerer->connect (std::string("ElementDisconnected"), std::dynamic_pointer_cast <EventHandler>(testEH2));
+
+		  src->connect (rtpEpOfferer);
+
+		  rtpEpAnswerer->connect(pt);
+
+
+		  std::string offer = rtpEpOfferer->generateOffer ();
+		  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+		  std::string answer = rtpEpAnswerer->processOffer (offer);
+		  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+		  rtpEpOfferer->processAnswer (answer);
+
+		  src->disconnect (rtpEpOfferer);
+		  rtpEpAnswerer->disconnect (pt);
+
+		  sleep (1);
+
+		  releaseTestSrc (src);
+		  releaseRtpEndpoint (rtpEpOfferer);
+		  releaseRtpEndpoint (rtpEpAnswerer);
+		  releasePassTrhough (pt);
+	}
+	sleep (1);
+}
+
+
+static void
 element_disconnected_forward ()
 {
   BOOST_TEST_MESSAGE ("Start test: element_disconnected_forward");
@@ -435,6 +482,14 @@ element_disconnected_forward_ipv6 ()
   element_disconnected_forward_impl (true, false);
 }
 
+static void
+element_release ()
+{
+  BOOST_TEST_MESSAGE ("Start test: element_disconnected_forward");
+  element_release_impl ();
+}
+
+
 
 
 
@@ -442,10 +497,16 @@ test_suite *
 init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
-  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 5);
-  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 5);
-  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 5);
-  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 5);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 1000);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 1000);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 1000);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 1000);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 1000);
 
   if (false) {
 	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward_ipv6 ), 0, /* timeout */ 5);
