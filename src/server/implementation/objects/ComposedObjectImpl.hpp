@@ -152,8 +152,14 @@ private:
 
   static StaticConstructor staticConstructor;
 
-  void connectForwardSignals ();
-  void disconnectForwardSignals ();
+  void connectBridgeSignals ();
+  void disconnectBridgeSignals ();
+
+  void connectElementSrcSignals ();
+  void disconnectElementSrcSignals ();
+
+  void connectElementSinkSignals ();
+  void disconnectElementSinkSignals ();
 
 };
 
