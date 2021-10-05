@@ -121,7 +121,7 @@ private:
   std::shared_ptr<MediaElement> linkedSink;
 
   sigc::signal<void, ElementConnected> signalElementConnected;
-  sigc::signal<void, ElementDisconnected> signalElementDisconnected;
+  //sigc::signal<void, ElementDisconnected> signalElementDisconnected;
   sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
   sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
   sigc::signal<void, MediaTranscodingStateChange> signalMediaTranscodingStateChange;
@@ -129,8 +129,8 @@ private:
 
   sigc::connection connElementConnectedSrc;
   sigc::connection connElementConnectedSink;
-  sigc::connection connElementDisconnectedSrc;
-  sigc::connection connElementDisconnectedSink;
+  //sigc::connection connElementDisconnectedSrc;
+  //sigc::connection connElementDisconnectedSink;
   sigc::connection connMediaTranscodingStateChangeSrc;
   sigc::connection connMediaTranscodingStateChangeSink;
   sigc::connection connMediaFlowOutStateChange;
