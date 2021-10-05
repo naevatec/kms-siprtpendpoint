@@ -71,8 +71,8 @@ ComposedObjectImpl::disconnectBridgeSignals ()
 {
 	connElementConnectedSrc.disconnect ();
 	connElementConnectedSink.disconnect ();
-	connElementDisconnectedSrc.disconnect ();
-	connElementDisconnectedSink.disconnect ();
+	//connElementDisconnectedSrc.disconnect ();
+	//connElementDisconnectedSink.disconnect ();
 	connErrorSrc.disconnect ();
 	connErrorSink.disconnect ();
 }
@@ -205,7 +205,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  raiseEvent<ElementConnected> (event, sth, signalElementConnected);
 	  });
 
-	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
+	/*  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
 			  ElementDisconnected event) {
 		  try {
 			  std::shared_ptr<MediaObject> sth = wt.lock ();
@@ -239,7 +239,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  } catch (const std::bad_weak_ptr &e) {
 			    // shared_from_this()
 		  }
-	  });
+	  }); */
 
 	  connErrorSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalError.connect([ &, wt ] (
 			  Error event) {
@@ -328,7 +328,7 @@ ComposedObjectImpl::StaticConstructor::StaticConstructor()
 void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc, std::shared_ptr<MediaElement> linkSink)
 {
 	GST_DEBUG ("Linking object to facade");
-	linkMutex.lock();
+	std::unique_lock<std::recursive_mutex> linkLock (linkMutex);
 
 	// Unlink source and sink from previous composed object
 	if (linkedSource != NULL) {
@@ -360,8 +360,6 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 
 		connectElementSinkSignals ();
 	}
-
-	linkMutex.unlock();
 }
 
 
