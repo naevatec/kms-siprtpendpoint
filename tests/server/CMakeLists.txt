@@ -151,3 +151,25 @@ target_link_libraries(test_event_forwarding
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
 )
+
+
+add_test_program(test_source_connections sourceConnections.cpp)
+add_dependencies(test_source_connections kmssiprtpmodule)
+set_property(TARGET test_source_connections
+  PROPERTY INCLUDE_DIRECTORIES
+    ${KmsJsonRpc_INCLUDE_DIRS}
+    ${sigc++-2.0_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
+    ${KMSCORE_INCLUDE_DIRS}
+    ${gstreamer-1.5_INCLUDE_DIRS}
+)
+target_link_libraries(test_source_connections
+  ${LIBRARY_NAME}impl
+  ${KMSCORE_LIBRARIES}
+  ${Boost_FILESYSTEM_LIBRARY}
+  ${Boost_SYSTEM_LIBRARY}
+)
