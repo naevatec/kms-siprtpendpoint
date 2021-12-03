@@ -16,6 +16,7 @@
  */
 #include "ComposedObjectImpl.hpp"
 #include <MediaElementImpl.hpp>
+#include <ElementConnectionData.hpp>
 #include <MediaPipelineImpl.hpp>
 #include <gst/gst.h>
 #include <jsonrpc/JsonSerializer.hpp>
@@ -420,6 +421,37 @@ void ComposedObjectImpl::disconnect (std::shared_ptr<MediaElement> sink,
 	this->sinkPt->disconnect (sink, mediaType, sourceMediaDescription, DEFAULT);
 }
 
+void ComposedObjectImpl::prepareSinkConnection (std::shared_ptr<MediaElement> src,
+                                      std::shared_ptr<MediaType> mediaType,
+                                      const std::string &sourceMediaDescription,
+                                      const std::string &sinkMediaDescription)
+{
+	// This method shouldn't be needed if it not were to the implementation of MediaElementImpl::disconnectAll that instead 
+	// of calling the virtual method disconnect on each sink, it calls the MediaElementImpl::disconnect methods, making it 
+	// impossible for the overloading done in this module to work, and causing an infinite loop trying to disconnect
+	//
+	// Well, in fact the problem is also caused by the fact that as we use intermediate PassThrough objects when connecting
+	// a MediaElement to this SipRtpEndpoint where another mediaElement was previously connected to this same SipRtpEndpoint 
+	// The connection process leaves a dangling sink connection on previous MediaElmenent. Then, when a disconnectAll is called
+	// on that MediaElement, it will try to disconnect that dangling sink connection, but as it calls MediaElementImpl::disconnect
+	// instead of this object overloaded method, it causes an inifinite loop
+	std::vector<std::shared_ptr<ElementConnectionData>> connections;
+
+	GST_DEBUG ("Preparing Connecting (%s) facade (%s) to sink", mediaType->getString().c_str(), sourceMediaDescription.c_str());
+
+	//Check if connection present for this object (not for the srcPt object)
+	connections = MediaElementImpl::getSourceConnections(mediaType, sinkMediaDescription);
+
+	// And if so, disconnect them so that all MediaElements get to a clean state
+	if (!connections.empty () ) {
+    	std::shared_ptr <ElementConnectionData> connection = connections.at (0);
+    	connection->getSource()->disconnect (connection->getSink (), mediaType,
+                                         sourceMediaDescription,
+                                         connection->getSinkDescription () );
+  	}
+
+
+}
 
 
 

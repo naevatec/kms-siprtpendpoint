@@ -1250,6 +1250,31 @@ std::map <std::string, std::shared_ptr<Stats>> FacadeRtpEndpointImpl::getStats (
 	return this->rtp_ep->getStats(mediaType);
 }
 
+
+std::vector<std::shared_ptr<ElementConnectionData>>
+FacadeRtpEndpointImpl::getSourceConnections ()
+{
+	// TODO Verify this behaviour
+	//return this->rtp_ep->getSourceConnections();
+	return this->srcPt->getSourceConnections();
+}
+std::vector<std::shared_ptr<ElementConnectionData>>
+FacadeRtpEndpointImpl::getSourceConnections (
+      std::shared_ptr<MediaType> mediaType)
+{
+	// TODO: Verifiy this behaviour
+	//return this->rtp_ep->getSourceConnections(mediaType);
+	return this->srcPt->getSourceConnections(mediaType);
+}
+std::vector<std::shared_ptr<ElementConnectionData>>
+FacadeRtpEndpointImpl::getSourceConnections (
+      std::shared_ptr<MediaType> mediaType, const std::string &description)
+{
+	// TODO: Verify this behaviour
+	//return this->rtp_ep->getSourceConnections(mediaType, description);
+	return this->srcPt->getSourceConnections(mediaType, description);
+}
+
 std::vector<std::shared_ptr<ElementConnectionData>>
 FacadeRtpEndpointImpl::getSinkConnections () {
 	// TODO Verify this behaviour

@@ -67,7 +67,7 @@ GF::GF()
   gst_init(nullptr, nullptr);
 
 //  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
-  moduleManager.loadModulesFromDirectories ("../../src/server");
+  moduleManager.loadModulesFromDirectories ("../../src/server:./");
 
   config.add ("configPath", "../../../tests" );
   config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
