@@ -46,20 +46,25 @@ public:
 
   // Connectivity methods needed to override to make the composition of objects
 
-  void connect (std::shared_ptr<MediaElement> sink) override;
-  void connect (std::shared_ptr<MediaElement> sink,
+  virtual void connect (std::shared_ptr<MediaElement> sink) override;
+  virtual void connect (std::shared_ptr<MediaElement> sink,
                         std::shared_ptr<MediaType> mediaType) override;
-  void connect (std::shared_ptr<MediaElement> sink,
+  virtual void connect (std::shared_ptr<MediaElement> sink,
                         std::shared_ptr<MediaType> mediaType,
                         const std::string &sourceMediaDescription) override;
 
 
-  void disconnect (std::shared_ptr<MediaElement> sink) override;
-  void disconnect (std::shared_ptr<MediaElement> sink,
+  virtual void disconnect (std::shared_ptr<MediaElement> sink) override;
+  virtual void disconnect (std::shared_ptr<MediaElement> sink,
                            std::shared_ptr<MediaType> mediaType) override;
-  void disconnect (std::shared_ptr<MediaElement> sink,
+  virtual void disconnect (std::shared_ptr<MediaElement> sink,
                            std::shared_ptr<MediaType> mediaType,
                            const std::string &sourceMediaDescription) override;
+
+  virtual void prepareSinkConnection (std::shared_ptr<MediaElement> src,
+                                      std::shared_ptr<MediaType> mediaType,
+                                      const std::string &sourceMediaDescription,
+                                      const std::string &sinkMediaDescription);
 
 
 protected:

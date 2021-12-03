@@ -503,7 +503,7 @@ init_unit_test_suite ( int , char *[] )
 	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 1000);
   if (true)
 	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 1000);
-  if (true)
+  if (false)
 	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 1000);
   if (true)
 	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 1000);
