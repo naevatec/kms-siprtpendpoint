@@ -100,14 +100,6 @@ public:
 
 
   // TODO: Consider moving all getSourceConnections and getSinkConnections methods to ComnposedObjectImpl
-  std::vector<std::shared_ptr<ElementConnectionData>> getSourceConnections () override;
-  std::vector<std::shared_ptr<ElementConnectionData>>
-      getSourceConnections (
-        std::shared_ptr<MediaType> mediaType) override;
-  std::vector<std::shared_ptr<ElementConnectionData>>
-      getSourceConnections (
-        std::shared_ptr<MediaType> mediaType, const std::string &description) override;
-
   std::vector<std::shared_ptr<ElementConnectionData>>
       getSinkConnections () override;
   std::vector<std::shared_ptr<ElementConnectionData>> getSinkConnections (
