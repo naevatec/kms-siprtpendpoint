@@ -311,6 +311,8 @@ ComposedObjectImpl::postConstructor ()
 {
   MediaElementImpl::postConstructor ();
 
+  // FIXME: Consider instead of this "hack" to build a gstreamer bin that contains the passthrough elements and the 
+  // dynamically changed SipRtpEndpoint, some kind of "subpipeline"
   origElem = getGstreamerElement ();
   element = srcPt->getGstreamerElement();
 
@@ -335,7 +337,7 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 	if (linkedSource != NULL) {
 		// Unlink source
 		linkedSource->disconnect(sinkPt);
-
+		
 		disconnectElementSrcSignals ();
 	}
 	if (linkedSink != NULL) {
@@ -425,7 +427,7 @@ void ComposedObjectImpl::prepareSinkConnection (std::shared_ptr<MediaElement> sr
                                       std::shared_ptr<MediaType> mediaType,
                                       const std::string &sourceMediaDescription,
                                       const std::string &sinkMediaDescription)
-{
+{ 
 	// This method shouldn't be needed if it not were to the implementation of MediaElementImpl::disconnectAll that instead 
 	// of calling the virtual method disconnect on each sink, it calls the MediaElementImpl::disconnect methods, making it 
 	// impossible for the overloading done in this module to work, and causing an infinite loop trying to disconnect
@@ -445,6 +447,7 @@ void ComposedObjectImpl::prepareSinkConnection (std::shared_ptr<MediaElement> sr
 	// And if so, disconnect them so that all MediaElements get to a clean state
 	if (!connections.empty () ) {
     	std::shared_ptr <ElementConnectionData> connection = connections.at (0);
+		GST_DEBUG("Removing Connection source %s, connection sink %s", connection->getSource()->getName().c_str(), connection->getSink()->getName().c_str());
     	connection->getSource()->disconnect (connection->getSink (), mediaType,
                                          sourceMediaDescription,
                                          connection->getSinkDescription () );
