@@ -216,6 +216,20 @@ kms_sip_rtp_endpoint_set_addr (KmsSipRtpEndpoint * self)
 {
   GList *ips, *l;
   gboolean done = FALSE;
+  gboolean use_ipv6;
+  gchar *external_ip;
+
+  g_object_get (self, "use-ipv6", &use_ipv6, NULL);
+
+  g_object_get (self, use_ipv6 ? "external-ipv6" : "external-ipv4",
+      &external_ip, NULL);
+
+  if (external_ip != NULL) {
+    g_object_set (self, "addr", external_ip, NULL);
+    g_free (external_ip);
+    done = TRUE;
+    return;
+  }
 
   ips = nice_interfaces_get_local_ips (FALSE);
   for (l = ips; l != NULL && !done; l = l->next) {
@@ -236,9 +250,7 @@ kms_sip_rtp_endpoint_set_addr (KmsSipRtpEndpoint * self)
         case G_SOCKET_FAMILY_IPV4:
         {
           gchar *addr_str;
-          gboolean use_ipv6;
 
-          g_object_get (self, "use-ipv6", &use_ipv6, NULL);
           if (is_ipv6 != use_ipv6) {
             GST_DEBUG_OBJECT (self, "Skip address (wanted IPv6: %d)", use_ipv6);
             break;
