@@ -58,7 +58,7 @@ set (GLIB_REQUIRED 2.38)
 set (OPENCV_REQUIRED 3.2.0)
 
 include(GenericFind)
-find_package(Boost 1.58.0 REQUIRED system)
+find_package(Boost 1.58.0 REQUIRED system filesystem thread)
 #generic_find(LIBNAME Boost REQUIRED COMPONENTS system)
 generic_find(LIBNAME gstreamer-1.0 VERSION>=${GST_REQUIRED} REQUIRED)
 generic_find(LIBNAME gstreamer-base-1.0 VERSION>=${GST_REQUIRED} REQUIRED)
