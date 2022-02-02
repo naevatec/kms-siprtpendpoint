@@ -26,7 +26,8 @@ typedef struct _SipFilterSsrcInfo SipFilterSsrcInfo;
 struct _SipFilterSsrcInfo {
 	guint32 expected;
 	guint32 current;
-	GList* old;
+	guint32 old;
+	guint64 last_switch;
 	guint32 media_session;
 	GRecMutex mutex;
 
