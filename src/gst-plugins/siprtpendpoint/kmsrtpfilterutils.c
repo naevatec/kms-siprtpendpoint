@@ -21,6 +21,23 @@
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
 
+#include <sys/time.h>
+
+#define SSRC_SWITCH_PROTECTION_MS 1000
+
+static guint64
+get_current_time_ms ()
+{
+	struct timeval tv;
+	
+	gettimeofday(&tv, NULL);
+	
+	guint64 millisecondsSinceEpoch =
+	    (unsigned long long)(tv.tv_sec) * 1000 +
+		(unsigned long long)(tv.tv_usec) / 1000;
+
+	return millisecondsSinceEpoch;
+}
 
 static void
 adjust_filter_info_ts_info (SipFilterSsrcInfo* filter_info, guint16 seq, guint32 ts)
@@ -37,6 +54,8 @@ adjust_filter_info_ts_info (SipFilterSsrcInfo* filter_info, guint16 seq, guint32
 static gboolean
 check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info, guint16 seq, guint32 ts)
 {
+	guint64 current_time = 0;
+
 	GST_DEBUG("Check_ssrc %u, expected %u, current %u", ssrc, filter_info->expected, filter_info->current);
 	if (filter_info->expected == 0) {
 		gboolean result, init;
@@ -48,10 +67,11 @@ check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info, guint16 seq, guint32 t
 			init = TRUE;
 
 			// If SSRC is in list of old ones, we discard buffer
-			if (g_list_index(filter_info->old, GUINT_TO_POINTER(ssrc)) != -1) {
+			current_time = get_current_time_ms(); 
+			if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
 				result = TRUE;
 			} else {
-				// If not, first SSRc will be fixed for pipeline in current media connection
+				// If not, first SSRC will be fixed for pipeline in current media connection
 				filter_info->expected = ssrc;
 				filter_info->current = ssrc;
 				filter_info->last_seq = seq;
@@ -74,7 +94,8 @@ check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info, guint16 seq, guint32 t
 	} else  {
 		// If SSRC is in list of old ones, we discard buffer
 		g_rec_mutex_lock (&filter_info->mutex);
-		if (g_list_index(filter_info->old, GUINT_TO_POINTER(ssrc)) != -1) {
+		current_time = get_current_time_ms(); 
+		if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
 			g_rec_mutex_unlock (&filter_info->mutex);
 			return TRUE;
 		}
@@ -95,6 +116,8 @@ check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info, guint16 seq, guint32 t
 static gboolean
 check_ssrc_rtcp (guint32 ssrc, SipFilterSsrcInfo* filter_info)
 {
+	guint64 current_time = 0;
+
 	if (filter_info->expected == 0) {
 		gboolean result, init;
 
@@ -105,10 +128,11 @@ check_ssrc_rtcp (guint32 ssrc, SipFilterSsrcInfo* filter_info)
 			init = TRUE;
 
 			// If SSRC is in list of old ones, we discard buffer
-			if (g_list_index(filter_info->old, GUINT_TO_POINTER(ssrc)) != -1) {
+			current_time = get_current_time_ms(); 
+			if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
 				result = TRUE;
 			} else {
-				// If not, first SSRc will be fixed for pipeline in current media connection
+				// If not, first SSRC will be fixed for pipeline in current media connection
 				filter_info->expected = ssrc;
 				filter_info->current = ssrc;
 				result = FALSE;
@@ -199,7 +223,8 @@ filter_ssrc_rtp_buffer (GstBuffer *buffer, SipFilterSsrcInfo* filter_info)
 					g_rec_mutex_lock (&filter_info->mutex);
 					if (checked_ssrc != filter_info->current) {
 						// Old stream must be filtered out from now on
-						filter_info->old = g_list_append (filter_info->old, GUINT_TO_POINTER(filter_info->current));
+						filter_info->old = filter_info->current;
+						filter_info->last_switch = get_current_time_ms();
 
 						// Get sure next Buffers will be easily checked for new current stream
 						filter_info->current = checked_ssrc;
@@ -438,18 +463,6 @@ kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
 
 }
 
-static void
-filtering_info_add_ssrc_info (GList** target, GList* source)
-{
-	GList* it = source;
-
-	while (it != NULL) {
-		GST_DEBUG("add_ssrc_info, setting old ssrc %u", GPOINTER_TO_UINT(it->data));
-		*target = g_list_append (*target, it->data);
-		it = it->next;
-	}
-}
-
 SipFilterSsrcInfo*
 kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session, gboolean continue_stream)
 {
@@ -458,7 +471,8 @@ kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* p
 	// Initialize filter_info
 	info->expected = expected;
 	info->current = expected;
-	info->old = NULL;
+	info->old = 0L;
+	info->last_switch = 0L;
 	info->media_session = media_session;
 	info->last_seq = 0;
 	info->last_ts = 0;
@@ -472,10 +486,9 @@ kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* p
 		GST_DEBUG("create_filtering_info, setting old ssrc: %u", previous->expected);
 		// If we have previous media connection, we need to take note of previous SSRC to discard late packets
 		if ((previous->expected != 0) && !continue_stream) {
-			info->old = g_list_append (info->old, GUINT_TO_POINTER(previous->expected));
+			info->old = previous->expected;
+			info->last_switch = get_current_time_ms ();
 		}
-		// We add all previous media connections old SSRC as old ones for current media connection (just in case old packets happen)
-		filtering_info_add_ssrc_info (&(info->old), previous->old);
 	}
 
 	return info;
@@ -484,9 +497,6 @@ kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* p
 void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info)
 {
 	g_rec_mutex_clear (&info->mutex);
-	if (info->old != NULL) {
-		g_list_free (info->old);
-	}
 	g_free (info);
 }
 
