@@ -248,11 +248,89 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
 }
 
+static std::string remove_ssrc_from_sdp (std::string sdp) 
+{
+	size_t ssrcPos = sdp.find("a=ssrc:");
+
+	while (ssrcPos != std::string::npos) {
+		size_t newLinePos = sdp.find('\n', ssrcPos);
+		if (newLinePos != std::string::npos) {
+			sdp.erase(ssrcPos, newLinePos - ssrcPos);
+		}
+
+		ssrcPos = sdp.find("a=ssrc:", newLinePos);
+	}
+	return sdp;
+}
+
+
+static void
+media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
+{
+  std::atomic<bool> media_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+
+  src->connect (rtpEpOfferer);
+
+  rtpEpAnswerer->connect(pt);
+
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
+		  MediaFlowInStateChange event) {
+	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
+		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+		  	  	  media_state_changed = true;
+		  	  	  cv.notify_one();
+	  	  	  }
+  	  	  }
+  );
+
+  std::string offer = rtpEpOfferer->generateOffer ();
+  offer = remove_ssrc_from_sdp(offer);
+  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+  std::string answer = rtpEpAnswerer->processOffer (offer);
+  answer = remove_ssrc_from_sdp(answer);
+  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+  rtpEpOfferer->processAnswer (answer);
+
+  cv.wait (lck, [&] () {
+    return media_state_changed.load();
+  });
+
+  if (!media_state_changed) {
+    BOOST_ERROR ("Not media Flowing");
+  }
+
+  conn.disconnect ();
+
+  releaseTestSrc (src);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+
+}
+
 static void
 media_state_changes ()
 {
   BOOST_TEST_MESSAGE ("Start test: media_state_changes");
   media_state_changes_impl (false, false);
+}
+
+static void
+media_state_changes_no_ssrc_in_sdp () 
+{
+  BOOST_TEST_MESSAGE ("Start test: media_state_changes_no_ssrc_in_sdp");
+  media_state_changes_no_ssrc_in_sdp_impl (false, false);
 }
 
 static void
@@ -739,6 +817,7 @@ init_unit_test_suite ( int , char *[] )
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
