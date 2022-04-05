@@ -1,9 +1,6 @@
-kms-siprtpendpoint (1.0.0.18.04~20210728095528.gbp65a781) UNRELEASED; urgency=medium
+kms-siprtpendpoint (1.1.0) RELEASED; urgency=High
 
-  ** SNAPSHOT build @65a781d8e63dc63fc9a6dc7c26c0159e85ee189a **
-
-  [ Saul Pablo Labajo Izquierdo ]
-  * Adapted to Kurento 7
+  ** SNAPSHOT build @a13a24a1fa9196c3a0efca0c1ab79f11a26e3229 **
 
 kms-siprtpendpoint (0.0.1~rc1.18.04.18.04~20210723095534.gbp8e15d9) UNRELEASED; urgency=medium
 
@@ -93,7 +90,11 @@ kms-siprtpendpoint (0.0.1~rc1.18.04) bionic; urgency=medium
   * UNRELEASED
   * UNRELEASED
 
- -- root <root@3124ae87db19>  Fri, 21 May 2021 17:40:53 +0000
+  [ Saul Pablo Labajo Izquierdo ]
+  * Prepared for KmsRtpEndpointLib library
+  * Fix for High CPU and audio mute on SipRtpEndpoint disconnect
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Tue, 05 Apr 2022 10:37:32 +0000
 
 kms-datachannel-adapter (0.0.1~rc1) testing; urgency=medium
 
