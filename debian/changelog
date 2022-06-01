@@ -1,3 +1,9 @@
+kms-siprtpendpoint (1.1.0-dev) bionic; urgency=medium
+
+  * release 1.1.0-dev
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Tue, 05 Apr 2022 19:01:08 +0000
+
 kms-siprtpendpoint (1.1.0) RELEASED; urgency=High
 
   ** SNAPSHOT build @a13a24a1fa9196c3a0efca0c1ab79f11a26e3229 **
