@@ -24,6 +24,7 @@
 #include <CryptoSuite.hpp>
 #include <FacadeRtpEndpointImpl.hpp>
 #include <SDES.hpp>
+#include <DSCPValue.hpp>
 #include <SignalHandler.hpp>
 #include <memory>
 #include <string>
@@ -42,17 +43,88 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_SRTP_CIPHER_AES_CM_128_SIZE  ((gsize)30)
 #define KMS_SRTP_CIPHER_AES_CM_256_SIZE  ((gsize)46)
 
+#define PARAM_QOS_DSCP "qos-dscp"
+
 namespace kurento
 {
+
+static gint
+get_dscp_value (std::shared_ptr<DSCPValue> qosDscp)
+{
+    if (qosDscp->getValue () ==  DSCPValue::CS0) {
+      return 0;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS1) {
+      return 8;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS2) {
+      return 16;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS3) {
+      return 24;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS4) {
+      return 32;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS5) {
+      return 40;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS6) {
+      return 48;
+    } else if (qosDscp->getValue () ==  DSCPValue::CS7) {
+      return 56;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF11) {
+      return 10;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF12) {
+      return 12;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF13) {
+      return 14;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF21) {
+      return 18;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF22) {
+      return 20;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF23) {
+      return 22;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF31) {
+      return 26;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF32) {
+      return 28;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF33) {
+      return 30;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF41) {
+      return 34;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF42) {
+      return 36;
+    } else if (qosDscp->getValue () ==  DSCPValue::AF43) {
+      return 38;
+    } else if (qosDscp->getValue () ==  DSCPValue::EF) {
+      return 46;
+    } else if (qosDscp->getValue () ==  DSCPValue::VOICEADMIT) {
+      return 44;
+    } else if (qosDscp->getValue () ==  DSCPValue::LE) {
+      return 1;
+    } else {
+      return -1;
+    }
+}
 
 SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                   std::shared_ptr<MediaPipeline> mediaPipeline,
                                   std::shared_ptr<SDES> crypto,
-								  bool useIpv6)
+								                  bool useIpv6,
+                                  std::shared_ptr<DSCPValue> qosDscp)
   : BaseRtpEndpointImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
 {
+  this->qosDscp = qosDscp;
+  if (qosDscp->getValue () == DSCPValue::NO_VALUE) {
+    std::string cfg_dscp_value;
+    if (getConfigValue<std::string,SipRtpEndpoint>(&cfg_dscp_value, PARAM_QOS_DSCP)) {
+      GST_INFO ("QOS-DSCP default configured value is %s", cfg_dscp_value.c_str());
+      qosDscp = std::make_shared<DSCPValue> (cfg_dscp_value);
+    }
+  }
+
+  if (qosDscp->getValue () != DSCPValue::NO_VALUE) {
+    GST_INFO ("Setting QOS-DSCP value to %s", qosDscp->getString().c_str());
+    g_object_set (element, "qos-dscp", get_dscp_value (qosDscp), NULL);
+  }
+
   if (!crypto->isSetCrypto() ) {
     return;
   }
@@ -140,8 +212,9 @@ MediaObjectImpl *
 SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf,
                                       std::shared_ptr<MediaPipeline> mediaPipeline,
                                       std::shared_ptr<SDES> crypto,
-									  bool cryptoAgnostic,
-									  bool useIpv6) const
+									                    bool cryptoAgnostic,
+									                    bool useIpv6,
+                                      std::shared_ptr<DSCPValue> qosDscp) const
 {
   // Here we have made a real special construct to deal with Kurento object system to inreface with
   // an implementation of and object composed of others.
@@ -154,7 +227,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // SO, in fact we createObject a different class that acts as Facade of this
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
-  return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, useIpv6);
+  return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, useIpv6, qosDscp);
 }
 
 
@@ -196,11 +269,12 @@ SipRtpEndpointImpl::StaticConstructor::StaticConstructor()
 std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (const boost::property_tree::ptree &conf,
         std::shared_ptr<MediaPipeline> mediaPipeline,
         std::shared_ptr<SDES> crypto, bool useIpv6,
-		const std::string &sdp,
-		  bool continue_audio_stream,
-		  bool continue_video_stream)
+        std::shared_ptr<DSCPValue> qosDscp,
+		    const std::string &sdp,
+		    bool continue_audio_stream,
+		    bool continue_video_stream)
 {
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6));
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, mediaPipeline, crypto, useIpv6, qosDscp));
 
 	// Recover ports (sockets) from last SipRtpEndpoint and SSRCs to filter out old traffic
 	this->cloneToNewEndpoint (newEndpoint, sdp, continue_audio_stream, continue_video_stream);

@@ -69,7 +69,7 @@ kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* fi
 
 KmsRtpConnection *
 kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock,
-		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gint dscp_value)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
 	  // the gstreamer object factory for the connection, so that we can simplify this function
@@ -120,6 +120,11 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  g_object_set (conn->rtcp_udpsrc, "socket", conn->rtcp_socket,
 	      "auto-multicast", FALSE, NULL);
 
+	  // Set dscp values to multiudpsink, see https://linuxreviews.org/Type_of_Service_(ToS)_and_DSCP_Values
+	  if (dscp_value >= 0) {
+		  g_object_set (conn->rtp_udpsink, "qos-dscp",  dscp_value, NULL);
+		  g_object_set (conn->rtcp_udpsink, "qos-dscp",  dscp_value, NULL);		  
+	  }
 
 	  kms_i_rtp_connection_connected_signal (KMS_I_RTP_CONNECTION (conn));
 

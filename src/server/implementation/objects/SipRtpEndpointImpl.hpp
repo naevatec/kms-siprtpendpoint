@@ -40,9 +40,10 @@ class SipRtpEndpointImpl : public BaseRtpEndpointImpl, public virtual SipRtpEndp
 public:
 
 	SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
-                   std::shared_ptr<MediaPipeline> mediaPipeline,
-                   std::shared_ptr<SDES> crypto,
-				   bool useIpv6);
+                    std::shared_ptr<MediaPipeline> mediaPipeline,
+                    std::shared_ptr<SDES> crypto,
+				            bool useIpv6,
+                    std::shared_ptr<DSCPValue> qosDscp);
 
   virtual ~SipRtpEndpointImpl ();
 
@@ -51,9 +52,10 @@ public:
   std::shared_ptr<SipRtpEndpointImpl> getCleanEndpoint (const boost::property_tree::ptree &conf,
           std::shared_ptr<MediaPipeline> mediaPipeline,
           std::shared_ptr<SDES> crypto, bool useIpv6,
-		  const std::string &sdp,
-		  bool continue_audio_stream,
-		  bool continue_video_stream);
+          std::shared_ptr<DSCPValue> qosDscp,
+		      const std::string &sdp,
+		      bool continue_audio_stream,
+		      bool continue_video_stream);
 
   void setAudioSsrc (guint32 ssrc);
   void setVideoSsrc (guint32 ssrc);
@@ -75,6 +77,7 @@ public:
 protected:
 private:
 
+  std::shared_ptr<DSCPValue> qosDscp;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 

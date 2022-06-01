@@ -118,16 +118,18 @@ completeSdpAnswer (std::string &answer, const std::string &offer)
 
 
 FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree &conf,
-                                  std::shared_ptr<MediaPipeline> mediaPipeline,
-                                  std::shared_ptr<SDES> crypto,
-								  bool cryptoAgnostic,
-								  bool useIpv6)
+                                  			std::shared_ptr<MediaPipeline> mediaPipeline,
+                                  			std::shared_ptr<SDES> crypto,
+								  			bool cryptoAgnostic,
+								  			bool useIpv6,
+								  			std::shared_ptr<DSCPValue> qosDscp)
   : ComposedObjectImpl (conf,
                          std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline)), cryptoCache (crypto), useIpv6Cache (useIpv6)
 {
+  this->qosDscpCache = qosDscp;
   this->cryptoAgnostic = cryptoAgnostic;
 
-  rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6));
+  rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6, qosDscp));
   audioCapsSet = NULL;
   videoCapsSet = NULL;
   rembParamsSet = NULL;
@@ -145,7 +147,7 @@ FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
 	linkMediaElement(NULL, NULL);
 }
 
-void
+void	
 FacadeRtpEndpointImpl::postConstructor ()
 {
   ComposedObjectImpl::postConstructor ();
@@ -235,7 +237,7 @@ std::string FacadeRtpEndpointImpl::generateOffer (std::shared_ptr<OfferOptions> 
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, qosDscpCache));
 
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
@@ -273,7 +275,7 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache));
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, qosDscpCache));
 
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
@@ -363,7 +365,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	// If we get here is either SDP offer didn't match existing endpoint regarding crypto
 	// or existing endpoint was already negotiated.
 	// In either case, cryptoToUse contains the cryptoCofniguration needed to instantiate new SipRtpEndpoint
-	newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache));
+	newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, qosDscpCache));
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
 	answer = newEndpoint->processOffer(modifiableOffer);
@@ -432,7 +434,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		GST_INFO ("No change in audio stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
 	if (continue_video_stream)
 		GST_INFO ("No change in video stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
-	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, modifiableAnswer, continue_audio_stream, continue_video_stream);
+	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, qosDscpCache, modifiableAnswer, continue_audio_stream, continue_video_stream);
 	if (this->isCryptoAgnostic ()) {
 		if (cryptoToUse->isSetCrypto()) {
 			if (this->agnosticCryptoAudioSsrc != 0) {
