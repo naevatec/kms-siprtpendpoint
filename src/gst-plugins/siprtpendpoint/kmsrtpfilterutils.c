@@ -418,11 +418,19 @@ gulong
 kms_sip_rtp_filter_setup_probe_rtp (GstPad *pad, SipFilterSsrcInfo* filter_info)
 {
 	if (filter_info != NULL) {
-		GST_DEBUG("Installing RTP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+		GstElement *parent_element;
+
+		parent_element = gst_pad_get_parent_element (pad);
+		GST_DEBUG("Installing RTP probe for %s", GST_ELEMENT_NAME(parent_element));
+		gst_object_unref (parent_element);
 		return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST | GST_PAD_PROBE_TYPE_PUSH | GST_PAD_PROBE_TYPE_PULL,
 				(GstPadProbeCallback) filter_ssrc_rtp, GUINT_TO_POINTER(filter_info), NULL);
 	} else {
-	    GST_DEBUG("No RTP probe installed for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+		GstElement *parent_element;
+
+		parent_element = gst_pad_get_parent_element (pad);
+	    GST_DEBUG("No RTP probe installed for %s", GST_ELEMENT_NAME(parent_element));
+		gst_object_unref (parent_element);
 	    return 0;
 	}
 }
@@ -431,11 +439,19 @@ gulong
 kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, SipFilterSsrcInfo* filter_info)
 {
 	if (filter_info != NULL) {
-	    GST_DEBUG("Installing RTCP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+		GstElement *parent_element;
+
+		parent_element = gst_pad_get_parent_element (pad);
+	    GST_DEBUG("Installing RTCP probe for %s", GST_ELEMENT_NAME(parent_element));
+		gst_object_unref (parent_element);
 	    return gst_pad_add_probe (pad, GST_PAD_PROBE_TYPE_BUFFER,
 	        (GstPadProbeCallback) filter_ssrc_rtcp, filter_info, NULL);
 	} else {
-	    GST_DEBUG("No RTCP probe installed for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+		GstElement *parent_element;
+
+		parent_element = gst_pad_get_parent_element (pad);
+	    GST_DEBUG("No RTCP probe installed for %s", GST_ELEMENT_NAME(parent_element));
+		gst_object_unref (parent_element);
 	    return 0;
 	}
 }
@@ -444,10 +460,14 @@ kms_sip_rtp_filter_setup_probe_rtcp (GstPad *pad, SipFilterSsrcInfo* filter_info
 void
 kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id)
 {
+	GstElement *parent_element;
+
 	if (probe_id == 0)
 		return;
 
-    GST_DEBUG("Removing RTP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+	parent_element = gst_pad_get_parent_element (pad);
+    GST_DEBUG("Removing RTP probe for %s", GST_ELEMENT_NAME(parent_element));
+	gst_object_unref (parent_element);
     gst_pad_remove_probe (pad, probe_id);
 
 }
@@ -455,10 +475,14 @@ kms_sip_rtp_filter_release_probe_rtp (GstPad *pad, gulong probe_id)
 void
 kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
 {
+	GstElement *parent_element;
+
 	if (probe_id == 0)
 		return;
 
-    GST_DEBUG("Removing RTCP probe for %s", GST_ELEMENT_NAME(gst_pad_get_parent_element (pad)));
+	parent_element = gst_pad_get_parent_element (pad);
+	GST_DEBUG("Removing RTCP probe for %s", GST_ELEMENT_NAME(parent_element));
+	gst_object_unref (parent_element);
     gst_pad_remove_probe (pad, probe_id);
 
 }

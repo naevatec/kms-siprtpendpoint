@@ -123,7 +123,10 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 
 	  kms_i_rtp_connection_connected_signal (KMS_I_RTP_CONNECTION (conn));
 
-
+	  if ((rtp_sock != NULL) && (rtcp_sock != NULL)) {
+		g_object_unref (rtcp_sock);
+		g_object_unref (rtp_sock);
+	  }
 
 	  return conn;
 }
