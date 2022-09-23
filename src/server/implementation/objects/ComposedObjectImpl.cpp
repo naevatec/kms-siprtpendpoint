@@ -18,10 +18,10 @@
 #include <MediaElementImpl.hpp>
 #include <ElementConnectionData.hpp>
 #include <MediaPipelineImpl.hpp>
+#include <gio/gio.h>
 #include <gst/gst.h>
 #include <jsonrpc/JsonSerializer.hpp>
 #include <KurentoException.hpp>
-#include <gst/gst.h>
 #include <memory>
 #include <string>
 
@@ -44,6 +44,96 @@ namespace kurento
 const static std::string DEFAULT = "default";
 
 
+// Bit of a hack to remove a memory leak. It seems that the process of composing a Media Element 
+// from other MediaElements  interfere with the protocol of connecting MediaElements
+// While a more definitive solution is implemented by creating a single Gstreamer element
+// with a bin containing two agnosticbin (one for input and another for output) and an internal kmssiprtpendpoint
+// This hack should remove the memory leak
+static void 
+review_pad (GstPad *pad)
+{
+	if (GST_IS_PAD(pad) && (gst_pad_get_direction (pad) == GST_PAD_SRC)) {
+		// Bit of hack, we detected that this object src pads are no being correctly released
+		gst_object_unref (pad);
+	}
+}
+
+static void
+clean_pending_pads (std::list<GstPad*> *pending_pads)
+{
+	std::for_each (pending_pads->begin(), pending_pads->end(), [](GstPad* pad){
+		review_pad (pad);
+	});
+	pending_pads->clear ();
+}
+
+
+static void 
+linked_callback (GstPad * self,
+                 GstPad * peer,
+                 gpointer user_data)
+{
+	std::list<GstPad*> *pending_pads = (std::list<GstPad*>*)user_data;
+
+	if (GST_IS_GHOST_PAD(peer) && (gst_pad_get_direction (peer) == GST_PAD_SRC)) {
+		pending_pads->push_back (peer);
+	}
+}
+
+static void 
+register_pending_pad (GstElement * object,
+                    GstPad * new_pad,
+                    gpointer user_data)
+{
+	std::list<GstPad*> *pending_pads = (std::list<GstPad*>*)user_data;
+
+	if (GST_IS_GHOST_PAD(new_pad) && (gst_pad_get_direction (new_pad) == GST_PAD_SRC)) {
+		pending_pads->push_back (new_pad);
+	}
+}
+
+static unsigned long 
+register_element_pads (std::list<GstPad*> *pending_pads, GstElement *element)
+{
+	unsigned long signal_id;
+	GstIterator *iterator;
+	bool done = false;
+	GValue item = G_VALUE_INIT;
+
+	signal_id = g_signal_connect (element, "pad-added", G_CALLBACK (register_pending_pad), pending_pads);
+
+	iterator = gst_element_iterate_sink_pads  (element);
+
+	while (!done) {
+		switch (gst_iterator_next (iterator, &item))  {
+ 		case GST_ITERATOR_OK:
+		 {
+			GstPad *pad;
+
+			pad = GST_PAD(g_value_get_object (&item));
+			g_signal_connect (pad, "linked", G_CALLBACK (linked_callback), pending_pads);
+         	g_value_reset (&item);
+		 }
+         break;
+       case GST_ITERATOR_RESYNC:
+         gst_iterator_resync (iterator);
+         break;
+       case GST_ITERATOR_ERROR:
+         done = true;
+         break;
+       case GST_ITERATOR_DONE:
+         done = true;
+         break;			
+		}
+	}
+	g_value_unset (&item);
+	gst_iterator_free (iterator);
+
+	return signal_id;
+} 
+
+
+
 ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
                                   std::shared_ptr<MediaPipeline> mediaPipeline)
   : MediaElementImpl (conf,
@@ -55,6 +145,10 @@ ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
   linkedSource = NULL;
   linkedSink = NULL;
   origElem = NULL;
+
+  // Register src pads for memory leak 
+  register_element_pads (&(this->padsToReview), sinkPt->getGstreamerElement());
+  register_element_pads (&(this->padsToReview), srcPt->getGstreamerElement());
 }
 
 ComposedObjectImpl::~ComposedObjectImpl()
@@ -62,11 +156,11 @@ ComposedObjectImpl::~ComposedObjectImpl()
 	element = origElem;
 
 	disconnectBridgeSignals ();
+
+	clean_pending_pads (&(this->padsToReview));
 }
 
-
-
-
+/*-------------------------------------------------*/
 void
 ComposedObjectImpl::disconnectBridgeSignals ()
 {
@@ -432,7 +526,7 @@ void ComposedObjectImpl::prepareSinkConnection (std::shared_ptr<MediaElement> sr
 	// of calling the virtual method disconnect on each sink, it calls the MediaElementImpl::disconnect methods, making it 
 	// impossible for the overloading done in this module to work, and causing an infinite loop trying to disconnect
 	//
-	// Well, in fact the problem is also caused by the fact that as we use intermediate PassThrough objects when connecting
+	// Well, in fact the problem is also caused by the point that as we use intermediate PassThrough objects when connecting
 	// a MediaElement to this SipRtpEndpoint where another mediaElement was previously connected to this same SipRtpEndpoint 
 	// The connection process leaves a dangling sink connection on previous MediaElmenent. Then, when a disconnectAll is called
 	// on that MediaElement, it will try to disconnect that dangling sink connection, but as it calls MediaElementImpl::disconnect
@@ -456,6 +550,12 @@ void ComposedObjectImpl::prepareSinkConnection (std::shared_ptr<MediaElement> sr
 
 }
 
+void
+ComposedObjectImpl::release ()
+{
+		
+  	MediaElementImpl::release();
+}
 
 
 } /* kurento */

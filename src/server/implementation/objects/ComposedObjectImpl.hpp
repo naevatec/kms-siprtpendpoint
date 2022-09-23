@@ -66,6 +66,8 @@ public:
                                       const std::string &sourceMediaDescription,
                                       const std::string &sinkMediaDescription);
 
+  virtual void release () override;
+
 
 protected:
   virtual void postConstructor () override;
@@ -144,6 +146,8 @@ private:
   sigc::connection connErrorSink;
   sigc::connection connErrorlinkedSrc;
   sigc::connection connErrorlinkedSink;
+
+  std::list<GstPad*> padsToReview;
 
 
 
