@@ -130,7 +130,9 @@ private:
   sigc::signal<void, ElementConnected> signalElementConnected;
   //sigc::signal<void, ElementDisconnected> signalElementDisconnected;
   sigc::signal<void, MediaFlowOutStateChange> signalMediaFlowOutStateChange;
+  sigc::signal<void, MediaFlowOutStateChanged> signalMediaFlowOutStateChanged;
   sigc::signal<void, MediaFlowInStateChange> signalMediaFlowInStateChange;
+  sigc::signal<void, MediaFlowInStateChanged> signalMediaFlowInStateChanged;
   sigc::signal<void, MediaTranscodingStateChange> signalMediaTranscodingStateChange;
   sigc::signal<void, Error> signalError;
 
@@ -141,7 +143,9 @@ private:
   sigc::connection connMediaTranscodingStateChangeSrc;
   sigc::connection connMediaTranscodingStateChangeSink;
   sigc::connection connMediaFlowOutStateChange;
+  sigc::connection connMediaFlowOutStateChanged;
   sigc::connection connMediaFlowInStateChange;
+  sigc::connection connMediaFlowInStateChanged;
   sigc::connection connErrorSrc;
   sigc::connection connErrorSink;
   sigc::connection connErrorlinkedSrc;

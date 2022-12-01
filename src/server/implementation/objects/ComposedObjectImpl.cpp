@@ -177,6 +177,7 @@ ComposedObjectImpl::disconnectElementSrcSignals ()
 {
 	connMediaTranscodingStateChangeSrc.disconnect ();
 	connMediaFlowOutStateChange.disconnect ();
+	connMediaFlowOutStateChanged.disconnect ();
 	connErrorlinkedSrc.disconnect ();
 }
 
@@ -204,7 +205,17 @@ ComposedObjectImpl::connectElementSrcSignals ()
 		  if (!sth)
 			  return;
 
+
 		  raiseEvent<MediaFlowOutStateChange> (event, sth, signalMediaFlowOutStateChange);
+	  });
+
+	  connMediaFlowOutStateChanged = std::dynamic_pointer_cast<MediaElementImpl>(linkedSource)->signalMediaFlowOutStateChanged.connect([ &, wt ] (
+			  MediaFlowOutStateChanged event) {
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaFlowOutStateChanged> (event, sth, signalMediaFlowOutStateChanged);
 	  });
 
 	    connErrorlinkedSrc = std::dynamic_pointer_cast<MediaElementImpl>(linkedSource)->signalError.connect([ &, wt ] (
@@ -223,6 +234,7 @@ ComposedObjectImpl::disconnectElementSinkSignals ()
 {
 	connMediaTranscodingStateChangeSink.disconnect ();
 	connMediaFlowInStateChange.disconnect ();
+	connMediaFlowInStateChanged.disconnect ();
 	if (linkedSink != linkedSource)
 		connErrorlinkedSink.disconnect ();
 }
@@ -251,6 +263,15 @@ ComposedObjectImpl::connectElementSinkSignals ()
 			  return;
 
 		  raiseEvent<MediaFlowInStateChange> (event, sth, signalMediaFlowInStateChange);
+	  });
+
+	  connMediaFlowInStateChanged = std::dynamic_pointer_cast<MediaElementImpl>(linkedSink)->signalMediaFlowInStateChanged.connect([ &, wt ] (
+			  MediaFlowInStateChanged event) {
+		  std::shared_ptr<MediaObject> sth = wt.lock ();
+		  if (!sth)
+			  return;
+
+		  raiseEvent<MediaFlowInStateChanged> (event, sth, signalMediaFlowInStateChanged);
 	  });
 
 		if (linkedSink != linkedSource) {
@@ -378,8 +399,20 @@ bool ComposedObjectImpl::connect (const std::string &eventType, std::shared_ptr<
 	    return true;
 	}
 
+	if ("MediaFlowOutStateChanged" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaFlowOutStateChanged> (signalMediaFlowOutStateChanged, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
+
     if ("MediaFlowInStateChange" == eventType) {
     	sigc::connection conn = connectEventToExternalHandler<MediaFlowInStateChange> (signalMediaFlowInStateChange, wh);
+	    handler->setConnection (conn);
+	    return true;
+    }
+
+    if ("MediaFlowInStateChanged" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaFlowInStateChanged> (signalMediaFlowInStateChanged, wh);
 	    handler->setConnection (conn);
 	    return true;
     }

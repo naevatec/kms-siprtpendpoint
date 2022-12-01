@@ -35,6 +35,7 @@
 #include <vector>
 #include <set>
 #include <MediaFlowInStateChange.hpp>
+#include <MediaFlowInStateChanged.hpp>
 #include <MediaFlowState.hpp>
 
 
