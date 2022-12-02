@@ -47,10 +47,11 @@ class FacadeRtpEndpointImpl : public ComposedObjectImpl, public virtual SipRtpEn
 public:
 
   FacadeRtpEndpointImpl (const boost::property_tree::ptree &conf,
-                   std::shared_ptr<MediaPipeline> mediaPipeline,
-                   std::shared_ptr<SDES> crypto,
-				   bool cryptoAgnostic,
-				   bool useIpv6);
+                        std::shared_ptr<MediaPipeline> mediaPipeline,
+                        std::shared_ptr<SDES> crypto,
+				                bool cryptoAgnostic,
+				                bool useIpv6,
+                        std::shared_ptr<DSCPValue> qosDscp);
 
   virtual ~FacadeRtpEndpointImpl ();
 
@@ -235,6 +236,8 @@ private:
   std::shared_ptr<SDES> cryptoCache;
 
   bool useIpv6Cache;
+
+  std::shared_ptr<DSCPValue> qosDscpCache;
 
   class StaticConstructor
   {

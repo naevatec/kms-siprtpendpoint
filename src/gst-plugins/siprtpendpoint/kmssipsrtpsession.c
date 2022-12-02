@@ -61,7 +61,7 @@ struct _KmsSipSrtpSessionPrivate
 
 KmsSipSrtpSession *
 kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
-    KmsIRtpSessionManager * manager, gboolean use_ipv6)
+    KmsIRtpSessionManager * manager, gboolean use_ipv6, gint dscp_value)
 {
   GObject *obj;
   KmsSipSrtpSession *self;
@@ -70,6 +70,7 @@ kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
   self = KMS_SIP_SRTP_SESSION (obj);
   self->audio_filter_info = NULL;
   self->video_filter_info = NULL;
+  self->dscp_value = dscp_value;
   KMS_SRTP_SESSION_CLASS (G_OBJECT_GET_CLASS (self))->post_constructor
       (KMS_SRTP_SESSION(self), ep, id, manager, use_ipv6);
 
@@ -182,7 +183,7 @@ kms_sip_srtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   filter_info = km_sip_rtp_session_setup_filter_info (self, media_str);
 
   conn = kms_sip_srtp_connection_new (min_port, max_port,
-	      KMS_SIP_SRTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe);
+	      KMS_SIP_SRTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe, self->dscp_value);
 
   if ((rtp_probe != 0) || (rtcp_probe != 0)) {
 	  kms_sip_srtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe);

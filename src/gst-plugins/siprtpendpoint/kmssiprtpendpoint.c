@@ -33,6 +33,7 @@
 
 #define DEFAULT_AUDIO_SSRC 0
 #define DEFAULT_VIDEO_SSRC 0
+#define DEFAULT_QOS_DSCP -1
 
 
 GST_DEBUG_CATEGORY_STATIC (kms_sip_rtp_endpoint_debug);
@@ -70,6 +71,8 @@ struct _KmsSipRtpEndpointPrivate
   gboolean *use_sdes_cache;
 
   GList *sessionData;
+
+  gint dscp_value;
 };
 
 /* Properties */
@@ -77,7 +80,8 @@ enum
 {
   PROP_0,
   PROP_AUDIO_SSRC,
-  PROP_VIDEO_SSRC
+  PROP_VIDEO_SSRC,
+  PROP_QOS_DSCP
 };
 
 
@@ -281,7 +285,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 
   g_object_get (self, "use-ipv6", &use_ipv6, NULL);
   if (isUseSdes(self)) {
-	KmsSipSrtpSession *sip_srtp_ses = kms_sip_srtp_session_new (base_sdp, id, manager, use_ipv6);
+	KmsSipSrtpSession *sip_srtp_ses = kms_sip_srtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->dscp_value);
     *sess = KMS_SDP_SESSION (sip_srtp_ses);
 	if (self->priv->sessionData != NULL) {
 		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
@@ -289,7 +293,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 		sip_srtp_ses->video_filter_info = data->video_filter_info;
 	}
   } else {
-	KmsSipRtpSession *sip_rtp_ses = kms_sip_rtp_session_new (base_sdp, id, manager, use_ipv6);
+	KmsSipRtpSession *sip_rtp_ses = kms_sip_rtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->dscp_value);
     *sess = KMS_SDP_SESSION (sip_rtp_ses);
 	if (self->priv->sessionData != NULL) {
 		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
@@ -615,6 +619,9 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
     		clone->local_video_ssrc = ssrc;
     	}
     	break;
+	case PROP_QOS_DSCP:
+		self->priv->dscp_value = g_value_get_int (value);
+		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -648,6 +655,9 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
         	g_value_set_uint (value, clone->local_video_ssrc);
     	}
     	break;
+	case PROP_QOS_DSCP:
+		g_value_set_int (value, self->priv->dscp_value);
+		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -726,6 +736,11 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
 		  0, G_MAXUINT, DEFAULT_VIDEO_SSRC,
 		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (gobject_class, PROP_QOS_DSCP,
+      g_param_spec_int ("qos-dscp",
+          "QoS DSCP", "Set to assign DSCP value for network traffice sent",
+		  -1, G_MAXINT, DEFAULT_QOS_DSCP,
+		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   obj_signals[SIGNAL_CLONE_TO_NEW_EP] =
       g_signal_new ("clone-to-new-ep",
@@ -762,6 +777,7 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 
   self->priv->use_sdes_cache = NULL;
   self->priv->sessionData = NULL;
+  self->priv->dscp_value = DEFAULT_QOS_DSCP;
 
   GST_DEBUG ("Initialized RTP Endpoint %p", self);
 }
