@@ -103,40 +103,6 @@
       ]
     }
   ],
-  "complexTypes": [
-    {
-      "typeFormat": "ENUM",
-      "values": [
-        "NO_DSCP",  //  -1  Used to signal that no DSCP feature is requested.
-        "NO_VALUE", //  -1  Used to signal to use the default value in config file or no DSCP
-        "CS0",      //   0
-        "CS1",      //   8        
-        "CS2",      //  16
-        "CS3",      //  24
-        "CS4",      //  32
-        "CS5",      //  40
-        "CS6",      //  48
-        "CS7",      //  56
-        "AF11",     //  10
-        "AF12",     //  12
-        "AF13",     //  14
-        "AF21",     //  18
-        "AF22",     //  20
-        "AF23",     //  22
-        "AF31",     //  26
-        "AF32",     //  28
-        "AF33",     //  30
-        "AF41",     //  34
-        "AF42",     //  36
-        "AF43",     //  38
-        "EF",       //  46
-        "VOICEADMIT", // 44
-        "LE"        //   1
-      ],
-      "name": "DSCPValue",
-      "doc": "Possible DSCP values as taken from  http://www.iana.org/assignments/dscp-registry/dscp-registry.xml referenced from https://linuxreviews.org/Type_of_Service_(ToS)_and_DSCP_Values#google_vignette . Recpommended value for SIP telephony is EF"
-    }
-  ],
   "events": [
     {
       "name": "OnKeySoftLimit",

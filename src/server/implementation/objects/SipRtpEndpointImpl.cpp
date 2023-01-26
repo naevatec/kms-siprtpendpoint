@@ -52,30 +52,6 @@ static gint
 get_dscp_value (std::shared_ptr<DSCPValue> qosDscp)
 {
   switch (qosDscp->getValue () )  {
-  case DSCPValue::CS0:
-    return 0;
-
-  case DSCPValue::CS1:
-    return 8;
-
-  case DSCPValue::CS2:
-    return 16;
-
-  case DSCPValue::CS3:
-    return 24;
-
-  case DSCPValue::CS4:
-    return 32;
-
-  case DSCPValue::CS5:
-    return 40;
-
-  case DSCPValue::CS6:
-    return 48;
-
-  case DSCPValue::CS7:
-    return 56;
-
   case DSCPValue::AF11:
     return 10;
 
@@ -112,14 +88,98 @@ get_dscp_value (std::shared_ptr<DSCPValue> qosDscp)
   case DSCPValue::AF43:
     return 38;
 
+  case DSCPValue::AUDIO_HIGH:
+    return 46;
+
+  case DSCPValue::AUDIO_LOW:
+    return 0;
+
+  case DSCPValue::AUDIO_MEDIUM:
+    return 46;
+
+  case DSCPValue::AUDIO_VERYLOW:
+    return 1;
+
+  case DSCPValue::CHROME_HIGH:
+    return 56;
+
+  case DSCPValue::CHROME_LOW:
+    return 0;
+
+  case DSCPValue::CHROME_MEDIUM:
+    return 56;
+
+  case DSCPValue::CHROME_VERYLOW:
+    return 8;
+
+  case DSCPValue::CS0:
+    return 0;
+
+  case DSCPValue::CS1:
+    return 8;
+
+  case DSCPValue::CS2:
+    return 16;
+
+  case DSCPValue::CS3:
+    return 24;
+
+  case DSCPValue::CS4:
+    return 32;
+
+  case DSCPValue::CS5:
+    return 40;
+
+  case DSCPValue::CS6:
+    return 48;
+
+  case DSCPValue::CS7:
+    return 56;
+
+  case DSCPValue::DATA_HIGH:
+    return 18;
+
+  case DSCPValue::DATA_LOW:
+    return 0;
+
+  case DSCPValue::DATA_MEDIUM:
+    return 10;
+
+  case DSCPValue::DATA_VERYLOW:
+    return 1;
+  
   case DSCPValue::EF:
     return 46;
 
-  case DSCPValue::VOICEADMIT:
-    return 44;
-
   case DSCPValue::LE:
     return 1;
+
+  case DSCPValue::NO_DSCP:
+    return -1;
+
+  case DSCPValue::NO_VALUE:
+    return -1;
+
+  case DSCPValue::VIDEO_HIGH:
+    return 36;
+
+  case DSCPValue::VIDEO_HIGH_THROUGHPUT:
+    return 34;
+
+  case DSCPValue::VIDEO_LOW:
+    return 0;
+
+  case DSCPValue::VIDEO_MEDIUM:
+    return 36;
+
+  case DSCPValue::VIDEO_MEDIUM_THROUGHPUT:
+    return 38;
+
+  case DSCPValue::VIDEO_VERYLOW:
+    return 1;
+
+  case DSCPValue::VOICEADMIT:
+    return 44;
 
   default:
     return -1;
