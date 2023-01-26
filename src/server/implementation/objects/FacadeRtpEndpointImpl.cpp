@@ -153,6 +153,7 @@ FacadeRtpEndpointImpl::postConstructor ()
 
   rtp_ep->postConstructor();
   linkMediaElement(rtp_ep, rtp_ep);
+  connectForwardSignals();
 
 }
 
