@@ -146,6 +146,7 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
 FacadeRtpEndpointImpl::~FacadeRtpEndpointImpl()
 {
 	linkMediaElement(NULL, NULL);
+	disconnectForwardSignals ();
 }
 
 void	
@@ -155,7 +156,7 @@ FacadeRtpEndpointImpl::postConstructor ()
 
   rtp_ep->postConstructor();
   linkMediaElement(rtp_ep, rtp_ep);
-
+  connectForwardSignals ();
 }
 
 
