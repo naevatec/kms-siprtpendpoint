@@ -22,6 +22,7 @@
 #include "PassThroughImpl.hpp"
 #include <jsonrpc/JsonSerializer.hpp>
 #include <EventHandler.hpp>
+#include <string>
 
 namespace kurento
 {
@@ -80,6 +81,9 @@ private:
   std::shared_ptr<DSCPValue> qosDscp;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
+
+  std::list<std::string> audio_codecs;
+  std::list<std::string> video_codecs;
 
   std::shared_ptr<SipRtpEndpointImpl> cloneToNewEndpoint (std::shared_ptr<SipRtpEndpointImpl> newEp, const std::string &sdp, bool continue_audio_stream, bool continue_video_stream);
 
