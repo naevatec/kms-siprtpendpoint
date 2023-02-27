@@ -152,6 +152,7 @@ private:
   sigc::connection connErrorlinkedSink;
 
   std::list<GstPad*> padsToReview;
+  std::map<gpointer, unsigned long> signals_to_disconnect;
 
 
 
