@@ -27,7 +27,6 @@
 #include <DSCPValue.hpp>
 #include <SignalHandler.hpp>
 #include <memory>
-#include <string>
 
 #define GST_CAT_DEFAULT kurento_sip_rtp_endpoint_impl
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
@@ -44,6 +43,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_SRTP_CIPHER_AES_CM_256_SIZE  ((gsize)46)
 
 #define PARAM_QOS_DSCP "qos-dscp"
+#define PARAM_AUDIO_CODECS "audioCodecs"
+#define PARAM_VIDEO_CODECS "videoCodecs"
 
 namespace kurento
 {
@@ -186,6 +187,53 @@ get_dscp_value (std::shared_ptr<DSCPValue> qosDscp)
   }
 }
 
+static std::list<std::string> get_codecs_list (std::string value) 
+{
+  std::list<std::string> result = {};
+
+  std::stringstream ss(value);
+ 
+  while (ss.good()) {
+      std::string substr;
+      getline(ss, substr, ',');
+      result.push_back(substr);
+  }
+
+  return result;
+}
+
+static void append_value_to_array (GArray *array, const char *val)
+{
+  GValue v = G_VALUE_INIT;
+  GstStructure *s;
+
+  g_value_init (&v, GST_TYPE_STRUCTURE);
+
+  s = gst_structure_new_empty (val);
+  if (s == NULL) {
+    std::string message =
+        std::string () + "Invalid codec name in config: '" + val + "'";
+    GST_ERROR ("%s", message.c_str ());
+    throw KurentoException (SDP_PARSE_ERROR, message);
+  }
+
+  gst_value_set_structure (&v, s);
+  gst_structure_free (s);
+  g_array_append_val (array, v);
+}
+
+static GArray* get_codec_array (std::list<std::string> list)
+{
+  GArray *array;
+
+  array = g_array_new (FALSE, TRUE, sizeof (GValue) );
+
+  for (std::list<std::string>::iterator it = list.begin(); it != list.end();++it) {
+    append_value_to_array (array, it->c_str());
+  }
+  return array;
+}
+
 SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                         std::shared_ptr<MediaPipeline> mediaPipeline,
                                         std::shared_ptr<SDES> crypto,
@@ -214,6 +262,23 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
   } else {
     GST_INFO ("No QOS-DSCP feature set");
   }
+
+  std::string audio_codecs_str;
+  std::string video_codecs_str;
+
+  getConfigValue<std::string,SipRtpEndpoint>(&audio_codecs_str, PARAM_AUDIO_CODECS);
+  this->audio_codecs = get_codecs_list (audio_codecs_str);
+
+  getConfigValue<std::string,SipRtpEndpoint>(&video_codecs_str, PARAM_VIDEO_CODECS);
+  this->video_codecs = get_codecs_list (video_codecs_str);
+
+  g_object_set (element, 
+                "audio-codecs", get_codec_array(audio_codecs), 
+                NULL);
+  g_object_set (element, 
+                "video-codecs", get_codec_array(video_codecs), 
+                NULL);
+
 
   if (!crypto->isSetCrypto() ) {
     return;
