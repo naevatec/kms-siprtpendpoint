@@ -196,7 +196,9 @@ static std::list<std::string> get_codecs_list (std::string value)
   while (ss.good()) {
       std::string substr;
       getline(ss, substr, ',');
-      result.push_back(substr);
+      if (!substr.empty ()) {
+        result.push_back(substr);
+      }
   }
 
   return result;
@@ -272,12 +274,16 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
   getConfigValue<std::string,SipRtpEndpoint>(&video_codecs_str, PARAM_VIDEO_CODECS);
   this->video_codecs = get_codecs_list (video_codecs_str);
 
-  g_object_set (element, 
-                "audio-codecs", get_codec_array(audio_codecs), 
-                NULL);
-  g_object_set (element, 
-                "video-codecs", get_codec_array(video_codecs), 
-                NULL);
+  if (audio_codecs.size() > 0) {
+    g_object_set (element, 
+                  "audio-codecs", get_codec_array(audio_codecs), 
+                  NULL);
+  }
+  if (video_codecs.size() > 0) {
+    g_object_set (element, 
+                  "video-codecs", get_codec_array(video_codecs), 
+                  NULL);
+  }
 
 
   if (!crypto->isSetCrypto() ) {
