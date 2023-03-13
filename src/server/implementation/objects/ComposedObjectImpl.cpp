@@ -59,6 +59,14 @@ review_pad (GstPad *pad)
 }
 
 static void
+unregister_signals (std::map<gpointer, unsigned long> signals)
+{
+	for (auto it = signals.begin(); it != signals.end(); ++it) {
+		g_signal_handler_disconnect (it->first, it->second);
+	}
+}
+
+static void
 clean_pending_pads (std::list<GstPad*> *pending_pads)
 {
 	std::for_each (pending_pads->begin(), pending_pads->end(), [](GstPad* pad){
@@ -92,15 +100,17 @@ register_pending_pad (GstElement * object,
 	}
 }
 
-static unsigned long 
-register_element_pads (std::list<GstPad*> *pending_pads, GstElement *element)
+static std::map<gpointer, unsigned long> 
+register_element_pads (std::list<GstPad*>& pending_pads, GstElement *element)
 {
 	unsigned long signal_id;
 	GstIterator *iterator;
 	bool done = false;
 	GValue item = G_VALUE_INIT;
+	std::map<gpointer, unsigned long> registered_signals;
 
-	signal_id = g_signal_connect (element, "pad-added", G_CALLBACK (register_pending_pad), pending_pads);
+	signal_id = g_signal_connect (element, "pad-added", G_CALLBACK (register_pending_pad), &pending_pads);
+	registered_signals [element] = signal_id;
 
 	iterator = gst_element_iterate_sink_pads  (element);
 
@@ -109,9 +119,12 @@ register_element_pads (std::list<GstPad*> *pending_pads, GstElement *element)
  		case GST_ITERATOR_OK:
 		 {
 			GstPad *pad;
+			unsigned long signal_id;
 
 			pad = GST_PAD(g_value_get_object (&item));
-			g_signal_connect (pad, "linked", G_CALLBACK (linked_callback), pending_pads);
+			signal_id = g_signal_connect (pad, "linked", G_CALLBACK (linked_callback), &pending_pads);
+			registered_signals [pad] = signal_id;
+
          	g_value_reset (&item);
 		 }
          break;
@@ -129,7 +142,7 @@ register_element_pads (std::list<GstPad*> *pending_pads, GstElement *element)
 	g_value_unset (&item);
 	gst_iterator_free (iterator);
 
-	return signal_id;
+	return registered_signals;
 } 
 
 
@@ -147,8 +160,12 @@ ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
   origElem = NULL;
 
   // Register src pads for memory leak 
-  register_element_pads (&(this->padsToReview), sinkPt->getGstreamerElement());
-  register_element_pads (&(this->padsToReview), srcPt->getGstreamerElement());
+  std::map<gpointer, unsigned long> registered_signals;
+  
+  registered_signals = register_element_pads (this->padsToReview, sinkPt->getGstreamerElement());
+  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end());
+  registered_signals = register_element_pads (this->padsToReview, srcPt->getGstreamerElement());
+  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end ());
 }
 
 ComposedObjectImpl::~ComposedObjectImpl()
@@ -157,6 +174,7 @@ ComposedObjectImpl::~ComposedObjectImpl()
 
 	disconnectBridgeSignals ();
 
+	unregister_signals (this->signals_to_disconnect);
 	clean_pending_pads (&(this->padsToReview));
 }
 
