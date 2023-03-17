@@ -1,3 +1,9 @@
+kms-siprtpendpoint (1.2.0) RELEASED; urgency=medium
+
+  * release 1.2.0
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Mon, 13 Mar 2023 10:38:39 +0000
+
 kms-siprtpendpoint (1.1.4) RELEASED; urgency=medium
 
   * release 1.1.4
