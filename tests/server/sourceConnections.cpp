@@ -385,7 +385,7 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  test->add (BOOST_TEST_CASE ( source_connections ), 0, /* timeout */ 1000);
-  test->add (BOOST_TEST_CASE ( source_connections_regenerate ), 0, /* timeout */ 1000);
+  test->add (BOOST_TEST_CASE ( source_connections ), 0, /* timeout */ 10);
+  test->add (BOOST_TEST_CASE ( source_connections_regenerate ), 0, /* timeout */ 10);
   return test;
 }
