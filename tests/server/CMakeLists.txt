@@ -35,7 +35,7 @@ set_property(TARGET test_constructors
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_constructors
   ${LIBRARY_NAME}impl
@@ -79,7 +79,7 @@ set_property(TARGET test_sip_rtp_endpoint
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_sip_rtp_endpoint
   ${LIBRARY_NAME}impl
@@ -100,7 +100,7 @@ set_property(TARGET test_sip_rtp_endpoint_play
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_sip_rtp_endpoint_play
   ${LIBRARY_NAME}impl
@@ -121,7 +121,7 @@ set_property(TARGET test_sip_rtp_endpoint_agnostic_srtp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_sip_rtp_endpoint_agnostic_srtp
   ${LIBRARY_NAME}impl
@@ -143,7 +143,7 @@ set_property(TARGET test_event_forwarding
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_event_forwarding
   ${LIBRARY_NAME}impl
@@ -165,7 +165,7 @@ set_property(TARGET test_source_connections
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_source_connections
   ${LIBRARY_NAME}impl
@@ -186,7 +186,7 @@ set_property(TARGET test_codecs_config
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
     ${KMSCORE_INCLUDE_DIRS}
-    ${gstreamer-1.5_INCLUDE_DIRS}
+    ${gstreamer-1.0_INCLUDE_DIRS}
 )
 target_link_libraries(test_codecs_config
   ${LIBRARY_NAME}impl

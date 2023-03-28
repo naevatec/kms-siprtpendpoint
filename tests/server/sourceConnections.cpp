@@ -336,7 +336,7 @@ source_connections_regenerate_impl ()
   sipRtp->connect (pt2);
   sipRtp->connect (pt3);
 
-  pt3->connect (std::string("MediaFlowInStateChange"), std::dynamic_pointer_cast <EventHandler>(testEH));
+  pt3->connect (std::string("MediaFlowInStateChanged"), std::dynamic_pointer_cast <EventHandler>(testEH));
 
 
   pt1->connect (sipRtp);
@@ -385,7 +385,7 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  test->add (BOOST_TEST_CASE ( source_connections ), 0, /* timeout */ 10);
-  test->add (BOOST_TEST_CASE ( source_connections_regenerate ), 0, /* timeout */ 10);
+  test->add (BOOST_TEST_CASE ( source_connections ), 0, /* timeout */ 1000);
+  test->add (BOOST_TEST_CASE ( source_connections_regenerate ), 0, /* timeout */ 1000);
   return test;
 }

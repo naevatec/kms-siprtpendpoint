@@ -32,7 +32,7 @@
 #include <MediaElementImpl.hpp>
 #include <ConnectionState.hpp>
 #include <MediaState.hpp>
-#include <MediaFlowInStateChange.hpp>
+#include <MediaFlowInStateChanged.hpp>
 #include <MediaFlowState.hpp>
 //#include <SDES.hpp>
 //#include <CryptoSuite.hpp>
@@ -212,8 +212,8 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -281,8 +281,8 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
 
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -362,8 +362,8 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
   rtpEpAnswerer->connect(pt);
   rtpEpAnswerer2->connect(pt2);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -373,8 +373,8 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
   	  	  }
   );
 
-  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -466,8 +466,8 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  rtpEpOfferer->connect(pt);
 	  rtpEpOfferer2->connect(pt2);
 
-	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -477,8 +477,8 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  	  	  }
 	  );
 
-	  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -568,8 +568,8 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  rtpEpAnswerer->connect(pt);
 	  rtpEpAnswerer2->connect(pt2);
 
-	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -579,8 +579,8 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
 	  	  	  }
 	  );
 
-	  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn2 = getMediaElement(pt2)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -669,8 +669,8 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 	  src->connect(rtpEpAnswerer);
 	  src2->connect(rtpEpAnswerer2);
 
-	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
 
@@ -697,8 +697,8 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
 	  });
 	  conn.disconnect ();
 
-	  conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
 

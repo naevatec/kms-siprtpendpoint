@@ -1,7 +1,7 @@
 {
   "name": "siprtp",
   "version": "1.2.0",
-  "kurentoVersion": "^6.16.0",
+  "kurentoVersion": "^7.0.0",
   "code": {
 //    "kmd": {
 //      "java": {

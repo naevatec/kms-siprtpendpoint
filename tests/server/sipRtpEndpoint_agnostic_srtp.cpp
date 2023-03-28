@@ -369,8 +369,8 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -496,8 +496,8 @@ test_same_port_crash ()
 	  rtpEpOfferer->connect(pt);
 	  src->connect(rtpEpAnswerer);
 
-	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
 
@@ -531,8 +531,8 @@ try {
 
 	  rtpEpOfferer->processAnswer (answer);
 
-	  conn = getMediaElement(pt2)->signalMediaFlowInStateChange.connect([&] (
-			  MediaFlowInStateChange event) {
+	  conn = getMediaElement(pt2)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
 		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
 
@@ -636,8 +636,8 @@ test_error_on_answer_without_one_media ()
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -784,8 +784,8 @@ reconnection_generate_offer_state_changes_impl_alt ()
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -854,8 +854,8 @@ reconnection_generate_offer_state_changes_impl_alt2 ()
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -926,8 +926,8 @@ reconnection_generate_offer_state_changes_impl_alt_crypto ()
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
@@ -996,8 +996,8 @@ reconnection_generate_offer_state_changes_impl_alt2_crypto ()
   src->connect(rtpEpOfferer);
   rtpEpAnswerer->connect(pt);
 
-  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChange.connect([&] (
-		  MediaFlowInStateChange event) {
+  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+		  MediaFlowInStateChanged event) {
 	  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
 	  	  	  if (state->getValue() == MediaFlowState::FLOWING) {
 		  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);

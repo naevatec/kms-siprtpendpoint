@@ -116,7 +116,7 @@ public:
   virtual std::string getGstreamerDot (std::shared_ptr<GstreamerDotDetails>
                                        details) override;
 
-  virtual void setOutputBitrate (int bitrate) override;
+  virtual void setEncoderBitrate (int bitrate) override;
 
   bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType) override;
   bool isMediaFlowingIn (std::shared_ptr<MediaType> mediaType,
@@ -128,18 +128,13 @@ public:
   bool isMediaTranscoding (std::shared_ptr<MediaType> mediaType,
                            const std::string &binName) override;
 
-  virtual int getMinOuputBitrate () override;
-  virtual void setMinOuputBitrate (int minOuputBitrate) override;
+  virtual int getMinEncoderBitrate () override;
+  virtual void setMinEncoderBitrate (int minEncoderBitrate) override;
 
-  virtual int getMinOutputBitrate () override;
-  virtual void setMinOutputBitrate (int minOutputBitrate) override;
+  virtual int getMaxEncoderBitrate () override;
+  virtual void setMaxEncoderBitrate (int maxEncoderBitrate) override;
 
-  virtual int getMaxOuputBitrate () override;
-  virtual void setMaxOuputBitrate (int maxOuputBitrate) override;
-
-  virtual int getMaxOutputBitrate () override;
-  virtual void setMaxOutputBitrate (int maxOutputBitrate) override;
-
+  virtual void requestKeyframe () override;
 
   /* Next methods are automatically implemented by code generator */
   using ComposedObjectImpl::connect;
