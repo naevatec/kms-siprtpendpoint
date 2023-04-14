@@ -34,7 +34,6 @@
 #include <list>
 #include <vector>
 #include <set>
-#include <MediaFlowInStateChange.hpp>
 #include <MediaFlowInStateChanged.hpp>
 #include <MediaFlowState.hpp>
 
@@ -1121,8 +1120,8 @@ void FacadeRtpEndpointImpl::setProperties (std::shared_ptr<SipRtpEndpointImpl> f
 		rtp_ep->setSendTagsInEvents (from->getSendTagsInEvents());
 		if (audioCapsSet != NULL)
 			rtp_ep->setAudioFormat(audioCapsSet);
-		rtp_ep->setMaxOutputBitrate(from->getMaxOutputBitrate());
-		rtp_ep->setMinOutputBitrate(from->getMinOutputBitrate());
+		rtp_ep->setMaxEncoderBitrate(from->getMaxEncoderBitrate());
+		rtp_ep->setMinEncoderBitrate(from->getMinEncoderBitrate());
 		if (videoCapsSet != NULL)
 			rtp_ep->setVideoFormat(videoCapsSet);
 		rtp_ep->setMaxAudioRecvBandwidth (from->getMaxAudioRecvBandwidth ());
@@ -1222,7 +1221,10 @@ void FacadeRtpEndpointImpl::setMtu (int mtu)
 	this->rtp_ep->setMtu (mtu);
 }
 
-
+void FacadeRtpEndpointImpl::requestKeyframe ()
+{
+	this->rtp_ep->requestKeyframe ();
+}
 
 
 /*---------------- Overloaded methods from SDP Endpoint ---------------*/
@@ -1301,9 +1303,9 @@ std::string FacadeRtpEndpointImpl::getGstreamerDot (std::shared_ptr<GstreamerDot
 	return this->rtp_ep->getGstreamerDot(details);
 }
 
-void FacadeRtpEndpointImpl::setOutputBitrate (int bitrate)
+void FacadeRtpEndpointImpl::setEncoderBitrate (int bitrate)
 {
-	this->rtp_ep->setOutputBitrate(bitrate);
+	this->rtp_ep->setEncoderBitrate(bitrate);
 }
 
 bool FacadeRtpEndpointImpl::isMediaFlowingIn (std::shared_ptr<MediaType> mediaType)
@@ -1334,42 +1336,23 @@ bool FacadeRtpEndpointImpl::isMediaTranscoding (std::shared_ptr<MediaType> media
 	return this->rtp_ep->isMediaTranscoding(mediaType, binName);
 }
 
-int FacadeRtpEndpointImpl::getMinOuputBitrate ()
+int FacadeRtpEndpointImpl::getMinEncoderBitrate ()
 {
-	return this->rtp_ep->getMinOuputBitrate();
+	return this->rtp_ep->getMinEncoderBitrate();
 }
-void FacadeRtpEndpointImpl::setMinOuputBitrate (int minOuputBitrate)
+void FacadeRtpEndpointImpl::setMinEncoderBitrate (int minEncoderBitrate)
 {
-	this->rtp_ep->setMinOuputBitrate(minOuputBitrate);
-}
-
-int FacadeRtpEndpointImpl::getMinOutputBitrate ()
-{
-	return this->rtp_ep->getMinOutputBitrate();
-}
-void FacadeRtpEndpointImpl::setMinOutputBitrate (int minOutputBitrate)
-{
-	this->rtp_ep->setMinOutputBitrate(minOutputBitrate);
+	this->rtp_ep->setMinEncoderBitrate(minEncoderBitrate);
 }
 
-int FacadeRtpEndpointImpl::getMaxOuputBitrate ()
+int FacadeRtpEndpointImpl::getMaxEncoderBitrate ()
 {
-	return this->rtp_ep->getMaxOuputBitrate();
+	return this->rtp_ep->getMaxEncoderBitrate();
 }
-void FacadeRtpEndpointImpl::setMaxOuputBitrate (int maxOuputBitrate)
+void FacadeRtpEndpointImpl::setMaxEncoderBitrate (int maxEncoderBitrate)
 {
-	this->rtp_ep->setMaxOuputBitrate(maxOuputBitrate);
+	this->rtp_ep->setMaxEncoderBitrate(maxEncoderBitrate);
 }
-
-int FacadeRtpEndpointImpl::getMaxOutputBitrate ()
-{
-	return this->rtp_ep->getMaxOutputBitrate();
-}
-void FacadeRtpEndpointImpl::setMaxOutputBitrate (int maxOutputBitrate)
-{
-	this->rtp_ep->setMaxOutputBitrate(maxOutputBitrate);
-}
-
 
 void
 FacadeRtpEndpointImpl::Serialize (JsonSerializer &serializer)

@@ -36,11 +36,18 @@
 #define DEFAULT_QOS_DSCP -1
 
 
-GST_DEBUG_CATEGORY_STATIC (kms_sip_rtp_endpoint_debug);
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
+GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT); 
 
 #define kms_sip_rtp_endpoint_parent_class parent_class
-G_DEFINE_TYPE (KmsSipRtpEndpoint, kms_sip_rtp_endpoint, KMS_TYPE_RTP_ENDPOINT);
+
+G_DEFINE_TYPE_WITH_CODE (KmsSipRtpEndpoint,
+    kms_sip_rtp_endpoint,
+    KMS_TYPE_RTP_ENDPOINT,
+    GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT,
+        PLUGIN_NAME,
+        0,
+        "GStreamer debug category for the '" PLUGIN_NAME "' element"));
 
 
 #define KMS_SIP_RTP_ENDPOINT_GET_PRIVATE(obj) (  \
@@ -791,7 +798,7 @@ kms_sip_rtp_endpoint_plugin_init (GstPlugin * plugin)
 
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
-    kmssiprtpendpoint,
+    siprtpendpoint,
     "Kurento SIP rtp endpoint",
     kms_sip_rtp_endpoint_plugin_init, VERSION, GST_LICENSE_UNKNOWN,
-    "Kurento Elements", "http://kurento.com/")
+    "NaevaTec Kurento utils", "http://www.naevatec.com")

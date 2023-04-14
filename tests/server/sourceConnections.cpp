@@ -336,7 +336,7 @@ source_connections_regenerate_impl ()
   sipRtp->connect (pt2);
   sipRtp->connect (pt3);
 
-  pt3->connect (std::string("MediaFlowInStateChange"), std::dynamic_pointer_cast <EventHandler>(testEH));
+  pt3->connect (std::string("MediaFlowInStateChanged"), std::dynamic_pointer_cast <EventHandler>(testEH));
 
 
   pt1->connect (sipRtp);
