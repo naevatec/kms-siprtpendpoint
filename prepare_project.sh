@@ -14,6 +14,7 @@ make test_sip_rtp_endpoint_play
 make test_sip_rtp_endpoint_agnostic_srtp
 make test_event_forwarding
 make test_source_connections
+make test_codecs_config
 make test
 
 
@@ -21,14 +22,17 @@ make java_install
 cd java
 mvn javadoc:javadoc
 cd target
-tar cvf siprtp-javadoc-1.0.0-SNAPSHOT.jar site
+jar cvf siprtp-javadoc-1.3.0.jar site
 cd ..
 cd ..
 
 cd js
 npm install --save-dev grunt grunt-browserify grunt-contrib-clean grunt-jsdoc grunt-npm2bower-sync minifyify
 cd ..
-
 make js
+cd js
+./node_modules/grunt/bin/grunt jsdoc
+tar cvfz kurento-module-siprtp-1.3.0-jsdoc.tgz doc
+cd ..
 
 sudo ../../adm-scripts/kurento-buildpackage.sh --srcdir ..
