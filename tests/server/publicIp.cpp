@@ -38,7 +38,9 @@
 #include <RegisterParent.hpp>
 
 #define PUBLICIPV4 "127.1.1.1"
+#define CFGPUBLICIPV4 "127.1.1.2"
 #define PUBLICIPV6 "2001:0db8:0000:0000:0000:ff00:0042:8329"
+#define CFGPUBLICIPV6 "2001:0db8:0000:0000:0000:ff00:0042:7238"
 
 using namespace kurento;
 using namespace boost::unit_test;
@@ -207,6 +209,44 @@ public_ipv6 ()
 }
 
 
+static void
+public_ipv4_cfg ()
+{
+  config.add ("modules.siprtp.SipRtpEndpoint.publicIPv4", CFGPUBLICIPV4);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (false);
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+
+    if (!check_public_ip (offer, CFGPUBLICIPV4)) {
+  	 BOOST_ERROR("Public IP not expected in offer");
+    }
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+  releaseRtpEndpoint (rtpEpOfferer);
+}
+
+static void
+public_ipv6_cfg ()
+{
+  config.add ("modules.siprtp.SipRtpEndpoint.publicIPv6", CFGPUBLICIPV6);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (true);
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+
+    if (!check_public_ip (offer, CFGPUBLICIPV6)) {
+  	 BOOST_ERROR("Public IP not expected in offer");
+    }
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+  releaseRtpEndpoint (rtpEpOfferer);
+}
+
 
 
 test_suite *
@@ -217,6 +257,8 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &no_public_ip ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &public_ipv4 ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &public_ipv6 ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &public_ipv4_cfg ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &public_ipv6_cfg ), 0, /* timeout */ 15000);
   
   return test;
 }
