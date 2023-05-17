@@ -44,7 +44,9 @@ public:
                     std::shared_ptr<MediaPipeline> mediaPipeline,
                     std::shared_ptr<SDES> crypto,
 				            bool useIpv6,
-                    std::shared_ptr<DSCPValue> qosDscp);
+                    std::shared_ptr<DSCPValue> qosDscp,
+                    std::string publicIPv4,
+                    std::string publicIPv6);
 
   virtual ~SipRtpEndpointImpl ();
 
@@ -54,12 +56,21 @@ public:
           std::shared_ptr<MediaPipeline> mediaPipeline,
           std::shared_ptr<SDES> crypto, bool useIpv6,
           std::shared_ptr<DSCPValue> qosDscp,
+          std::string publicIpv4,
+          std::string publicIpv6,
 		      const std::string &sdp,
 		      bool continue_audio_stream,
 		      bool continue_video_stream);
 
   void setAudioSsrc (guint32 ssrc);
   void setVideoSsrc (guint32 ssrc);
+
+  /* Overloaded methods to implement public IP setting */
+  std::string generateOffer () override;
+  std::string generateOffer (std::shared_ptr<OfferOptions> options) override;
+  std::string processOffer (const std::string &offer) override;
+  std::string processAnswer (const std::string &answer) override;
+  std::string getLocalSessionDescriptor () override;
 
   /* Next methods are automatically implemented by code generator */
   using BaseRtpEndpointImpl::connect;
@@ -79,6 +90,8 @@ protected:
 private:
 
   std::shared_ptr<DSCPValue> qosDscp;
+  std::string publicIPv4;
+  std::string publicIPv6;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 

@@ -15,6 +15,7 @@ make test_sip_rtp_endpoint_agnostic_srtp
 make test_event_forwarding
 make test_source_connections
 make test_codecs_config
+make public_ip
 make test
 
 
