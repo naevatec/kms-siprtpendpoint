@@ -88,7 +88,7 @@ createRtpEndpointPublicIPv4 ()
 
   constructorParams ["mediaPipeline"] = mediaPipelineId;
   constructorParams ["useIpv6"] = false;
-  constructorParams ["publicIPv4"] = PUBLICIPV4;
+  constructorParams ["externalIPv4"] = PUBLICIPV4;
 //  if (useCrypto) {
 //	  constructorParams ["crypto"] = getCrypto ()->;
 //  }
@@ -108,7 +108,7 @@ createRtpEndpointPublicIPv6 ()
 
   constructorParams ["mediaPipeline"] = mediaPipelineId;
   constructorParams ["useIpv6"] = true;
-  constructorParams ["publicIPv6"] = PUBLICIPV6;
+  constructorParams ["externalIPv6"] = PUBLICIPV6;
 //  if (useCrypto) {
 //	  constructorParams ["crypto"] = getCrypto ()->;
 //  }
@@ -212,7 +212,7 @@ public_ipv6 ()
 static void
 public_ipv4_cfg ()
 {
-  config.add ("modules.siprtp.SipRtpEndpoint.publicIPv4", CFGPUBLICIPV4);
+  config.add ("modules.siprtp.SipRtpEndpoint.externalIPv4", CFGPUBLICIPV4);
 
   std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (false);
 
@@ -231,7 +231,7 @@ public_ipv4_cfg ()
 static void
 public_ipv6_cfg ()
 {
-  config.add ("modules.siprtp.SipRtpEndpoint.publicIPv6", CFGPUBLICIPV6);
+  config.add ("modules.siprtp.SipRtpEndpoint.externalIPv6", CFGPUBLICIPV6);
 
   std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (true);
 
