@@ -44,8 +44,8 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_QOS_DSCP "qos-dscp"
 #define PARAM_AUDIO_CODECS "audioCodecs"
 #define PARAM_VIDEO_CODECS "videoCodecs"
-#define PARAM_PUBLIC_IPV4 "publicIPv4"
-#define PARAM_PUBLIC_IPV6 "publicIPv6"
+#define PARAM_PUBLIC_IPV4 "externalIPv4"
+#define PARAM_PUBLIC_IPV6 "externalIPv6"
 
 
 namespace kurento
@@ -285,8 +285,8 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                         std::shared_ptr<SDES> crypto,
                                         bool useIpv6,
                                         std::shared_ptr<DSCPValue> qosDscp,
-                                        std::string publicIPv4,
-                                        std::string publicIPv6)
+                                        std::string externalIPv4,
+                                        std::string externalIPv6)
   : BaseRtpEndpointImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
@@ -331,26 +331,26 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                   NULL);
   }
 
-  this->publicIPv4 = publicIPv4;
-  if (this->publicIPv4.empty()) {
-    std::string publicIPv4_value;
+  this->externalIPv4 = externalIPv4;
+  if (this->externalIPv4.empty()) {
+    std::string externalIPv4_value;
 
-    if (getConfigValue<std::string,SipRtpEndpoint>(&publicIPv4_value, 
+    if (getConfigValue<std::string,SipRtpEndpoint>(&externalIPv4_value, 
         PARAM_PUBLIC_IPV4)) {
-      GST_INFO ("Public IP v4 default configured value is %s", publicIPv4_value.c_str() );
-      this->publicIPv4 = publicIPv4_value;
+      GST_INFO ("Public IP v4 default configured value is %s", externalIPv4_value.c_str() );
+      this->externalIPv4 = externalIPv4_value;
     }
 
   }
 
-  this->publicIPv6 = publicIPv6;
-  if (this->publicIPv6.empty()) {
-    std::string publicIPv6_value;
+  this->externalIPv6 = externalIPv6;
+  if (this->externalIPv6.empty()) {
+    std::string externalIPv6_value;
 
-    if (getConfigValue<std::string,SipRtpEndpoint>(&publicIPv6_value, 
+    if (getConfigValue<std::string,SipRtpEndpoint>(&externalIPv6_value, 
         PARAM_PUBLIC_IPV6)) {
-      GST_INFO ("Public IP v6 default configured value is %s", publicIPv6_value.c_str() );
-      this->publicIPv6 = publicIPv6_value;
+      GST_INFO ("Public IP v6 default configured value is %s", externalIPv6_value.c_str() );
+      this->externalIPv6 = externalIPv6_value;
     }
 
   }
@@ -448,8 +448,8 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
                                          bool cryptoAgnostic,
                                          bool useIpv6,
                                          std::shared_ptr<DSCPValue> qosDscp,
-                                         const std::string &publicIPv4,
-                                         const std::string &publicIPv6) const
+                                         const std::string &externalIPv4,
+                                         const std::string &externalIPv6) const
 {
   // Here we have made a real special construct to deal with Kurento object system to inreface with
   // an implementation of and object composed of others.
@@ -463,7 +463,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
   return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, 
-                                    useIpv6, qosDscp, publicIPv4, publicIPv6);
+                                    useIpv6, qosDscp, externalIPv4, externalIPv6);
 }
 
 
@@ -507,15 +507,15 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (
   std::shared_ptr<MediaPipeline> mediaPipeline,
   std::shared_ptr<SDES> crypto, bool useIpv6,
   std::shared_ptr<DSCPValue> qosDscp,
-  std::string publicIpv4,
-  std::string publicIpv6,
+  std::string externalIPv4,
+  std::string externalIPv6,
   const std::string &sdp,
   bool continue_audio_stream,
   bool continue_video_stream)
 {
 	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = 
     std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, 
-                                        mediaPipeline, crypto, useIpv6, qosDscp, publicIpv4, publicIpv6));
+                                        mediaPipeline, crypto, useIpv6, qosDscp, externalIPv4, externalIPv6));
 
 	// Recover ports (sockets) from last SipRtpEndpoint and SSRCs to filter out old traffic
 	this->cloneToNewEndpoint (newEndpoint, sdp, continue_audio_stream, 
@@ -560,7 +560,7 @@ SipRtpEndpointImpl::generateOffer (std::shared_ptr<OfferOptions> options)
   std::string offer;
 
   offer = BaseRtpEndpointImpl::generateOffer(options);
-  return setSdpPublicIP (offer, this->publicIPv4, this->publicIPv6);
+  return setSdpPublicIP (offer, this->externalIPv4, this->externalIPv6);
 }
 
 std::string 
@@ -569,7 +569,7 @@ SipRtpEndpointImpl::processOffer (const std::string &offer)
   std::string answer;
 
   answer = BaseRtpEndpointImpl::processOffer(offer);
-  return setSdpPublicIP (answer, this->publicIPv4, this->publicIPv6);
+  return setSdpPublicIP (answer, this->externalIPv4, this->externalIPv6);
 }
 
 std::string 
@@ -578,13 +578,13 @@ SipRtpEndpointImpl::processAnswer (const std::string &answer)
   std::string local;
 
   local = BaseRtpEndpointImpl::processAnswer(answer);
-  return setSdpPublicIP (local, this->publicIPv4, this->publicIPv6);
+  return setSdpPublicIP (local, this->externalIPv4, this->externalIPv6);
 }
 
 std::string 
 SipRtpEndpointImpl::getLocalSessionDescriptor ()
 {
-  return setSdpPublicIP (BaseRtpEndpointImpl::getLocalSessionDescriptor(), this->publicIPv4, this->publicIPv6);
+  return setSdpPublicIP (BaseRtpEndpointImpl::getLocalSessionDescriptor(), this->externalIPv4, this->externalIPv6);
 }
 
 

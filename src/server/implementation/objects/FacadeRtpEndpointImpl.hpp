@@ -52,8 +52,8 @@ public:
 				                bool cryptoAgnostic,
 				                bool useIpv6,
                         std::shared_ptr<DSCPValue> qosDscp,
-                        std::string publicIPv4,
-                        std::string publicIPv6);
+                        std::string externalIPv4,
+                        std::string externalIPv6);
 
   virtual ~FacadeRtpEndpointImpl ();
 
@@ -235,8 +235,8 @@ private:
   bool useIpv6Cache;
 
   std::shared_ptr<DSCPValue> qosDscpCache;
-  std::string publicIPv4Cache;
-  std::string publicIPv6Cache;
+  std::string externalIPv4Cache;
+  std::string externalIPv6Cache;
 
   class StaticConstructor
   {

@@ -45,8 +45,8 @@ public:
                     std::shared_ptr<SDES> crypto,
 				            bool useIpv6,
                     std::shared_ptr<DSCPValue> qosDscp,
-                    std::string publicIPv4,
-                    std::string publicIPv6);
+                    std::string externalIPv4,
+                    std::string externalIPv6);
 
   virtual ~SipRtpEndpointImpl ();
 
@@ -56,8 +56,8 @@ public:
           std::shared_ptr<MediaPipeline> mediaPipeline,
           std::shared_ptr<SDES> crypto, bool useIpv6,
           std::shared_ptr<DSCPValue> qosDscp,
-          std::string publicIpv4,
-          std::string publicIpv6,
+          std::string externalIPv4,
+          std::string externalIPv6,
 		      const std::string &sdp,
 		      bool continue_audio_stream,
 		      bool continue_video_stream);
@@ -90,8 +90,8 @@ protected:
 private:
 
   std::shared_ptr<DSCPValue> qosDscp;
-  std::string publicIPv4;
-  std::string publicIPv6;
+  std::string externalIPv4;
+  std::string externalIPv6;
   gulong handlerOnKeySoftLimit = 0;
   void onKeySoftLimit (gchar *media);
 

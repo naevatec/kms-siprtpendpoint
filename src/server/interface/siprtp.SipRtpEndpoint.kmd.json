@@ -97,15 +97,15 @@
               "defaultValue": "NO_VALUE"
             }, 
             {
-              "name": "publicIPv4",
-              "doc": "Public IP used by this endpoint to receive incoming media",
+              "name": "externalIPv4",
+              "doc": "IP used by this endpoint to receive incoming media",
               "type": "String",
               "optional": true,
               "defaultValue": ""
             }, 
             {
-              "name": "publicIPv6",
-              "doc": "Public IP used by this endpoint to receive incoming media",
+              "name": "externalIPv6",
+              "doc": "IP used by this endpoint to receive incoming media",
               "type": "String",
               "optional": true,
               "defaultValue": ""
