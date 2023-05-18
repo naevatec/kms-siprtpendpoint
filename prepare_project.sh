@@ -23,7 +23,7 @@ make java_install
 cd java
 mvn javadoc:javadoc
 cd target
-jar cvf siprtp-javadoc-1.3.0.jar site
+jar cvf siprtp-javadoc-1.4.0.jar site
 cd ..
 cd ..
 
@@ -33,7 +33,7 @@ cd ..
 make js
 cd js
 ./node_modules/grunt/bin/grunt jsdoc
-tar cvfz kurento-module-siprtp-1.3.0-jsdoc.tgz doc
+tar cvfz kurento-module-siprtp-1.4.0-jsdoc.tgz doc
 cd ..
 
 sudo ../../adm-scripts/kurento-buildpackage.sh --srcdir ..
