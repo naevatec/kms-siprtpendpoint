@@ -1120,7 +1120,6 @@ FacadeRtpEndpointImpl::connectForwardSignals ()
 void FacadeRtpEndpointImpl::setProperties (std::shared_ptr<SipRtpEndpointImpl> from)
 {
 	if (rtp_ep != NULL) {
-		rtp_ep->setName (from->getName());
 		rtp_ep->setSendTagsInEvents (from->getSendTagsInEvents());
 		if (audioCapsSet != NULL)
 			rtp_ep->setAudioFormat(audioCapsSet);
