@@ -19,23 +19,20 @@
 #ifndef KMSRTPFILTERUTILS_H_
 #define KMSRTPFILTERUTILS_H_
 
+#include <gio/gio.h>
+
 #include <gst/gst.h>
 
 typedef struct _SipFilterSsrcInfo SipFilterSsrcInfo;
 
 struct _SipFilterSsrcInfo {
-	guint32 expected;
-	guint32 current;
-	guint32 old;
-	guint64 last_switch;
-	guint32 media_session;
 	GRecMutex mutex;
 
-	// Needed for fixing RTP streams internally switched on VoiP applications (MEDIA_AUDIO)
-	guint32 last_ts;
-	guint16 last_seq;
-	guint32 last_ts_delta;
-	gint64  jump_ts;
+	guint media_type;
+
+	GInetSocketAddress *peer_address;
+	GInetSocketAddress *peer_rtcp_address;
+
 };
 
 gulong
@@ -51,8 +48,14 @@ void
 kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id);
 
 SipFilterSsrcInfo*
-kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session, gboolean continue_stream);
+kms_sip_rtp_filter_create_filtering_info (SipFilterSsrcInfo* previous, guint media_type);
+
+void kms_sip_rtp_filter_set_addresses (SipFilterSsrcInfo *filter_info, GInetSocketAddress *rtp_address, GInetSocketAddress *rtcp_address);
 
 void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info);
+
+void kms_sip_rtp_filter_set_added_client_rtp (GstElement * gstmultiudpsink, gchararray host, gint port, gpointer udata);
+
+void kms_sip_rtp_filter_set_added_client_rtcp (GstElement * gstmultiudpsink, gchararray host, gint port, gpointer udata);
 
 #endif /* KMSRTPFILTERUTILS_H_ */

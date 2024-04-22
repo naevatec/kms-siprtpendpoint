@@ -27,6 +27,7 @@ target_link_libraries(siprtpendpoint
   ${KMSCORE_LIBRARIES}
   ${KMS_ELEMENTS_LIBRARIES}
   ${KMSGSTCOMMONS_LIBRARIES}
+  -lgstnet-1.0
   ${GSTREAMER_LIBRARIES}
   ${GSTREAMER_VIDEO_LIBRARIES}
 )
