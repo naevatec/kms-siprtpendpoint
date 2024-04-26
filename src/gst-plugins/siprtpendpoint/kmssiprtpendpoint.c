@@ -40,7 +40,7 @@
 
 
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
-GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT); 
+GST_DEBUG_CATEGORY (GST_CAT_DEFAULT); 
 
 #define kms_sip_rtp_endpoint_parent_class parent_class
 
@@ -676,10 +676,10 @@ kms_sip_rtp_endpoint_finalize (GObject * object)
 
   GST_DEBUG_OBJECT (self, "finalize");
 
-  if (self->priv->audio_track_selector == NULL) {
+  if (self->priv->audio_track_selector != NULL) {
 	gst_object_unref(self->priv->audio_track_selector);
   }
-  if (self->priv->video_track_selector == NULL) {
+  if (self->priv->video_track_selector != NULL) {
 	gst_object_unref(self->priv->video_track_selector);
   }
 

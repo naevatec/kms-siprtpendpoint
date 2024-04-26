@@ -136,8 +136,8 @@ private:
 
   sigc::connection connElementConnectedSrc;
   sigc::connection connElementConnectedSink;
-  //sigc::connection connElementDisconnectedSrc;
-  //sigc::connection connElementDisconnectedSink;
+  sigc::connection connElementDisconnectedSrc;
+  sigc::connection connElementDisconnectedSink;
   sigc::connection connMediaTranscodingStateChangeSrc;
   sigc::connection connMediaTranscodingStateChangeSink;
   sigc::connection connMediaFlowOutStateChange;

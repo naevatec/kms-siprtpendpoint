@@ -170,12 +170,14 @@ ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
 
 ComposedObjectImpl::~ComposedObjectImpl()
 {
-	element = origElem;
 
 	disconnectBridgeSignals ();
 
 	unregister_signals (this->signals_to_disconnect);
 	clean_pending_pads (&(this->padsToReview));
+
+	element = origElem;
+
 }
 
 /*-------------------------------------------------*/
@@ -320,7 +322,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  raiseEvent<ElementConnected> (event, sth, signalElementConnected);
 	  });
 
-	/*  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
+	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
 			  ElementDisconnected event) {
 		  try {
 			  std::shared_ptr<MediaObject> sth = wt.lock ();
@@ -354,7 +356,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  } catch (const std::bad_weak_ptr &e) {
 			    // shared_from_this()
 		  }
-	  }); */
+	  }); 
 
 	  connErrorSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalError.connect([ &, wt ] (
 			  Error event) {
@@ -461,12 +463,14 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 
 	// Unlink source and sink from previous composed object
 	if (linkedSource != NULL) {
+		GST_WARNING("Disconnecting src (%p) %s", linkedSource.get(), linkedSource->getName ().c_str());
 		// Unlink source
 		linkedSource->disconnect(sinkPt);
 		
 		disconnectElementSrcSignals ();
 	}
 	if (linkedSink != NULL) {
+		GST_WARNING("Disconnecting sink (%p) %s", linkedSink.get (), linkedSink->getName ().c_str());
 		// Unlink sink
 		srcPt->disconnect(linkedSink);
 
@@ -482,12 +486,14 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 		linkedSource->connect(sinkPt);
 
 		connectElementSrcSignals ();
+		GST_WARNING("Connected src (%p) %s", linkedSource.get(), linkedSource->getName ().c_str());
 	}
 	if (linkedSink != NULL) {
 		// Link sink
 		srcPt->connect(linkedSink);
 
 		connectElementSinkSignals ();
+		GST_WARNING("Connected sink (%p) %s", linkedSink.get (), linkedSink->getName ().c_str());
 	}
 }
 

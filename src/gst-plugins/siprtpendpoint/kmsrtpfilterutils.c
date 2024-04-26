@@ -23,8 +23,8 @@
 #include <gst/net/gstnet.h>
 #include <sys/time.h>
 
-#define SSRC_SWITCH_PROTECTION_MS 1000
-
+#define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
+GST_DEBUG_CATEGORY_EXTERN(GST_CAT_DEFAULT);
 
 static gboolean
 check_source_address (GstBuffer *buffer, GInetSocketAddress *peer_address)
@@ -66,6 +66,7 @@ filter_ssrc_rtp_buffer (GstBuffer *buffer, SipFilterSsrcInfo* filter_info)
 {
 	// First we decide if filter out or not RTP buffer depending on source address
 	if (!check_source_address (buffer, filter_info->peer_address)) {
+		GST_DEBUG("filter_ssrc_rtp_buffer: dropping RTP packet");
 		return GST_PAD_PROBE_DROP;
 	}
 
@@ -91,11 +92,8 @@ filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	SipFilterSsrcInfo* filter_info = (SipFilterSsrcInfo*) user_data;
 	GstBuffer *buffer;
 
-	GST_DEBUG ("Filtering RTP packets from previous flows to this receiver");
 	buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 	if (buffer != NULL) {
-		GST_DEBUG ("RTP buffer received from Filtering RTP packets from previous flows to this receiver");
-
 		return filter_ssrc_rtp_buffer (buffer, filter_info);
 	} else  {
 		GstBufferList *buffer_list;
@@ -121,6 +119,7 @@ filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	// First we decide if filter out or not RTP buffer depending on source address
 	if (!check_source_address (buffer, filter_info->peer_rtcp_address)) {
+		GST_DEBUG("filter_ssrc_rtp_buffer: dropping RTCP packet");
 		return GST_PAD_PROBE_DROP;
 	}
 
@@ -211,13 +210,8 @@ kms_sip_rtp_filter_create_filtering_info (SipFilterSsrcInfo* previous, guint med
 	guint port;
 
 	// Initialize filter_info
-	if (previous != NULL) {
-		info->peer_address = previous->peer_address;
-		info->peer_rtcp_address = previous->peer_rtcp_address;
-	} else {
-		info->peer_address = NULL;
-		info->peer_rtcp_address = NULL;
-	}
+	info->peer_address = NULL;
+	info->peer_rtcp_address = NULL;
 	info->media_type = media_type;
 
 	g_rec_mutex_init (&info->mutex);
@@ -253,7 +247,10 @@ void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info)
 {
 	g_rec_mutex_clear (&info->mutex);
 	if (info->peer_address != NULL) {
-		g_free(info->peer_address);
+		g_object_unref(info->peer_address);
+	}
+	if (info->peer_rtcp_address != NULL) {
+		g_object_unref(info->peer_rtcp_address);
 	}
 	g_free (info);
 }
@@ -263,7 +260,10 @@ void kms_sip_rtp_filter_set_added_client_rtp (GstElement * gstmultiudpsink, gcha
 {
 	SipFilterSsrcInfo *info = (SipFilterSsrcInfo*) udata;
 	GInetSocketAddress *addr = (GInetSocketAddress*) g_inet_socket_address_new_from_string (host, port);
-	GST_ERROR("Filtering source RTP %s: %d", host, port);
+	GST_DEBUG("Filtering source RTP %s: %d", host, port);
+	if (info->peer_address != NULL)  {
+		g_object_unref(info->peer_address);
+	}
 	info->peer_address = addr;
 }
 
@@ -271,8 +271,11 @@ void kms_sip_rtp_filter_set_added_client_rtcp (GstElement * gstmultiudpsink, gch
 {
 	SipFilterSsrcInfo *info = (SipFilterSsrcInfo*) udata;
 	GInetSocketAddress *addr = (GInetSocketAddress*) g_inet_socket_address_new_from_string (host, port);
-	GST_ERROR("Filtering source RTCP %s:%d", host, port);
+	GST_DEBUG("Filtering source RTCP %s:%d", host, port);
 
+	if (info->peer_rtcp_address != NULL)  {
+		g_object_unref(info->peer_rtcp_address);
+	}
 	info->peer_rtcp_address = addr;
 }
 
