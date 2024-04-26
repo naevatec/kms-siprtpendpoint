@@ -190,7 +190,7 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
 }
 
 static void
-releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
+releaseTestElement (std::shared_ptr<MediaElementImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -362,7 +362,7 @@ source_connections_regenerate_impl ()
   releasePassThrough(pt1);
   releasePassThrough(pt2);
   releasePassThrough(pt3);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 

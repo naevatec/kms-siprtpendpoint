@@ -293,7 +293,7 @@ static std::string sdp_test_4  = "v=0\r\n"
 
 
 static void
-releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
+releaseTestElement (std::shared_ptr<MediaElementImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -417,7 +417,7 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 static std::string offer_1_group_call_crash =
@@ -578,7 +578,7 @@ BOOST_ERROR ("Connection must be connected");
 releaseRtpEndpoint (rtpEpOfferer);
 releaseRtpEndpoint (rtpEpAnswerer);
 releasePassTrhough (pt);
-releaseTestSrc (src);
+releaseTestElement (src);
 }
 
 static void
@@ -702,7 +702,7 @@ test_error_on_answer_without_one_media ()
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 
@@ -834,7 +834,7 @@ reconnection_generate_offer_state_changes_impl_alt ()
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 static void
@@ -906,7 +906,7 @@ reconnection_generate_offer_state_changes_impl_alt2 ()
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 static void
@@ -976,7 +976,7 @@ reconnection_generate_offer_state_changes_impl_alt_crypto ()
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 static void
@@ -1048,7 +1048,7 @@ reconnection_generate_offer_state_changes_impl_alt2_crypto ()
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 
@@ -1241,7 +1241,6 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE(&test_sdp_offer_3), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE(&test_sdp_offer_2), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE(&test_sdp_offer_1), 0, /* timeout */ 15000);
-
 
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_1), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_2), 0, /* timeout */ 15000);
