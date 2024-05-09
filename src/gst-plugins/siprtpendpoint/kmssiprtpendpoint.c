@@ -29,6 +29,8 @@
 #include "kmssipsrtpconnection.h"
 #include <commons/kmsbasesdpendpoint.h>
 #include <commons/constants.h>
+#include <commons/kmsrtpsynchronizer.h>
+#include <commons/sdp_utils.h>
 #include <gst/sdp/gstsdpmessage.h>
 #include <gst/video/video-event.h>
 
@@ -67,9 +69,6 @@ typedef struct _KmsSipRtpEndpointCloneData KmsSipRtpEndpointCloneData;
 
 struct _KmsSipRtpEndpointCloneData
 {
-	guint32 local_audio_ssrc;
-	guint32 local_video_ssrc;
-
 	SipFilterSsrcInfo* audio_filter_info;
 	SipFilterSsrcInfo* video_filter_info;
 
@@ -93,9 +92,120 @@ struct _KmsSipRtpEndpointPrivate
   gint64 last_audio_ssrc_switch;
   gint64 last_video_ssrc_switch;
 
-  GstPad *audio_active_track_pad;
-  GstPad *video_active_track_pad;
+  guint current_ssrc_audio_track;
+  guint current_ssrc_video_track;
+
+  GHashTable *pads_to_ssrc;  // Aux table to know the ssrc of a track on its corresponding leg of the pipeline (jitterbuffer element)
+  GHashTable *selector_pads;
 };
+
+
+/** Bit of a hack to be able to manage rtp synchronizer before updating KLurento*/
+typedef struct _RtpMediaConfig RtpMediaConfig;
+typedef struct _KmsRembLocal KmsRembLocal;
+typedef struct _KmsRembRemote KmsRembRemote;
+
+struct _KmsRTPSessionStats
+{
+  GObject *rtp_session;
+  GstSDPDirection direction;
+  GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
+};
+
+
+typedef struct _KmsBaseRTPStats KmsBaseRTPStats;
+struct _KmsBaseRTPStats
+{
+  gboolean enabled;
+  GHashTable *rtp_stats;
+  GSList *probes;
+  /* End-to-end average stream stats */
+  GHashTable *avg_e2e;          /* <"pad_name", StreamE2EAvgStat> */
+};
+
+
+struct _KmsBaseRtpEndpointPrivate
+{
+  KmsBaseRtpSession *sess;
+
+  GstElement *rtpbin;
+  KmsMediaState media_state;
+  GstSDPDirection offer_dir;
+
+  gboolean support_fec;
+  gboolean rtcp_mux;
+  gboolean rtcp_nack;
+  gboolean rtcp_remb;
+
+  RtpMediaConfig *audio_config;
+  RtpMediaConfig *video_config;
+
+  guint min_video_recv_bw;
+  guint min_video_send_bw;
+  guint max_video_send_bw;
+
+  /* Medias protected by ulpfec */
+  KmsList *prot_medias;
+
+  /* REMB */
+  GstStructure *remb_params;
+  KmsRembLocal *rl;
+  KmsRembRemote *rm;
+
+  /* Port range */
+  guint min_port;
+  guint max_port;
+
+  /* RTP settings */
+  guint mtu;
+
+  /* RTP statistics */
+  KmsBaseRTPStats stats;
+
+  /* Timestamps */
+  gssize init_stats;
+  FILE *stats_file;
+
+  /* Synchronization */
+  KmsRtpSynchronizer *sync_audio;
+  KmsRtpSynchronizer *sync_video;
+  gboolean perform_video_sync;
+};
+
+struct _KmsRtpSynchronizerPrivate
+{
+  GRecMutex mutex;
+
+  gboolean feeded_sorted;
+
+  guint32 ssrc;
+  gint32 pt;
+  gint32 clock_rate;
+
+  // Base time, initialized from the first RTCP Sender Report.
+  gboolean base_initiated;
+  gboolean base_initiated_logged;
+  GstClockTime base_ntp_time;
+  GstClockTime base_sync_time;
+
+  // Base time used for interpolation while the first RTCP SR arrives.
+  gboolean base_interpolate_initiated;
+  GstClockTime base_interpolate_ext_ts;
+  GstClockTime base_interpolate_pts;
+
+  GstClockTime rtp_ext_ts; // Extended timestamp: robust against input wraparound
+  GstClockTime last_rtcp_ext_ts;
+  GstClockTime last_rtcp_ntp_time;
+
+  /* Feeded sorted case */
+  GstClockTime fs_last_rtp_ext_ts;
+  GstClockTime fs_last_pts;
+
+  /* Stats recording */
+  FILE *stats_file;
+  GMutex stats_mutex;
+};
+
 
 /* Properties */
 enum
@@ -122,24 +232,11 @@ static KmsBaseSdpEndpointClass *base_sdp_endpoint_type;
 
 
 /*----------- Session cloning ---------------*/
+#define KMS_RTP_SYNCHRONIZER_LOCK(rtpsynchronizer) \
+  (g_rec_mutex_lock (&KMS_RTP_SYNCHRONIZER_CAST ((rtpsynchronizer))->priv->mutex))
+#define KMS_RTP_SYNCHRONIZER_UNLOCK(rtpsynchronizer) \
+  (g_rec_mutex_unlock (&KMS_RTP_SYNCHRONIZER_CAST ((rtpsynchronizer))->priv->mutex))
 
-static void
-kms_sip_rtp_endpoint_clone_rtp_session (GstElement * rtpbin, guint sessionId, guint32 ssrc, gchar *rtpbin_pad_name)
-{
-	GObject *rtpSession;
-    GstPad *pad;
-
-	/* Create RtpSession requesting the pad */
-	pad = gst_element_get_request_pad (rtpbin, rtpbin_pad_name);
-	g_object_unref (pad);
-
-	g_signal_emit_by_name (rtpbin, "get-internal-session", sessionId, &rtpSession);
-	if (rtpSession != NULL) {
-		g_object_set (rtpSession, "internal-ssrc", ssrc, NULL);
-	}
-
-	g_object_unref(rtpSession);
-}
 
 static KmsSipRtpEndpointCloneData*
 kms_sip_rtp_endpoint_get_clone_data (GList *sessionData)
@@ -176,24 +273,9 @@ kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** s
 		// TODO: Multisession seems not used on RTPEndpoint, anyway we are doing something probably incorrect
 		// once multisession is used, that is to assume that creation order of sessions are maintained among all
 		// endpoints, and so order can be used to correlate internal rtp sessions.
-		KmsBaseRtpSession *clonedSes = KMS_BASE_RTP_SESSION (*sess);
-		guint32 ssrc;
 		GHashTable *conns;
 
 		conns = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->conns;
-
-		/* TODO: think about this when multiple audio/video medias */
-		// Audio
-		//      Clone SSRC
-		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->local_audio_ssrc;
-		clonedSes->local_audio_ssrc = ssrc;
-		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, AUDIO_RTP_SESSION, ssrc, AUDIO_RTPBIN_SEND_RTP_SINK);
-
-		// Video
-		//        Clone SSRC
-		ssrc = kms_sip_rtp_endpoint_get_clone_data(sessionToClone)->local_video_ssrc;
-		clonedSes->local_video_ssrc = ssrc;
-		kms_sip_rtp_endpoint_clone_rtp_session (rtpbin, VIDEO_RTP_SESSION, ssrc, VIDEO_RTPBIN_SEND_RTP_SINK);
 
 		if (is_srtp) {
 			kms_sip_rtp_endpoint_preserve_srtp_session_data (KMS_SIP_SRTP_SESSION(*sess), conns);
@@ -347,50 +429,6 @@ kms_sip_rtp_endpoint_configure_media (KmsBaseSdpEndpoint * base_sdp_endpoint,
 
 /* Configure media SDP end */
 
-//static void
-//kms_sip_rtp_endpoint_set_connection_filter_probe (KmsSipRtpEndpoint *self, KmsIRtpConnection *conn, KmsBaseRtpSession *ses, guint32 expected_ssrc)
-//{
-//	if (KMS_IS_RTP_CONNECTION (conn)) {
-//		gulong rtp_probe, rtcp_probe;
-//		KmsSipRtpSession *sip_ses = KMS_SIP_RTP_SESSION (ses);
-//		KmsRtpConnection *rtp_conn = KMS_RTP_CONNECTION (conn);
-//
-//		kms_sip_rtp_connection_add_probes (rtp_conn, filter_info, &rtp_probe, &rtcp_probe);
-//		KMS_SIP_RTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
-//	} else if (KMS_IS_SRTP_CONNECTION (conn)) {
-//		gulong rtp_probe, rtcp_probe;
-//		KmsSipSrtpSession *sip_ses = KMS_SIP_SRTP_SESSION (ses);
-//		KmsSrtpConnection *rtp_conn = KMS_SRTP_CONNECTION (conn);
-//
-//		kms_sip_srtp_connection_add_probes (rtp_conn, filter_info, &rtp_probe, &rtcp_probe);
-//		KMS_SIP_SRTP_SESSION_CLASS(G_OBJECT_GET_CLASS(ses))->store_rtp_filtering_info (sip_ses, rtp_conn, rtp_probe, rtcp_probe);
-//	}
-//}
-
-
-//static void
-//kms_sip_rtp_endpoint_set_filter_probes (KmsSipRtpEndpoint *self, guint32 expected_audio_ssrc, guint32 expected_video_ssrc)
-//{
-//	GHashTable * sessions = kms_base_sdp_endpoint_get_sessions (KMS_BASE_SDP_ENDPOINT(self));
-//	GList *sessionKeys = g_hash_table_get_keys (sessions);
-//	gint i;
-//	KmsIRtpConnection *conn;
-//
-//	// In fact SipRtpEndpoint should have only one session, if not, this loop should be revised
-//	for (i = 0; i < g_hash_table_size(sessions); i++) {
-//		gpointer sesKey = sessionKeys->data;
-//		KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION (g_hash_table_lookup (sessions, sesKey));
-//
-//		// AUDIO
-//		conn = g_hash_table_lookup (ses->conns, AUDIO_RTP_SESSION_STR);
-//		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, expected_audio_ssrc);
-//
-//		// VIDEO
-//		conn = g_hash_table_lookup (ses->conns, VIDEO_RTP_SESSION_STR);
-//		kms_sip_rtp_endpoint_set_connection_filter_probe (self, conn, ses, expected_video_ssrc);
-//	}
-//	g_list_free(sessionKeys);
-//}
 
 static guint
 ssrc_str_to_uint (const gchar * ssrc_str)
@@ -488,12 +526,6 @@ static gboolean
 kms_sip_rtp_endpoint_process_answer (KmsBaseSdpEndpoint * ep,
     const gchar * sess_id, GstSDPMessage * answer)
 {
-//	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(ep);
-//	guint32 expected_audio_ssrc = 0;
-//	guint32 expected_video_ssrc = 0;
-//
-//	kms_sip_rtp_endpoint_get_expected_ssrc (answer, &expected_audio_ssrc, &expected_video_ssrc);
-//	kms_sip_rtp_endpoint_set_filter_probes (self);
 	return KMS_BASE_SDP_ENDPOINT_CLASS(kms_sip_rtp_endpoint_parent_class)->process_answer (ep, sess_id, answer);
 }
 
@@ -511,9 +543,6 @@ kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSessi
 	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
 	SipFilterSsrcInfo* audio_filter_info = NULL;
 	SipFilterSsrcInfo* video_filter_info = NULL;
-
-	data->local_audio_ssrc = ses->local_audio_ssrc;
-	data->local_video_ssrc = ses->local_video_ssrc;
 
 	if (KMS_IS_SIP_RTP_SESSION (ses)) {
 		KmsSipRtpSession* sip_ses = KMS_SIP_RTP_SESSION (ses);
@@ -598,29 +627,21 @@ static void
 kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
+  guint ssrc;
   KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT (object);
 
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
-	KmsSipRtpEndpointCloneData* clone;
-	guint32 ssrc;
-
-  	  case PROP_AUDIO_SSRC:
-    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
+    case PROP_AUDIO_SSRC:
     	ssrc = g_value_get_uint (value);
 
-    	if (clone != NULL) {
-    		clone->local_audio_ssrc = ssrc;
-    	}
+    	self->priv->current_ssrc_audio_track = ssrc;
     	break;
     case PROP_VIDEO_SSRC:
-    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
     	ssrc = g_value_get_uint (value);
 
-    	if (clone != NULL) {
-    		clone->local_video_ssrc = ssrc;
-    	}
+    	self->priv->current_ssrc_video_track = ssrc;
     	break;
 	case PROP_QOS_DSCP:
 		self->priv->dscp_value = g_value_get_int (value);
@@ -642,21 +663,11 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
   KMS_ELEMENT_LOCK (self);
 
   switch (prop_id) {
-	KmsSipRtpEndpointCloneData* clone;
-
     case PROP_AUDIO_SSRC:
-        clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
-
-    	if (clone != NULL) {
-        	g_value_set_uint (value, clone->local_audio_ssrc);
-    	}
+       	g_value_set_uint (value, self->priv->current_ssrc_audio_track);
     	break;
     case PROP_VIDEO_SSRC:
-    	clone = kms_sip_rtp_endpoint_get_clone_data (self->priv->sessionData);
-
-    	if (clone != NULL) {
-        	g_value_set_uint (value, clone->local_video_ssrc);
-    	}
+       	g_value_set_uint (value, self->priv->current_ssrc_video_track);
     	break;
 	case PROP_QOS_DSCP:
 		g_value_set_int (value, self->priv->dscp_value);
@@ -672,34 +683,37 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
 static void
 kms_sip_rtp_endpoint_finalize (GObject * object)
 {
-  KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT (object);
+  	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT (object);
 
-  GST_DEBUG_OBJECT (self, "finalize");
+  	GST_DEBUG_OBJECT (self, "finalize");
 
-  if (self->priv->audio_track_selector != NULL) {
-	gst_object_unref(self->priv->audio_track_selector);
-  }
-  if (self->priv->video_track_selector != NULL) {
-	gst_object_unref(self->priv->video_track_selector);
-  }
+	g_hash_table_destroy(self->priv->selector_pads);
+  	g_hash_table_destroy(self->priv->pads_to_ssrc);
 
-  if (self->priv->pad_added_signal != 0) {
-	g_signal_handler_disconnect (self->priv->rtpbin, self->priv->pad_added_signal);
-  }
-  if (self->priv->rtpbin != NULL) {
-	gst_object_unref (self->priv->rtpbin);
-  }
+	if (self->priv->audio_track_selector != NULL) {
+		gst_object_unref(self->priv->audio_track_selector);
+	}
+	if (self->priv->video_track_selector != NULL) {
+		gst_object_unref(self->priv->video_track_selector);
+	}
 
-  if (self->priv->use_sdes_cache != NULL)
-	  g_free (self->priv->use_sdes_cache);
+	if (self->priv->pad_added_signal != 0) {
+		g_signal_handler_disconnect (self->priv->rtpbin, self->priv->pad_added_signal);
+	}
+	if (self->priv->rtpbin != NULL) {
+		gst_object_unref (self->priv->rtpbin);
+	}
 
-  if (self->priv->sessionData != NULL)
-	  kms_sip_rtp_endpoint_free_clone_data(self->priv->sessionData);
+	if (self->priv->use_sdes_cache != NULL)
+		g_free (self->priv->use_sdes_cache);
 
-  GST_DEBUG ("Finalizing Sip RTP Endpoint %p", object);
+	if (self->priv->sessionData != NULL)
+		kms_sip_rtp_endpoint_free_clone_data(self->priv->sessionData);
 
-  /* chain up */
-  G_OBJECT_CLASS (parent_class)->finalize (object);
+	GST_DEBUG ("Finalizing Sip RTP Endpoint %p", object);
+
+	/* chain up */
+	G_OBJECT_CLASS (parent_class)->finalize (object);
 }
 
 
@@ -890,104 +904,22 @@ send_force_key_unit_event (GstPad * pad)
   }
 }
 
-static GstPadProbeReturn
-set_output_active_track (GstPad * pad,  GstPadProbeInfo * info, gpointer user_data, guint media_type)
-{
-	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(user_data);
-	gint64 now = g_get_real_time ();
-	GstPad *peer_sink;
-	GstElement *track_selector = NULL;
-	GstPad *active_track_pad = NULL;
-	gint64 last_ssrc_switch = 0;
-	const gchar  *media = (media_type == 0) ? "audio" : "video";
-
-	KMS_ELEMENT_LOCK(self);
-	if (media_type == 0) {
-		track_selector = self->priv->audio_track_selector;
-		active_track_pad = self->priv->audio_active_track_pad;
-		last_ssrc_switch = self->priv->last_audio_ssrc_switch;
-	} else if (media_type == 1) {
-		track_selector = self->priv->video_track_selector;
-		active_track_pad = self->priv->video_active_track_pad;
-		last_ssrc_switch = self->priv->last_video_ssrc_switch;
-	}
-
-	// If on same track nothing to do
-	if (active_track_pad == pad) {
-		KMS_ELEMENT_UNLOCK(self);
-		return GST_PAD_PROBE_OK;
-	}
-
-	// Check if last change was before enough or not (1 second)
-	if ((last_ssrc_switch != 0) && ((now-last_ssrc_switch) < 1000000 )) {
-		KMS_ELEMENT_UNLOCK(self);
-		return GST_PAD_PROBE_OK;
-	}
-
-	// switching ssrc, we must update timestamp of ssrc switch, current active track pad and change active pad on input selector.
-	GST_DEBUG_OBJECT(self, "Switching ssrc in %s track", media);
-	if (media_type == 0) {
-		self->priv->last_audio_ssrc_switch = now;
-		self->priv->audio_active_track_pad = pad;
-	} else if (media_type == 1) {
-		self->priv->last_video_ssrc_switch = now;
-		self->priv->video_active_track_pad = pad;
-	}
-	peer_sink = gst_pad_get_peer (pad);
-	if (peer_sink != NULL) {
-		if (track_selector != NULL) {
-			g_object_set (track_selector, "active-pad", peer_sink, NULL);
-		}
-		gst_object_unref (peer_sink);
-	}
-
-	KMS_ELEMENT_UNLOCK(self);
-
-	// Also if track type is video, ask for a keyframe
-	if (media_type == 1) {
-		send_force_key_unit_event (pad);
-	}
-	return GST_PAD_PROBE_OK;
-}
-
-static GstPadProbeReturn
-set_output_active_audio_track (GstPad * pad,  GstPadProbeInfo * info, gpointer user_data)
-{
-	return set_output_active_track (pad, info, user_data, 0);
-}
-
-static GstPadProbeReturn
-set_output_active_video_track (GstPad * pad,  GstPadProbeInfo * info, gpointer user_data)
-{
-	return set_output_active_track (pad, info, user_data, 1);
-}
-
-
 static void
 kms_sip_rtp_endpoint_connect_depayloader_to_selector (KmsSipRtpEndpoint *self, GstElement *depayloader, GstElement *track_selector, guint ssrc, guint media_type)
 {
 	GstPadTemplate *templ;
 	GstPad *sink_pad, *src_pad;
-	gchar *pad_name;
-	GstCaps *caps;
 	
 	templ =
       gst_element_class_get_pad_template (GST_ELEMENT_GET_CLASS (track_selector), "sink_%u");
-	pad_name = g_strdup_printf ("sink_%u", ssrc);
-	caps = gst_caps_new_any ();
-	sink_pad = gst_element_request_pad (track_selector, templ, pad_name, caps);	
+	sink_pad = gst_element_request_pad (track_selector, templ, NULL, NULL);	
 	src_pad = gst_element_get_static_pad (depayloader, "src");
 	gst_pad_link (src_pad, sink_pad);
 
-	if (media_type == 0) {
-		gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, set_output_active_audio_track, self, NULL);
-	} else  if (media_type == 1) {
-		gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST, set_output_active_video_track, self, NULL);
-	}
+	g_hash_table_insert(self->priv->selector_pads, GINT_TO_POINTER(ssrc), g_object_ref(sink_pad));
+
 	gst_object_unref (src_pad);
 	gst_object_unref(sink_pad);
-	gst_caps_unref(caps);
-	g_free (pad_name);
 }
 
 
@@ -1053,6 +985,204 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 }
 
 
+static gboolean
+set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
+{
+	gint64 now = g_get_real_time ();
+	GstElement *track_selector = NULL;
+	GstPad *active_track_pad = NULL;
+	gint64 last_ssrc_switch = 0;
+	gint current_ssrc;
+	const gchar  *media = (media_type == 0) ? "audio" : "video";
+
+	KMS_ELEMENT_LOCK(self);
+	if (media_type == AUDIO_RTP_SESSION) {
+		current_ssrc = self->priv->current_ssrc_audio_track;
+	} else if (media_type == VIDEO_RTP_SESSION) {
+		current_ssrc = self->priv->current_ssrc_video_track;
+	} else {
+		KMS_ELEMENT_UNLOCK(self);
+		return FALSE;
+	}
+
+	// If on same track nothing to do
+	if (current_ssrc == ssrc) {
+		KMS_ELEMENT_UNLOCK(self);
+		return FALSE;
+	}
+
+	if (media_type == AUDIO_RTP_SESSION) {
+		track_selector = self->priv->audio_track_selector;
+		last_ssrc_switch = self->priv->last_audio_ssrc_switch;
+		track_selector = self->priv->audio_track_selector;
+	} else if (media_type == VIDEO_RTP_SESSION) {
+		track_selector = self->priv->video_track_selector;
+		last_ssrc_switch = self->priv->last_video_ssrc_switch;
+		track_selector = self->priv->video_track_selector;
+	}
+
+	// Check if last change was before enough or not (1 second)
+	if ((last_ssrc_switch != 0) && ((now-last_ssrc_switch) < 1000000 )) {
+		KMS_ELEMENT_UNLOCK(self);
+		return FALSE;
+	}
+
+	// switching ssrc, we must update timestamp of ssrc switch, current active track pad and change active pad on input selector.
+	GST_DEBUG_OBJECT(self, "Switching ssrc in %s track", media);
+	//reinit_synchronizer (self, media_type);
+	if (media_type == AUDIO_RTP_SESSION) {
+		self->priv->last_audio_ssrc_switch = now;
+		self->priv->current_ssrc_audio_track = ssrc;
+	} else if (media_type == VIDEO_RTP_SESSION) {
+		self->priv->last_video_ssrc_switch = now;
+		self->priv->current_ssrc_video_track = ssrc;
+	}
+
+	active_track_pad = g_hash_table_lookup (self->priv->selector_pads, GINT_TO_POINTER(ssrc));
+	if ((track_selector != NULL) && (active_track_pad != NULL)) {
+		g_object_set (track_selector, "active-pad", active_track_pad, NULL);
+	}
+
+	KMS_ELEMENT_UNLOCK(self);
+
+	// Also if track type is video, ask for a keyframe
+	if ((media_type == 1) && (active_track_pad != NULL)) {
+		send_force_key_unit_event (active_track_pad);
+	}
+	return TRUE;
+}
+
+static gboolean
+set_output_active_audio_track (KmsSipRtpEndpoint *self, guint ssrc)
+{
+	return set_output_active_track (self, ssrc, AUDIO_RTP_SESSION);
+}
+
+static gboolean
+set_output_active_video_track (KmsSipRtpEndpoint *self, guint ssrc)
+{
+	return set_output_active_track (self, ssrc, VIDEO_RTP_SESSION);
+}
+
+static GstPadProbeReturn
+video_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
+{
+	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
+	guint old_ssrc = self->priv->current_ssrc_video_track;
+	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
+	gboolean track_switched;
+
+	if (ssrc == 0) {
+		GST_ERROR_OBJECT(self, "video_sync_rtp_probe, no video SSRC");
+		return GST_PAD_PROBE_DROP;
+	}
+
+	// check if  switching to a different ssrc
+	track_switched = set_output_active_video_track (self, ssrc);
+	if (track_switched) {
+		GST_DEBUG_OBJECT(self, "video_sync_rtp_probe, track switched from %d to %d ", old_ssrc, ssrc);
+	}
+
+	return GST_PAD_PROBE_OK;
+}
+
+static GstPadProbeReturn
+audio_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
+{
+	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
+	guint old_ssrc = self->priv->current_ssrc_audio_track;
+	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
+	gboolean track_switched;
+
+	if (ssrc == 0) {
+		GST_ERROR_OBJECT(self, "audio_sync_rtp_probe, no audio SSRC");
+		return GST_PAD_PROBE_DROP;
+	}
+
+	// Check if switching to a different ssrc
+	track_switched = set_output_active_audio_track (self, ssrc);
+	if (track_switched) {
+		GST_DEBUG_OBJECT(self, "audio_sync_rtp_probe, audio track switched from %d to %d", old_ssrc, ssrc);
+	}
+
+	return GST_PAD_PROBE_OK;
+}
+
+static void 
+kms_sip_rtp_endpoint_deactivate_audio_synchronizer (KmsSipRtpEndpoint *self, GstElement *jitterbuffer, guint ssrc)
+{
+	GstPad *src_pad;
+	KmsBaseRtpEndpointPrivate *base_priv;
+
+	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer: deactivate sycnhronizer");
+	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
+	g_hash_table_insert(self->priv->pads_to_ssrc, g_object_ref(src_pad), GUINT_TO_POINTER(ssrc));
+	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      (GstPadProbeCallback) audio_sync_rtp_probe, self, NULL);
+  	g_object_unref (src_pad);
+
+	// Quick and dirty hack to deactivate synchronizer (jitterbuffer should do its work)
+	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer, deactivating rtpsynchornizer for track with ssrc %d ", ssrc);
+	base_priv = KMS_BASE_RTP_ENDPOINT(self)->priv;
+	if (base_priv->sync_audio != NULL) {
+		base_priv->sync_audio->priv->ssrc = 1;
+	}
+
+}
+
+static void 
+kms_sip_rtp_endpoint_deactivate_video_synchronizer (KmsSipRtpEndpoint *self, GstElement *jitterbuffer, guint ssrc)
+{
+	GstPad *src_pad;
+	KmsBaseRtpEndpointPrivate *base_priv;
+
+	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_video_synchronizer: Adjust video jitterbuffer PTS out");
+	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
+	g_hash_table_insert(self->priv->pads_to_ssrc, g_object_ref(src_pad), GUINT_TO_POINTER(ssrc));
+	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
+      (GstPadProbeCallback) video_sync_rtp_probe, self, NULL);
+  	g_object_unref (src_pad);
+
+	// Quick and dirty hack to deactivate synchronizer (jitterbuffer should do its work)
+	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_video_synchronizer, deactivating rtpsynchornizer for track with ssrc %d ", ssrc);
+	base_priv = KMS_BASE_RTP_ENDPOINT(self)->priv;
+	if (base_priv->sync_video != NULL) {
+		base_priv->sync_video->priv->ssrc = 1;
+	}
+}
+
+static void
+kms_sip_rtp_endpoint_rtpbin_new_jitterbuffer (GstElement * rtpbin,
+    GstElement * jitterbuffer,
+    guint session, guint ssrc, KmsSipRtpEndpoint * self)
+{
+  switch (session) {
+    case AUDIO_RTP_SESSION: {
+		kms_sip_rtp_endpoint_deactivate_audio_synchronizer (self, jitterbuffer, ssrc);
+		break;
+    }
+    case VIDEO_RTP_SESSION: {
+		kms_sip_rtp_endpoint_deactivate_video_synchronizer (self, jitterbuffer, ssrc);
+		break;
+    }
+    default:
+      break;
+  }
+}
+
+
+static void 
+kms_sip_rtp_endpoint_intercept_jitter_buffers (KmsSipRtpEndpoint * self)
+{
+	GstElement *rtpbin = self->priv->rtpbin;
+
+	if (rtpbin == NULL) {
+		return;
+	}
+	g_signal_connect (rtpbin, "new-jitterbuffer",
+		G_CALLBACK (kms_sip_rtp_endpoint_rtpbin_new_jitterbuffer), self);
+}
+
 static void
 kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 {
@@ -1064,10 +1194,14 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
   self->priv->rtpbin = find_rtpbin_in_element(GST_BIN(self));
   self->priv->audio_track_selector = NULL;
   self->priv->video_track_selector = NULL;
-  self->priv->audio_active_track_pad = NULL;
-  self->priv->video_active_track_pad = NULL;
   self->priv->last_audio_ssrc_switch = 0;
   self->priv->last_video_ssrc_switch = 0;
+  self->priv->current_ssrc_video_track = 0;
+  self->priv->pads_to_ssrc = g_hash_table_new_full (NULL, NULL, gst_object_unref, NULL);
+  self->priv->selector_pads = g_hash_table_new_full (NULL, NULL, NULL, gst_object_unref);
+
+  kms_sip_rtp_endpoint_intercept_jitter_buffers (self);
+
 
   if (self->priv->rtpbin != NULL) {
 	self->priv->pad_added_signal =  g_signal_connect_data (self->priv->rtpbin, "pad-added",
