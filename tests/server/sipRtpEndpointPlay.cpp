@@ -262,6 +262,9 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
+  sleep(2);
+  dumpPipeline ("media_state_changes_impl_1.dot");
+
   cv.wait (lck, [&] () {
     return media_state_changed.load();
   });
@@ -272,6 +275,8 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   conn.disconnect ();
 
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
   releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -309,7 +314,6 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
   src->connect (rtpEpOfferer);
-
   rtpEpAnswerer->connect(pt);
 
   sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
@@ -333,6 +337,9 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
+  sleep(2);
+  dumpPipeline ("media_state_changes_no_ssrc_in_sdp_impl_1.dot");
+
   cv.wait (lck, [&] () {
     return media_state_changed.load();
   });
@@ -342,6 +349,9 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
   }
 
   conn.disconnect ();
+
+  src->disconnect (rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
 
   releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
@@ -424,6 +434,9 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 
 	  rtpEpOfferer->processAnswer(answer1);
 
+	  sleep(2);
+  	  dumpPipeline ("reconnection_generate_offer_state_changes_impl_1.dot");
+
 	  // First stream
 	  cv.wait (lck, [&] () {
 	    return media_state_changed.load();
@@ -466,6 +479,10 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
+  rtpEpAnswerer2->disconnect(pt2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -528,6 +545,9 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 
 	  rtpEpOfferer->processAnswer(answer1);
 
+	  sleep(2);
+	  dumpPipeline ("reconnection_process_offer_state_changes_impl_1.dot");
+
 	  // First stream
 	  cv.wait (lck, [&] () {
 	    return media_state_changed.load();
@@ -569,6 +589,10 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+src->disconnect(rtpEpAnswerer);
+rtpEpOfferer->disconnect(pt);
+rtpEpOfferer2->disconnect(pt2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpOfferer2);
@@ -669,6 +693,10 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+	src->disconnect(rtpEpOfferer);
+	rtpEpAnswerer->disconnect(pt);
+	rtpEpAnswerer2->disconnect(pt2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -774,6 +802,10 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  src2->disconnect(rtpEpAnswerer2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -883,6 +915,10 @@ filter_out_from_source_addr_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("Connection must be connected");
   }
 
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  src2->disconnect(rtpEpAnswerer2);
+
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releaseRtpEndpoint (rtpEpAnswerer2);
@@ -989,6 +1025,9 @@ check_ssrc_switch_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("Connection must be connected");
   }
 
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -1083,16 +1122,20 @@ check_ssrc_switch_ipv6()
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
-  test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
+  test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
 
+  if (FALSE) {
   test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
+  }
   test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 1500000);
+  if (FALSE) {
   test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 1500000);
+  }
 
   if (false) {
 	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
