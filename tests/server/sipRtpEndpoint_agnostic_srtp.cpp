@@ -1237,32 +1237,32 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  test->add (BOOST_TEST_CASE(&test_sdp_offer_4), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE(&test_sdp_offer_3), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE(&test_sdp_offer_2), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE(&test_sdp_offer_1), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_4), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_3), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_2), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE(&test_sdp_offer_1), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_1), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_2), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_1), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_2), 0, /* timeout */ 20);
 
   // This should fail as the answerer is configured as crypto (no agnostic) and the offerer is not crypto
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_3), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_3), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_4), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_5), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_6), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_4), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_5), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_6), 0, /* timeout */ 20);
 
   // This should fail as the answerer is configured as crypto (no agnostic) and the offerer is non crypto
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_7), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_7), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_8), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_8), 0, /* timeout */ 20);
 
   // This should fail as the answerer is configured as non crypto (no agnostic) and the offerer is crypto
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_9), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_9), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_10), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_11), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_12), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_10), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_11), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_12), 0, /* timeout */ 20);
 
   // Odd case, it should work if answerer could support more than 1 audio media and 1 video media
   // The problem is that there is some "bug" on RtpEndpoint. The problem is that
@@ -1271,19 +1271,19 @@ init_unit_test_suite ( int , char *[] )
   // But if two first medias are not supporte by the answerer, they are rejected, but the two following are outside the boundaries of
   // number of medias accepted and are also rejected
   // RElated: bug in kmssdpagent.c (1817), if an offer is answered with more medias than offered, reaches this point that kills the process
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_b), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_b), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_c), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_13_c), 0, /* timeout */ 20);
 
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_14), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_b), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &test_error_on_answer_without_one_media), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &test_group_call_crash), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &test_same_port_crash), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_14), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_b), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_15_c), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &srtp_agnostic_case_16), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &test_error_on_answer_without_one_media), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &test_group_call_crash), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &test_same_port_crash), 0, /* timeout */ 20);
   return test;
 }

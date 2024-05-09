@@ -550,21 +550,21 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
   if (true)
-	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 20);
 
   if (false) {
-	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &element_connected_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward_ipv6 ), 0, /* timeout */ 5);
+	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &element_connected_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward_ipv6 ), 0, /* timeout */ 20);
   }
   return test;
 }

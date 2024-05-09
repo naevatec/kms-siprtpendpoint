@@ -1122,29 +1122,23 @@ check_ssrc_switch_ipv6()
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
-  test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
+	test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
 
-  if (FALSE) {
-  test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
-  }
-  test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 1500000);
-  if (FALSE) {
-  test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 1500000);
-  }
+	test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 20);
 
-  if (false) {
-	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15000);
-		test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 1500000);
-		test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 1500000);
-  }
+	test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 20);
   return test;
 }
