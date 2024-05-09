@@ -41,21 +41,25 @@ check_source_address (GstBuffer *buffer, GInetSocketAddress *peer_address)
 	// If no RTP source information we alsto let it go through
 	address_meta = gst_buffer_get_net_address_meta(buffer);
 	if (address_meta == NULL) {
+		GST_DEBUG("check_source_address: no source address in buffer");
 		return TRUE;
 	}
 	source_address = G_INET_SOCKET_ADDRESS(address_meta->addr);
 	if (source_address == NULL) {
+		GST_DEBUG("check_source_address: empty source address in buffer");
 		return TRUE;
 	}
 
 	// If port different, just filter out
 	if (g_inet_socket_address_get_port(source_address) != g_inet_socket_address_get_port(peer_address)) {
+		GST_DEBUG("check_source_address: source port does not match");
 		return FALSE;
 	}
 
 	inet_address_source = g_inet_socket_address_get_address (source_address);
 	inet_address_peer = g_inet_socket_address_get_address (peer_address);
 	if (!g_inet_address_get_is_any(inet_address_peer) && !g_inet_address_equal(inet_address_peer, inet_address_source)) {
+		GST_DEBUG("check_source_address: source ip address does not match");
 		return FALSE;
 	}
 	return TRUE;
