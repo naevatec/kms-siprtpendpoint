@@ -34,20 +34,20 @@ check_source_address (GstBuffer *buffer, GInetSocketAddress *peer_address)
 	GInetAddress *inet_address_peer;
 	GInetAddress *inet_address_source;
 
-	// If no filter, we let RTP buffer get through
+	// If no filter, we don't let RTP buffer get through
 	if (peer_address == NULL) {
-		return TRUE;
+		return FALSE;
 	}
-	// If no RTP source information we alsto let it go through
+	// If no RTP source information we don't let it go through
 	address_meta = gst_buffer_get_net_address_meta(buffer);
 	if (address_meta == NULL) {
 		GST_DEBUG("check_source_address: no source address in buffer");
-		return TRUE;
+		return FALSE;
 	}
 	source_address = G_INET_SOCKET_ADDRESS(address_meta->addr);
 	if (source_address == NULL) {
 		GST_DEBUG("check_source_address: empty source address in buffer");
-		return TRUE;
+		return FALSE;
 	}
 
 	// If port different, just filter out
