@@ -43,6 +43,20 @@ namespace kurento
 
 const static std::string DEFAULT = "default";
 
+// Wrapper to comply with execution of postconstructor on internal
+// passthorughs used vu composedObjectImpl
+class PassThroughWrapper : public PassThroughImpl 
+{
+	friend class ComposedObjectImpl;
+
+	public:
+  	PassThroughWrapper (const boost::property_tree::ptree &config,
+                   std::shared_ptr<MediaPipeline> mediaPipeline): PassThroughImpl (config, mediaPipeline)
+	{ }
+
+	protected:
+	virtual void postConstructor () { PassThroughImpl::postConstructor (); }
+};
 
 // Bit of a hack to remove a memory leak. It seems that the process of composing a Media Element 
 // from other MediaElements  interfere with the protocol of connecting MediaElements
@@ -152,20 +166,24 @@ ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
   : MediaElementImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline), FACTORY_NAME)
 {
+	PassThroughWrapper *_srcPt = new PassThroughWrapper(config, mediaPipeline);
+	PassThroughWrapper *_sinkPt = new PassThroughWrapper(config, mediaPipeline);
 
-  sinkPt = std::shared_ptr<PassThroughImpl>(new PassThroughImpl(config, mediaPipeline));
-  srcPt = std::shared_ptr<PassThroughImpl>(new PassThroughImpl(config, mediaPipeline));
-  linkedSource = NULL;
-  linkedSink = NULL;
-  origElem = NULL;
-
-  // Register src pads for memory leak 
-  std::map<gpointer, unsigned long> registered_signals;
-  
-  registered_signals = register_element_pads (this->padsToReview, sinkPt->getGstreamerElement());
-  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end());
-  registered_signals = register_element_pads (this->padsToReview, srcPt->getGstreamerElement());
-  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end ());
+	sinkPt = std::shared_ptr<PassThroughWrapper>(_srcPt);
+	srcPt = std::shared_ptr<PassThroughWrapper>(_sinkPt);
+	_sinkPt->postConstructor();
+	_srcPt->postConstructor();
+	linkedSource = NULL;
+	linkedSink = NULL;
+	origElem = NULL;
+	
+	// Register src pads for memory leak 
+	std::map<gpointer, unsigned long> registered_signals;
+	
+	registered_signals = register_element_pads (this->padsToReview, sinkPt->getGstreamerElement());
+	this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end());
+	registered_signals = register_element_pads (this->padsToReview, srcPt->getGstreamerElement());
+	this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end ());
 }
 
 ComposedObjectImpl::~ComposedObjectImpl()
