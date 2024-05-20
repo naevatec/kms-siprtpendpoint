@@ -208,7 +208,7 @@ kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
 SipFilterSsrcInfo*
 kms_sip_rtp_filter_create_filtering_info (SipFilterSsrcInfo* previous, guint media_type)
 {
-	SipFilterSsrcInfo* info = g_new (SipFilterSsrcInfo, 1);
+	SipFilterSsrcInfo* info = g_new0 (SipFilterSsrcInfo, 1);
 	GInetAddress *addr;
 	gchar *addr_str;
 	guint port;

@@ -77,7 +77,7 @@ struct _KmsSipRtpEndpointCloneData
 
 struct _KmsSipRtpEndpointPrivate
 {
-  gboolean *use_sdes_cache;
+  gint use_sdes_cache;
 
   GList *sessionData;
 
@@ -289,14 +289,13 @@ kms_sip_rtp_endpoint_clone_session (KmsSipRtpEndpoint * self, KmsSdpSession ** s
 
 static gboolean isUseSdes (KmsSipRtpEndpoint * self)
 {
-	if (self->priv->use_sdes_cache == NULL) {
+	if (self->priv->use_sdes_cache == -1) {
 		gboolean useSdes;
 
 		g_object_get (G_OBJECT(self), "use-sdes", &useSdes, NULL);
-		self->priv->use_sdes_cache = g_malloc(sizeof(gboolean));
-		*self->priv->use_sdes_cache = useSdes;
+		self->priv->use_sdes_cache = useSdes;
 	}
-	return *self->priv->use_sdes_cache;
+	return self->priv->use_sdes_cache;
 }
 
 
@@ -540,7 +539,7 @@ kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint
 static KmsSipRtpEndpointCloneData*
 kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses, guint32 audio_ssrc, guint32 video_ssrc, gboolean continue_audio_stream, gboolean continue_video_stream)
 {
-	KmsSipRtpEndpointCloneData *data = g_malloc(sizeof (KmsSipRtpEndpointCloneData));
+	KmsSipRtpEndpointCloneData *data = g_new0(KmsSipRtpEndpointCloneData, 1);
 	SipFilterSsrcInfo* audio_filter_info = NULL;
 	SipFilterSsrcInfo* video_filter_info = NULL;
 
@@ -704,9 +703,6 @@ kms_sip_rtp_endpoint_finalize (GObject * object)
 		gst_object_unref (self->priv->rtpbin);
 	}
 
-	if (self->priv->use_sdes_cache != NULL)
-		g_free (self->priv->use_sdes_cache);
-
 	if (self->priv->sessionData != NULL)
 		kms_sip_rtp_endpoint_free_clone_data(self->priv->sessionData);
 
@@ -814,6 +810,7 @@ find_rtpbin_in_element(GstBin *self)
 		if (g_str_has_prefix (objectName, "rtpbin")) {
 			result = GST_ELEMENT(rtpEndpointChildren->data);
 			g_free (objectName);
+			gst_object_ref(result);
 			break;
 		}
 		g_free (objectName);
@@ -1188,7 +1185,7 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 {
   self->priv = KMS_SIP_RTP_ENDPOINT_GET_PRIVATE (self);
 
-  self->priv->use_sdes_cache = NULL;
+  self->priv->use_sdes_cache = -1;
   self->priv->sessionData = NULL;
   self->priv->dscp_value = DEFAULT_QOS_DSCP;
   self->priv->rtpbin = find_rtpbin_in_element(GST_BIN(self));
