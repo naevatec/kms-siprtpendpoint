@@ -67,6 +67,7 @@ static void
 review_pad (GstPad *pad)
 {
 	if (GST_IS_PAD(pad) && (gst_pad_get_direction (pad) == GST_PAD_SRC)) {
+		GST_LOG("Unreferencing possible pending pad");
 		// Bit of hack, we detected that this object src pads are no being correctly released
 		gst_object_unref (pad);
 	}

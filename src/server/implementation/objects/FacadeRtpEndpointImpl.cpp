@@ -1157,7 +1157,7 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 {
 	std::shared_ptr<SipRtpEndpointImpl> tmp = rtp_ep;
 
-	if (rtp_ep != NULL) {
+	if (rtp_ep != nullptr) {
 		disconnectForwardSignals ();
 	}
 
