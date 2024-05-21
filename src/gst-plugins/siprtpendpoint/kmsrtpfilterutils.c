@@ -221,16 +221,24 @@ kms_sip_rtp_filter_create_filtering_info (SipFilterSsrcInfo* previous, guint med
 	g_rec_mutex_init (&info->mutex);
 
 	if (previous != NULL) {
-		port = g_inet_socket_address_get_port (previous->peer_address);
-		addr = g_inet_socket_address_get_address (previous->peer_address);
-		addr_str = g_inet_address_to_string (addr);
-		GST_DEBUG("create_filtering_info, setting expected remote address : %s:%d", addr_str, port);
-		g_free(addr_str);
-		port = g_inet_socket_address_get_port (previous->peer_rtcp_address);
-		addr = g_inet_socket_address_get_address (previous->peer_rtcp_address);
-		addr_str = g_inet_address_to_string (addr);
-		GST_DEBUG("create_filtering_info, setting expected remote RTCP address : %s:%d", addr_str, port);
-		g_free(addr_str);
+		if (previous->peer_address == NULL) {
+			GST_DEBUG("create_filtering_info, no expected remote RTP address yet");
+		} else {
+			port = g_inet_socket_address_get_port (previous->peer_address);
+			addr = g_inet_socket_address_get_address (previous->peer_address);
+			addr_str = g_inet_address_to_string (addr);
+			GST_DEBUG("create_filtering_info, setting expected remote address : %s:%d", addr_str, port);
+			g_free(addr_str);
+		}
+		if (previous->peer_rtcp_address == NULL) {
+			GST_DEBUG("create_filtering_info, no expected remote RTCP address yet");
+		} else {
+			port = g_inet_socket_address_get_port (previous->peer_rtcp_address);
+			addr = g_inet_socket_address_get_address (previous->peer_rtcp_address);
+			addr_str = g_inet_address_to_string (addr);
+			GST_DEBUG("create_filtering_info, setting expected remote RTCP address : %s:%d", addr_str, port);
+			g_free(addr_str);
+		}
 	}
 
 	return info;

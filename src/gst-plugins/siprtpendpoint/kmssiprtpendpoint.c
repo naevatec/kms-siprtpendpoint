@@ -40,6 +40,8 @@
 #define DEFAULT_VIDEO_SSRC 0
 #define DEFAULT_QOS_DSCP -1
 
+#define SSRC_SWITCH_SAFE_PERIOD_MS 1000000
+
 
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
 GST_DEBUG_CATEGORY (GST_CAT_DEFAULT); 
@@ -912,6 +914,8 @@ kms_sip_rtp_endpoint_connect_depayloader_to_selector (KmsSipRtpEndpoint *self, G
 	src_pad = gst_element_get_static_pad (depayloader, "src");
 	gst_pad_link (src_pad, sink_pad);
 
+	g_object_set(track_selector, "active-pad", sink_pad, NULL);
+	GST_DEBUG_OBJECT(self, "Adding track input pad %s to %s track selector with ssrc %u", sink_pad->object.name, (media_type== AUDIO_RTP_SESSION)? "audio":"video", ssrc);
 	g_hash_table_insert(self->priv->selector_pads, GINT_TO_POINTER(ssrc), g_object_ref(sink_pad));
 
 	gst_object_unref (src_pad);
@@ -924,25 +928,34 @@ kms_sip_rtp_endpoint_add_active_input_to_selector (KmsSipRtpEndpoint *self, GstE
 {
 	GstElement *track_selector = NULL;
 
+	GST_DEBUG_OBJECT(self, "Adding active input to %s track selector with ssrc %u and payload %d", (media_type == AUDIO_RTP_SESSION)?"audio": "video", ssrc, pt);
+
 	// Ensure the input selector is created
 	KMS_ELEMENT_LOCK (self);
 	if (media_type == 0) {
 		if (self->priv->audio_track_selector == NULL) {
-			self->priv->audio_track_selector = gst_element_factory_make ("input-selector", "audio-track-selector");
-			gst_bin_add(GST_BIN(self), gst_object_ref(self->priv->audio_track_selector));
+			track_selector = gst_element_factory_make ("input-selector", "audio-track-selector");
+			if (track_selector == NULL) {
+				GST_ERROR_OBJECT(self, "Cannot build input selector for incoming audio tracks, endpoint cannot work");
+				return;
+			}
+			self->priv->audio_track_selector = gst_object_ref(track_selector);
+			gst_bin_add(GST_BIN(self), self->priv->audio_track_selector);
 			gst_element_sync_state_with_parent (self->priv->audio_track_selector);
 		}
 		track_selector = self->priv->audio_track_selector;
 	} else if (media_type == 1) {
 		if (self->priv->video_track_selector == NULL) {
-			self->priv->video_track_selector = gst_element_factory_make ("input-selector", "video-track-selector");
-			gst_bin_add(GST_BIN(self), gst_object_ref(self->priv->video_track_selector));
+			track_selector = gst_element_factory_make ("input-selector", "video-track-selector");
+			if (track_selector == NULL) {
+				GST_ERROR_OBJECT(self, "Cannot build input selector for incoming video tracks, endpoint cannot work");
+				return;
+			}
+			self->priv->video_track_selector = gst_object_ref(track_selector);
+			gst_bin_add(GST_BIN(self), self->priv->video_track_selector);
 			gst_element_sync_state_with_parent (self->priv->video_track_selector);
 		}
 		track_selector = self->priv->video_track_selector;
-	}
-	if (track_selector == NULL)  {
-		return;
 	}
 
 	// Disconnect depayloader from agnostic bin and  connect track selector to agnosticbin
@@ -962,7 +975,7 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
 	if (g_str_has_prefix (pad_name, "recv_rtp_src_")) {
  		GST_PAD_STREAM_LOCK (pad);
- 		// New pad for incoming data, let's prepare pipeline for it
+ 		// New pad for incoming media track, let's prepare pipeline for it
 		guint media_type, ssrc, pt;
 		GstElement *depayloader = get_depayloader_from_pad (pad);
 		GstElement *output_agnosticbin;
@@ -1018,14 +1031,13 @@ set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
 	}
 
 	// Check if last change was before enough or not (1 second)
-	if ((last_ssrc_switch != 0) && ((now-last_ssrc_switch) < 1000000 )) {
+	if ((last_ssrc_switch != 0) && ((now-last_ssrc_switch) < SSRC_SWITCH_SAFE_PERIOD_MS )) {
 		KMS_ELEMENT_UNLOCK(self);
 		return FALSE;
 	}
 
 	// switching ssrc, we must update timestamp of ssrc switch, current active track pad and change active pad on input selector.
-	GST_DEBUG_OBJECT(self, "Switching ssrc in %s track", media);
-	//reinit_synchronizer (self, media_type);
+	GST_DEBUG_OBJECT(self, "Switching ssrc from %u to %u in %s track", current_ssrc, ssrc, media);
 	if (media_type == AUDIO_RTP_SESSION) {
 		self->priv->last_audio_ssrc_switch = now;
 		self->priv->current_ssrc_audio_track = ssrc;
@@ -1036,13 +1048,14 @@ set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
 
 	active_track_pad = g_hash_table_lookup (self->priv->selector_pads, GINT_TO_POINTER(ssrc));
 	if ((track_selector != NULL) && (active_track_pad != NULL)) {
+		GST_DEBUG_OBJECT(self, "set_output_active_track: switching track selector %s  from ssrc %u to %u in pad %s", track_selector->object.name, current_ssrc, ssrc, active_track_pad->object.name);
 		g_object_set (track_selector, "active-pad", active_track_pad, NULL);
 	}
 
 	KMS_ELEMENT_UNLOCK(self);
 
 	// Also if track type is video, ask for a keyframe
-	if ((media_type == 1) && (active_track_pad != NULL)) {
+	if ((media_type == VIDEO_RTP_SESSION) && (active_track_pad != NULL)) {
 		send_force_key_unit_event (active_track_pad);
 	}
 	return TRUE;
@@ -1064,9 +1077,7 @@ static GstPadProbeReturn
 video_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 {
 	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
-	guint old_ssrc = self->priv->current_ssrc_video_track;
 	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
-	gboolean track_switched;
 
 	if (ssrc == 0) {
 		GST_ERROR_OBJECT(self, "video_sync_rtp_probe, no video SSRC");
@@ -1074,10 +1085,7 @@ video_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 	}
 
 	// check if  switching to a different ssrc
-	track_switched = set_output_active_video_track (self, ssrc);
-	if (track_switched) {
-		GST_DEBUG_OBJECT(self, "video_sync_rtp_probe, track switched from %d to %d ", old_ssrc, ssrc);
-	}
+	set_output_active_video_track (self, ssrc);
 
 	return GST_PAD_PROBE_OK;
 }
@@ -1086,9 +1094,7 @@ static GstPadProbeReturn
 audio_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 {
 	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
-	guint old_ssrc = self->priv->current_ssrc_audio_track;
 	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
-	gboolean track_switched;
 
 	if (ssrc == 0) {
 		GST_ERROR_OBJECT(self, "audio_sync_rtp_probe, no audio SSRC");
@@ -1096,10 +1102,7 @@ audio_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 	}
 
 	// Check if switching to a different ssrc
-	track_switched = set_output_active_audio_track (self, ssrc);
-	if (track_switched) {
-		GST_DEBUG_OBJECT(self, "audio_sync_rtp_probe, audio track switched from %d to %d", old_ssrc, ssrc);
-	}
+	set_output_active_audio_track (self, ssrc);
 
 	return GST_PAD_PROBE_OK;
 }
@@ -1118,7 +1121,7 @@ kms_sip_rtp_endpoint_deactivate_audio_synchronizer (KmsSipRtpEndpoint *self, Gst
   	g_object_unref (src_pad);
 
 	// Quick and dirty hack to deactivate synchronizer (jitterbuffer should do its work)
-	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer, deactivating rtpsynchornizer for track with ssrc %d ", ssrc);
+	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer, deactivating rtpsynchornizer for track with ssrc %u ", ssrc);
 	base_priv = KMS_BASE_RTP_ENDPOINT(self)->priv;
 	if (base_priv->sync_audio != NULL) {
 		base_priv->sync_audio->priv->ssrc = 1;
