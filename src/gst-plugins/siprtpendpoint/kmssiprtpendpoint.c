@@ -810,7 +810,6 @@ find_rtpbin_in_element(GstBin *self)
 		if (g_str_has_prefix (objectName, "rtpbin")) {
 			result = GST_ELEMENT(rtpEndpointChildren->data);
 			g_free (objectName);
-			gst_object_ref(result);
 			break;
 		}
 		g_free (objectName);
@@ -1183,29 +1182,32 @@ kms_sip_rtp_endpoint_intercept_jitter_buffers (KmsSipRtpEndpoint * self)
 static void
 kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 {
-  self->priv = KMS_SIP_RTP_ENDPOINT_GET_PRIVATE (self);
+	GstElement *rtpbin = find_rtpbin_in_element(GST_BIN(self));
+	
+	self->priv = KMS_SIP_RTP_ENDPOINT_GET_PRIVATE (self);
+	
+	self->priv->use_sdes_cache = -1;
+	self->priv->sessionData = NULL;
+	self->priv->dscp_value = DEFAULT_QOS_DSCP;
+	if (rtpbin != NULL) {
+		self->priv->rtpbin = gst_object_ref(rtpbin);
+	} else {
+		self->priv->rtpbin = NULL;
+	}
+	self->priv->audio_track_selector = NULL;
+	self->priv->video_track_selector = NULL;self->priv->last_audio_ssrc_switch = 0;
+	self->priv->last_video_ssrc_switch = 0;
+	self->priv->current_ssrc_video_track = 0;
+	self->priv->pads_to_ssrc = g_hash_table_new_full (NULL, NULL, gst_object_unref, NULL);
+	self->priv->selector_pads = g_hash_table_new_full (NULL, NULL, NULL, gst_object_unref);
+	
+	kms_sip_rtp_endpoint_intercept_jitter_buffers (self);
+	if (self->priv->rtpbin != NULL) {
+		self->priv->pad_added_signal =  g_signal_connect_data (self->priv->rtpbin, "pad-added",
+			G_CALLBACK (kms_sip_rtp_endpoint_rtpbin_pad_added), self, NULL, G_CONNECT_AFTER);
+  	}
 
-  self->priv->use_sdes_cache = -1;
-  self->priv->sessionData = NULL;
-  self->priv->dscp_value = DEFAULT_QOS_DSCP;
-  self->priv->rtpbin = find_rtpbin_in_element(GST_BIN(self));
-  self->priv->audio_track_selector = NULL;
-  self->priv->video_track_selector = NULL;
-  self->priv->last_audio_ssrc_switch = 0;
-  self->priv->last_video_ssrc_switch = 0;
-  self->priv->current_ssrc_video_track = 0;
-  self->priv->pads_to_ssrc = g_hash_table_new_full (NULL, NULL, gst_object_unref, NULL);
-  self->priv->selector_pads = g_hash_table_new_full (NULL, NULL, NULL, gst_object_unref);
-
-  kms_sip_rtp_endpoint_intercept_jitter_buffers (self);
-
-
-  if (self->priv->rtpbin != NULL) {
-	self->priv->pad_added_signal =  g_signal_connect_data (self->priv->rtpbin, "pad-added",
-		G_CALLBACK (kms_sip_rtp_endpoint_rtpbin_pad_added), self, NULL, G_CONNECT_AFTER);
-  }
-
-  GST_DEBUG ("Initialized RTP Endpoint %p", self);
+  	GST_DEBUG ("Initialized RTP Endpoint %p", self);
 }
 
 gboolean
