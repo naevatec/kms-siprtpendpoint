@@ -20,8 +20,8 @@ RUN apt-get update \
 ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
 
 # SipRtpEndpoint 1.5.1
-COPY kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu2_amd64.deb /tmp
-COPY kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu2_amd64.deb /tmp
+COPY kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu1_amd64.deb /tmp
+COPY kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu1_amd64.deb /tmp
 
 # Gladstone G729 codec for GStreamer
 COPY kurento-gladstone_1.1.0.0ubuntu2_amd64.deb /tmp
@@ -44,8 +44,8 @@ RUN apt update && apt install --no-install-recommends --yes \
 # Install kms-siprtp endpoint 1.5.1,
 RUN apt update && \
     apt install --no-install-recommends --yes pkg-config && \
-    apt install --no-install-recommends --yes /tmp/kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu2_amd64.deb && \
-    apt install --no-install-recommends --yes /tmp/kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu2_amd64.deb
+    apt install --no-install-recommends --yes /tmp/kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu1_amd64.deb && \
+    apt install --no-install-recommends --yes /tmp/kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu1_amd64.deb
 
 # Install G729 codec for GStreamer
 RUN apt install --no-install-recommends --yes /tmp/kurento-gladstone_1.1.0.0ubuntu2_amd64.deb && \
@@ -55,8 +55,8 @@ RUN apt install --no-install-recommends --yes /tmp/kurento-gladstone_1.1.0.0ubun
 RUN mkdir /crash_dumps && sysctl -w kernel.core_pattern=/crash_dumps/core.%p
 
 # Housekeeping
-RUN rm /tmp/kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu2_amd64.deb && \
-    rm /tmp/kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu2_amd64.deb && \
+RUN rm /tmp/kms-siprtpendpoint_${SIPRTPEP_VERSION}ubuntu1_amd64.deb && \
+    rm /tmp/kms-siprtpendpoint-dbg_${SIPRTPEP_VERSION}ubuntu1_amd64.deb && \
     rm /tmp/kurento-gladstone_1.1.0.0ubuntu2_amd64.deb && \
     rm /tmp/kurento-gladstone-dbg_1.1.0.0ubuntu2_amd64.deb && \
     rm /tmp/kurento-gladstone-dbgsym_1.1.0.0ubuntu2_amd64.ddeb
