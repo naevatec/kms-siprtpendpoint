@@ -15,6 +15,7 @@ set(SIPRTP_SOURCES
   kmssipsrtpconnection.c kmssipsrtpconnection.h
   kmssipsrtpsession.c kmssipsrtpsession.h  
   kmsrtpfilterutils.c kmsrtpfilterutils.h
+  trafficshaper.c trafficshaper.h
 )
 
 add_library(siprtpendpoint MODULE ${SIPRTP_SOURCES})

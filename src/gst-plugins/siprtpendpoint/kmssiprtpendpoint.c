@@ -29,6 +29,8 @@
 #include <commons/constants.h>
 #include <gst/sdp/gstsdpmessage.h>
 
+#include "trafficshaper.h"
+
 #define PLUGIN_NAME "siprtpendpoint"
 
 #define DEFAULT_AUDIO_SSRC 0
@@ -796,9 +798,23 @@ kms_sip_rtp_endpoint_plugin_init (GstPlugin * plugin)
       KMS_TYPE_SIP_RTP_ENDPOINT);
 }
 
+gboolean
+kms_sip_rtp_endpoint_library_init (GstPlugin * plugin)
+{
+  if (!kms_sip_rtp_endpoint_plugin_init (plugin))
+    return FALSE;
+
+  if (!gst_traffic_shaper_plugin_init (plugin))
+    return FALSE;
+
+  return TRUE;
+ }
+
+
+
 GST_PLUGIN_DEFINE (GST_VERSION_MAJOR,
     GST_VERSION_MINOR,
     siprtpendpoint,
     "Kurento SIP rtp endpoint",
-    kms_sip_rtp_endpoint_plugin_init, VERSION, GST_LICENSE_UNKNOWN,
+    kms_sip_rtp_endpoint_library_init, VERSION, GST_LICENSE_UNKNOWN,
     "NaevaTec Kurento utils", "http://www.naevatec.com")

@@ -46,6 +46,9 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_VIDEO_CODECS "videoCodecs"
 #define PARAM_PUBLIC_IPV4 "externalIPv4"
 #define PARAM_PUBLIC_IPV6 "externalIPv6"
+#define PARAM_MAX_KBPS "max-kbps"
+#define PARAM_MAX_BUCKET_SIZE "max-bucket-size"
+
 
 
 namespace kurento
@@ -291,6 +294,11 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
 {
+  std::string maxKbpsValue;
+  std::string maxBucketSizeValue;
+  int maxKbps = 0;
+  int maxBucketSize = 0;
+
   this->qosDscp = qosDscp;
 
   if (qosDscp->getValue () == DSCPValue::NO_VALUE) {
@@ -354,6 +362,28 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
     }
 
   }
+
+  if (getConfigValue<std::string,SipRtpEndpoint>(&maxKbpsValue, PARAM_MAX_KBPS)) {
+    GST_INFO ("MAX-KBPS default configured value is %s", maxKbpsValue.c_str() );
+    try {
+      maxKbps = std::stoi (maxKbpsValue);
+    } catch (...) { }
+  }
+
+  if (getConfigValue<std::string,SipRtpEndpoint>(&maxBucketSizeValue, PARAM_MAX_BUCKET_SIZE)) {
+    GST_INFO ("MAX-BUCKET-SIZE default configured value is %s", maxBucketSizeValue.c_str() );
+    try {
+      maxBucketSize = std::stoi (maxBucketSizeValue);
+    } catch (...) { }
+  }
+
+  if (maxKbps > 0) {
+    g_object_set (element, "max-kbps", maxKbps, NULL);
+  }
+  if (maxBucketSize > 0) {
+    g_object_set (element, "max-bucket-size", maxBucketSize, NULL);
+  }
+
   if (!crypto->isSetCrypto() ) {
     return;
   }

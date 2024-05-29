@@ -22,6 +22,9 @@
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
 
+#define DEFAULT_MAX_KBPS -1
+#define DEFAULT_MAX_BUCKET_SIZE -1
+
 
 void
 kms_sip_rtp_connection_retrieve_sockets (KmsRtpConnection *conn, GSocket **rtp, GSocket **rtcp)
@@ -76,6 +79,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  GObject *obj;
 	  KmsRtpConnection *conn;
 	  GSocketFamily socket_family;
+	  GstElement *traffic_shaper;
 
 	  obj = g_object_new (KMS_TYPE_RTP_CONNECTION, NULL);
 	  conn = KMS_RTP_CONNECTION (obj);
@@ -101,6 +105,15 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 		    return NULL;
 		  }
 	  }
+	  
+	  traffic_shaper = gst_element_factory_make ("trafficshaper", NULL);
+	  if (conn->priv->max_kbps > 0){
+		g_object_set (G_OBJECT(traffic_shaper), "max-kbps", conn->priv->max_kbps, NULL);
+	  }
+	  if (conn->priv->max_bucket_size > 0){
+		g_object_set (G_OBJECT(traffic_shaper), "max-bucket-size", conn->priv->max_bucket_size, NULL);
+	  }
+
 
 	  conn->rtp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  conn->rtp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
