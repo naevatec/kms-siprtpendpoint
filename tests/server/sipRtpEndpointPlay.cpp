@@ -34,6 +34,7 @@
 #include <MediaState.hpp>
 #include <MediaFlowInStateChanged.hpp>
 #include <MediaFlowState.hpp>
+#include <GstreamerDotDetails.hpp>
 //#include <SDES.hpp>
 //#include <CryptoSuite.hpp>
 
@@ -92,6 +93,36 @@ GF::~GF()
 }
 
 #define CRYPTOKEY "00108310518720928b30d38f41149351559761969b71d79f8218a39259a7"
+
+
+static void
+dumpPipeline (std::shared_ptr<MediaPipeline> pipeline, std::string fileName)
+{
+  std::string pipelineDot;
+  std::shared_ptr<GstreamerDotDetails> details (new GstreamerDotDetails ("SHOW_ALL"));
+
+  pipelineDot = pipeline->getGstreamerDot (details);
+  std::ofstream out(fileName);
+
+  out << pipelineDot;
+  out.close ();
+
+}
+
+static void
+dumpPipeline (std::string pipelineId, std::string fileName)
+{
+  std::shared_ptr<MediaPipeline> pipeline = std::dynamic_pointer_cast<MediaPipeline> (MediaSet::getMediaSet ()->getMediaObject (pipelineId));
+  dumpPipeline (pipeline, fileName);
+
+//  MediaSet::getMediaSet ()->release (pipelineId);
+}
+
+static void
+dumpPipeline(std::string filename)
+{
+	dumpPipeline (mediaPipelineId, filename);
+}
 
 //static std::shared_ptr<SDES> getCrypto ()
 //{
@@ -181,7 +212,7 @@ static std::shared_ptr<MediaElementImpl> createTestAudioSrc() {
 }
 
 static void
-releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
+releaseTestElement (std::shared_ptr<MediaElementImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -231,6 +262,9 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
+  sleep(2);
+  dumpPipeline ("media_state_changes_impl_1.dot");
+
   cv.wait (lck, [&] () {
     return media_state_changed.load();
   });
@@ -241,7 +275,9 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   conn.disconnect ();
 
-  releaseTestSrc (src);
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -278,7 +314,6 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
   src->connect (rtpEpOfferer);
-
   rtpEpAnswerer->connect(pt);
 
   sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
@@ -302,6 +337,9 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
 
   rtpEpOfferer->processAnswer (answer);
 
+  sleep(2);
+  dumpPipeline ("media_state_changes_no_ssrc_in_sdp_impl_1.dot");
+
   cv.wait (lck, [&] () {
     return media_state_changed.load();
   });
@@ -312,7 +350,10 @@ media_state_changes_no_ssrc_in_sdp_impl (bool useIpv6, bool useCrypto)
 
   conn.disconnect ();
 
-  releaseTestSrc (src);
+  src->disconnect (rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
+
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -393,6 +434,9 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 
 	  rtpEpOfferer->processAnswer(answer1);
 
+	  sleep(2);
+  	  dumpPipeline ("reconnection_generate_offer_state_changes_impl_1.dot");
+
 	  // First stream
 	  cv.wait (lck, [&] () {
 	    return media_state_changed.load();
@@ -435,6 +479,10 @@ reconnection_generate_offer_state_changes_impl (bool useIpv6, bool useCrypto)
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+  src->disconnect(rtpEpOfferer);
+  rtpEpAnswerer->disconnect(pt);
+  rtpEpAnswerer2->disconnect(pt2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
@@ -497,6 +545,9 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
 
 	  rtpEpOfferer->processAnswer(answer1);
 
+	  sleep(2);
+	  dumpPipeline ("reconnection_process_offer_state_changes_impl_1.dot");
+
 	  // First stream
 	  cv.wait (lck, [&] () {
 	    return media_state_changed.load();
@@ -538,6 +589,10 @@ reconnection_process_offer_state_changes_impl (bool useIpv6, bool useCrypto)
       ConnectionState::CONNECTED) {
     BOOST_ERROR ("Connection must be connected");
   }
+
+src->disconnect(rtpEpAnswerer);
+rtpEpOfferer->disconnect(pt);
+rtpEpOfferer2->disconnect(pt2);
 
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpOfferer2);
@@ -639,12 +694,16 @@ reconnection_process_answer_state_changes_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("Connection must be connected");
   }
 
+	src->disconnect(rtpEpOfferer);
+	rtpEpAnswerer->disconnect(pt);
+	rtpEpAnswerer2->disconnect(pt2);
+
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releaseRtpEndpoint (rtpEpAnswerer2);
   releasePassTrhough (pt);
   releasePassTrhough (pt2);
-  releaseTestSrc (src);
+  releaseTestElement (src);
 }
 
 static void
@@ -744,14 +803,236 @@ reconnection_process_answer_back_state_changes_impl (bool useIpv6, bool useCrypt
     BOOST_ERROR ("Connection must be connected");
   }
 
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  src2->disconnect(rtpEpAnswerer2);
+
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releaseRtpEndpoint (rtpEpAnswerer2);
   releasePassTrhough (pt);
-  releaseTestSrc (src);
-  releaseTestSrc (src2);
+  releaseTestElement (src);
+  releaseTestElement (src2);
 }
 
+static void
+filter_out_from_source_addr_impl (bool useIpv6, bool useCrypto)
+{
+	  std::atomic<bool> media_state_changed (false);
+	  std::atomic<bool> media_state_changed2 (false);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer2 = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+	  std::shared_ptr <MediaElementImpl> src = createTestAudioSrc();
+	  std::shared_ptr <MediaElementImpl> src2 = createTestSrc();
+	  std::condition_variable cv;
+	  std::condition_variable cv2;
+	  std::mutex mtx;
+	  std::unique_lock<std::mutex> lck (mtx);
+	  std::mutex mtx2;
+	  std::unique_lock<std::mutex> lck2 (mtx2);
+
+	  rtpEpOfferer->connect(pt);
+	  src->connect(rtpEpAnswerer);
+	  src2->connect(rtpEpAnswerer2);
+
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::AUDIO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed = true;
+			  	  	  cv.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+  try {
+	  std::string offer = rtpEpOfferer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+	  std::string answer1 = rtpEpAnswerer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer1: " + answer1);
+
+	  rtpEpOfferer->processAnswer(answer1);
+
+	  // First stream
+	  cv.wait (lck, [&] () {
+	    return media_state_changed.load();
+	  });
+	  conn.disconnect ();
+
+	  conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::VIDEO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed2 = true;
+			  	  	  cv2.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+	  if (!media_state_changed) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+	  sleep(2);
+	  dumpPipeline ("firstNegotiation.dot");
+	  std::string answer2 = rtpEpAnswerer2->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer2: " + answer2);
+
+	  rtpEpOfferer->processAnswer (answer2);
+
+	  // First stream
+	  cv2.wait (lck2, [&] () {
+	    return media_state_changed2.load();
+	  });
+	  conn.disconnect ();
+
+	  if (!media_state_changed2) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+
+	  sleep(2);
+	  dumpPipeline ("secondNegotiation.dot");
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  src2->disconnect(rtpEpAnswerer2);
+
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releaseRtpEndpoint (rtpEpAnswerer2);
+  releasePassTrhough (pt);
+  releaseTestElement (src);
+  releaseTestElement (src2);
+}
+
+
+static void
+check_ssrc_switch_impl (bool useIpv6, bool useCrypto)
+{
+	  std::atomic<bool> media_state_changed (false);
+	  std::atomic<bool> media_state_changed2 (false);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, useCrypto);
+	  std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
+	  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+	  std::condition_variable cv;
+	  std::condition_variable cv2;
+	  std::mutex mtx;
+	  std::unique_lock<std::mutex> lck (mtx);
+	  std::mutex mtx2;
+	  std::unique_lock<std::mutex> lck2 (mtx2);
+
+	  rtpEpOfferer->connect(pt);
+	  src->connect(rtpEpAnswerer);
+
+	  sigc::connection conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::AUDIO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed = true;
+			  	  	  cv.notify_one();
+		  	  	  }
+	  	  	  }
+	  );
+
+  try {
+	  std::string offer = rtpEpAnswerer->generateOffer ();
+	  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+	  std::string answer1 = rtpEpOfferer->processOffer (offer);
+	  BOOST_TEST_MESSAGE ("answer1: " + answer1);
+
+	  rtpEpAnswerer->processAnswer(answer1);
+
+	  // First stream
+	  cv.wait (lck, [&] () {
+	    return media_state_changed.load();
+	  });
+	  conn.disconnect ();
+
+	  /*conn = getMediaElement(pt)->signalMediaFlowInStateChanged.connect([&] (
+			  MediaFlowInStateChanged event) {
+		  	  	  std::shared_ptr<MediaFlowState> state = event.getState();
+		  	  	  std::shared_ptr<MediaType> media = event.getMediaType();
+
+		  	  	  if ((state->getValue() == MediaFlowState::FLOWING) && (media->getValue() == MediaType::VIDEO)) {
+			  	  	  BOOST_CHECK (state->getValue() == MediaFlowState::FLOWING);
+			  	  	  media_state_changed2 = true;
+			  	  	  cv2.notify_one();
+		  	  	  }
+	  	  	  }
+	  );*/
+
+	  if (!media_state_changed) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }
+	  sleep(2);
+	  dumpPipeline ("firstNegotiation.dot");
+	  std::string sdp2 = rtpEpAnswerer->processAnswer(answer1);
+	  //std::string sdp3 = rtpEpOfferer->processAnswer(answer1);
+
+	  sleep(2);
+	  dumpPipeline ("secondNegotiation.dot");
+	  /*cv2.wait (lck2, [&] () {
+	    return media_state_changed2.load();
+	  });
+	  conn.disconnect ();
+
+	  if (!media_state_changed2) {
+	    BOOST_ERROR ("Not media Flowing");
+	  }*/
+
+	  if (!getMediaElement(pt)->isMediaFlowingIn(std::shared_ptr<MediaType> (new MediaType (MediaType::VIDEO)))) {
+		BOOST_ERROR("Media not flowing");
+	  }
+
+  } catch (kurento::KurentoException& e) {
+	 BOOST_ERROR("Unwanted Kurento Exception managing offer/answer");
+  }
+
+  if (rtpEpAnswerer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+  if (rtpEpOfferer->getConnectionState ()->getValue () !=
+      ConnectionState::CONNECTED) {
+    BOOST_ERROR ("Connection must be connected");
+  }
+
+	  rtpEpOfferer->disconnect(pt);
+	  src->disconnect(rtpEpAnswerer);
+	  
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+  releasePassTrhough (pt);
+  releaseTestElement (src);
+}
 
 static void
 reconnection_generate_offer_state_changes()
@@ -809,26 +1090,55 @@ reconnection_process_answer_back_state_changes_ipv6()
 	  reconnection_process_answer_back_state_changes_impl (true, false);
 }
 
+static void
+filter_out_from_source_addr()
+{
+	  BOOST_TEST_MESSAGE ("Start test: filter_out_from_source_addr");
+	  filter_out_from_source_addr_impl (false, false);
+}
+
+static void
+filter_out_from_source_addr_ipv6()
+{
+	  BOOST_TEST_MESSAGE ("Start test: filter_out_from_source_addr_ipv6");
+	  filter_out_from_source_addr_impl (true, false);
+}
+
+static void 
+check_ssrc_switch()
+{
+	  BOOST_TEST_MESSAGE ("Start test: check_ssrc_switch");
+	  check_ssrc_switch_impl (false, false);
+}
+
+static void 
+check_ssrc_switch_ipv6()
+{
+	  BOOST_TEST_MESSAGE ("Start test: check_ssrc_switch_ipv6");
+	  check_ssrc_switch_impl (true, false);
+}
 
 
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
-  test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
+	test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
 
-  test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
+	test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 20);
 
-  if (false) {
-	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15000);
-  }
+	test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 20);
+	test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 20);
   return test;
 }

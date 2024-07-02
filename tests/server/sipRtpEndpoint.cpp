@@ -135,7 +135,7 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
 }
 
 static void
-releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
+releaseTestElement (std::shared_ptr<MediaElementImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -183,7 +183,7 @@ media_state_changes_impl (bool useIpv6, bool useCrypto)
 
   conn.disconnect ();
 
-  releaseTestSrc (src);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
 

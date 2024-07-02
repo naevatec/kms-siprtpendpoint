@@ -43,108 +43,20 @@ namespace kurento
 
 const static std::string DEFAULT = "default";
 
-
-// Bit of a hack to remove a memory leak. It seems that the process of composing a Media Element 
-// from other MediaElements  interfere with the protocol of connecting MediaElements
-// While a more definitive solution is implemented by creating a single Gstreamer element
-// with a bin containing two agnosticbin (one for input and another for output) and an internal kmssiprtpendpoint
-// This hack should remove the memory leak
-static void 
-review_pad (GstPad *pad)
+// Wrapper to comply with execution of postconstructor on internal
+// passthorughs used vu composedObjectImpl
+class PassThroughWrapper : public PassThroughImpl 
 {
-	if (GST_IS_PAD(pad) && (gst_pad_get_direction (pad) == GST_PAD_SRC)) {
-		// Bit of hack, we detected that this object src pads are no being correctly released
-		gst_object_unref (pad);
-	}
-}
+	friend class ComposedObjectImpl;
 
-static void
-unregister_signals (std::map<gpointer, unsigned long> signals)
-{
-	for (auto it = signals.begin(); it != signals.end(); ++it) {
-		g_signal_handler_disconnect (it->first, it->second);
-	}
-}
+	public:
+  	PassThroughWrapper (const boost::property_tree::ptree &config,
+                   std::shared_ptr<MediaPipeline> mediaPipeline): PassThroughImpl (config, mediaPipeline)
+	{ }
 
-static void
-clean_pending_pads (std::list<GstPad*> *pending_pads)
-{
-	std::for_each (pending_pads->begin(), pending_pads->end(), [](GstPad* pad){
-		review_pad (pad);
-	});
-	pending_pads->clear ();
-}
-
-
-static void 
-linked_callback (GstPad * self,
-                 GstPad * peer,
-                 gpointer user_data)
-{
-	std::list<GstPad*> *pending_pads = (std::list<GstPad*>*)user_data;
-
-	if (GST_IS_GHOST_PAD(peer) && (gst_pad_get_direction (peer) == GST_PAD_SRC)) {
-		pending_pads->push_back (peer);
-	}
-}
-
-static void 
-register_pending_pad (GstElement * object,
-                    GstPad * new_pad,
-                    gpointer user_data)
-{
-	std::list<GstPad*> *pending_pads = (std::list<GstPad*>*)user_data;
-
-	if (GST_IS_GHOST_PAD(new_pad) && (gst_pad_get_direction (new_pad) == GST_PAD_SRC)) {
-		pending_pads->push_back (new_pad);
-	}
-}
-
-static std::map<gpointer, unsigned long> 
-register_element_pads (std::list<GstPad*>& pending_pads, GstElement *element)
-{
-	unsigned long signal_id;
-	GstIterator *iterator;
-	bool done = false;
-	GValue item = G_VALUE_INIT;
-	std::map<gpointer, unsigned long> registered_signals;
-
-	signal_id = g_signal_connect (element, "pad-added", G_CALLBACK (register_pending_pad), &pending_pads);
-	registered_signals [element] = signal_id;
-
-	iterator = gst_element_iterate_sink_pads  (element);
-
-	while (!done) {
-		switch (gst_iterator_next (iterator, &item))  {
- 		case GST_ITERATOR_OK:
-		 {
-			GstPad *pad;
-			unsigned long signal_id;
-
-			pad = GST_PAD(g_value_get_object (&item));
-			signal_id = g_signal_connect (pad, "linked", G_CALLBACK (linked_callback), &pending_pads);
-			registered_signals [pad] = signal_id;
-
-         	g_value_reset (&item);
-		 }
-         break;
-       case GST_ITERATOR_RESYNC:
-         gst_iterator_resync (iterator);
-         break;
-       case GST_ITERATOR_ERROR:
-         done = true;
-         break;
-       case GST_ITERATOR_DONE:
-         done = true;
-         break;			
-		}
-	}
-	g_value_unset (&item);
-	gst_iterator_free (iterator);
-
-	return registered_signals;
-} 
-
+	protected:
+	virtual void postConstructor () { PassThroughImpl::postConstructor (); }
+};
 
 
 ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
@@ -152,30 +64,25 @@ ComposedObjectImpl::ComposedObjectImpl (const boost::property_tree::ptree &conf,
   : MediaElementImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline), FACTORY_NAME)
 {
+	PassThroughWrapper *_srcPt = new PassThroughWrapper(config, mediaPipeline);
+	PassThroughWrapper *_sinkPt = new PassThroughWrapper(config, mediaPipeline);
 
-  sinkPt = std::shared_ptr<PassThroughImpl>(new PassThroughImpl(config, mediaPipeline));
-  srcPt = std::shared_ptr<PassThroughImpl>(new PassThroughImpl(config, mediaPipeline));
-  linkedSource = NULL;
-  linkedSink = NULL;
-  origElem = NULL;
-
-  // Register src pads for memory leak 
-  std::map<gpointer, unsigned long> registered_signals;
-  
-  registered_signals = register_element_pads (this->padsToReview, sinkPt->getGstreamerElement());
-  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end());
-  registered_signals = register_element_pads (this->padsToReview, srcPt->getGstreamerElement());
-  this->signals_to_disconnect.insert (registered_signals.begin(), registered_signals.end ());
+	sinkPt = std::shared_ptr<PassThroughWrapper>(_srcPt);
+	srcPt = std::shared_ptr<PassThroughWrapper>(_sinkPt);
+	_sinkPt->postConstructor();
+	_srcPt->postConstructor();
+	linkedSource = NULL;
+	linkedSink = NULL;
+	origElem = NULL;
 }
 
 ComposedObjectImpl::~ComposedObjectImpl()
 {
-	element = origElem;
 
 	disconnectBridgeSignals ();
 
-	unregister_signals (this->signals_to_disconnect);
-	clean_pending_pads (&(this->padsToReview));
+	element = origElem;
+
 }
 
 /*-------------------------------------------------*/
@@ -320,7 +227,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  raiseEvent<ElementConnected> (event, sth, signalElementConnected);
 	  });
 
-	/*  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
+	  connElementDisconnectedSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalElementDisconnected.connect([ &, wt ] (
 			  ElementDisconnected event) {
 		  try {
 			  std::shared_ptr<MediaObject> sth = wt.lock ();
@@ -354,7 +261,7 @@ ComposedObjectImpl::connectBridgeSignals ()
 		  } catch (const std::bad_weak_ptr &e) {
 			    // shared_from_this()
 		  }
-	  }); */
+	  }); 
 
 	  connErrorSrc = std::dynamic_pointer_cast<MediaElementImpl>(srcPt)->signalError.connect([ &, wt ] (
 			  Error event) {
@@ -461,12 +368,14 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 
 	// Unlink source and sink from previous composed object
 	if (linkedSource != NULL) {
+		GST_WARNING("Disconnecting src (%p) %s", linkedSource.get(), linkedSource->getName ().c_str());
 		// Unlink source
 		linkedSource->disconnect(sinkPt);
 		
 		disconnectElementSrcSignals ();
 	}
 	if (linkedSink != NULL) {
+		GST_WARNING("Disconnecting sink (%p) %s", linkedSink.get (), linkedSink->getName ().c_str());
 		// Unlink sink
 		srcPt->disconnect(linkedSink);
 
@@ -482,12 +391,14 @@ void ComposedObjectImpl::linkMediaElement(std::shared_ptr<MediaElement> linkSrc,
 		linkedSource->connect(sinkPt);
 
 		connectElementSrcSignals ();
+		GST_WARNING("Connected src (%p) %s", linkedSource.get(), linkedSource->getName ().c_str());
 	}
 	if (linkedSink != NULL) {
 		// Link sink
 		srcPt->connect(linkedSink);
 
 		connectElementSinkSignals ();
+		GST_WARNING("Connected sink (%p) %s", linkedSink.get (), linkedSink->getName ().c_str());
 	}
 }
 

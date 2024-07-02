@@ -20,252 +20,61 @@
 #include <commons/constants.h>
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
-
+#include <gst/net/gstnet.h>
 #include <sys/time.h>
 
-#define SSRC_SWITCH_PROTECTION_MS 1000
-
-static guint64
-get_current_time_ms ()
-{
-	struct timeval tv;
-	
-	gettimeofday(&tv, NULL);
-	
-	guint64 millisecondsSinceEpoch =
-	    (unsigned long long)(tv.tv_sec) * 1000 +
-		(unsigned long long)(tv.tv_usec) / 1000;
-
-	return millisecondsSinceEpoch;
-}
-
-static void
-adjust_filter_info_ts_info (SipFilterSsrcInfo* filter_info, guint16 seq, guint32 ts)
-{
-	g_rec_mutex_lock (&filter_info->mutex);
-	if (filter_info->last_seq < seq) {
-		filter_info->last_ts_delta = (ts - filter_info->last_ts) / (seq - filter_info->last_seq);
-		filter_info->last_seq = seq;
-		filter_info->last_ts = ts;
-	}
-	g_rec_mutex_unlock (&filter_info->mutex);
-}
+#define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
+GST_DEBUG_CATEGORY_EXTERN(GST_CAT_DEFAULT);
 
 static gboolean
-check_ssrc (guint32 ssrc, SipFilterSsrcInfo* filter_info, guint16 seq, guint32 ts)
+check_source_address (GstBuffer *buffer, GInetSocketAddress *peer_address)
 {
-	guint64 current_time = 0;
+	GstNetAddressMeta *address_meta;
+	GInetSocketAddress *source_address;
+	GInetAddress *inet_address_peer;
+	GInetAddress *inet_address_source;
 
-	GST_DEBUG("Check_ssrc %u, expected %u, current %u", ssrc, filter_info->expected, filter_info->current);
-	if (filter_info->expected == 0) {
-		gboolean result, init;
-
-		init = FALSE;
-		g_rec_mutex_lock (&filter_info->mutex);
-		if (filter_info->expected == 0) {
-			// Not yet received first SSRC
-			init = TRUE;
-
-			// If SSRC is in list of old ones, we discard buffer
-			current_time = get_current_time_ms(); 
-			if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
-				result = TRUE;
-			} else {
-				// If not, first SSRC will be fixed for pipeline in current media connection
-				filter_info->expected = ssrc;
-				filter_info->current = ssrc;
-				filter_info->last_seq = seq;
-				filter_info->last_ts = ts;
-				result = FALSE;
-			}
-		}
-		g_rec_mutex_unlock  (&filter_info->mutex);
-		if (init) {
-			// If not init then a concurrent thread has just initted.
-			return result;
-		}
-	}
-
-	if (ssrc == filter_info->current) {
-		adjust_filter_info_ts_info (filter_info, seq, ts);
-
-		// SSRC is expected one we let buffer to continue processing
-		return FALSE;
-	} else  {
-		// If SSRC is in list of old ones, we discard buffer
-		g_rec_mutex_lock (&filter_info->mutex);
-		current_time = get_current_time_ms(); 
-		if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
-			g_rec_mutex_unlock (&filter_info->mutex);
-			return TRUE;
-		}
-		g_rec_mutex_unlock (&filter_info->mutex);
-
-
-		// SSRC is not expected one, but also does not seem late packets from previous media connections
-		// We can assume peer has just switched SSRC (VoIP PBX?), and buffer should be affected
-		// In this case SSRC in buffer should be changed to expected one so that pipeline does not complain
-		// and stop processing due to not linked error
-
-		// We cannot let the buffer continue as it would pause the streaming task,
-		// But this is fixed later, by now we let the buffer go
+	// If no filter, we don't let RTP buffer get through
+	if (peer_address == NULL) {
 		return FALSE;
 	}
-}
-
-static gboolean
-check_ssrc_rtcp (guint32 ssrc, SipFilterSsrcInfo* filter_info)
-{
-	guint64 current_time = 0;
-
-	if (filter_info->expected == 0) {
-		gboolean result, init;
-
-		init = FALSE;
-		g_rec_mutex_lock (&filter_info->mutex);
-		if (filter_info->expected == 0) {
-			// Not yet received first SSRC
-			init = TRUE;
-
-			// If SSRC is in list of old ones, we discard buffer
-			current_time = get_current_time_ms(); 
-			if ((filter_info->old == ssrc) && (filter_info->last_switch != 0) && (current_time < (filter_info->last_switch + SSRC_SWITCH_PROTECTION_MS))) {
-				result = TRUE;
-			} else {
-				// If not, first SSRC will be fixed for pipeline in current media connection
-				filter_info->expected = ssrc;
-				filter_info->current = ssrc;
-				result = FALSE;
-			}
-		}
-		g_rec_mutex_unlock  (&filter_info->mutex);
-		if (init) {
-			// If not init then a concurrent thread has just initted.
-			return result;
-		}
-	}
-
-	if (ssrc == filter_info->current) {
-		// SSRC is expected one we let buffer to continue processing
+	// If no RTP source information we don't let it go through
+	address_meta = gst_buffer_get_net_address_meta(buffer);
+	if (address_meta == NULL) {
+		GST_DEBUG("check_source_address: no source address in buffer");
 		return FALSE;
-	} else  {
-		return TRUE;
 	}
-}
-
-static void
-fix_rtp_buffer_voip_switched_ssrc (GstRTPBuffer *rtp_buffer, SipFilterSsrcInfo* filter_info)
-{
-	guint32 seq_number = gst_rtp_buffer_get_seq  (rtp_buffer);
-	guint32 ts = gst_rtp_buffer_get_timestamp (rtp_buffer);
-	guint32 fixed_ts = 0;
-
-	// Fix SSRC to keep pipelime happy
-	gst_rtp_buffer_set_ssrc (rtp_buffer, filter_info->expected);
-
-	// We fix timestamping to keep kmsrtpsynchronizer happy
-	if (filter_info->jump_ts != 0) {
-		gint64 aux_ts;
-
-		aux_ts = ts;
-		aux_ts -= filter_info->jump_ts;
-
-		if (aux_ts < 0)
-			aux_ts += G_MAXUINT32;
-
-		fixed_ts = aux_ts;
-		gst_rtp_buffer_set_timestamp (rtp_buffer, fixed_ts);
+	source_address = G_INET_SOCKET_ADDRESS(address_meta->addr);
+	if (source_address == NULL) {
+		GST_DEBUG("check_source_address: empty source address in buffer");
+		return FALSE;
 	}
 
-	GST_DEBUG ("Fixing RTP info: ssrc %u, sequence %u and ts %u", filter_info->expected, seq_number, fixed_ts);
-}
-
-static gint64
-calculate_jump_ts (SipFilterSsrcInfo* filter_info, guint32 seq, guint32 ts)
-{
-	gint64 new_jump;
-
-	new_jump = filter_info->jump_ts;
-	if (filter_info->last_ts < ts) {
-		new_jump += (ts - filter_info->last_ts) - filter_info->last_ts_delta;
-	} else {
-		new_jump -= (filter_info->last_ts - ts) + filter_info->last_ts_delta;
+	// If port different, just filter out
+	if (g_inet_socket_address_get_port(source_address) != g_inet_socket_address_get_port(peer_address)) {
+		GST_DEBUG("check_source_address: source port does not match");
+		return FALSE;
 	}
 
-	return new_jump;
+	inet_address_source = g_inet_socket_address_get_address (source_address);
+	inet_address_peer = g_inet_socket_address_get_address (peer_address);
+	if (!g_inet_address_get_is_any(inet_address_peer) && !g_inet_address_equal(inet_address_peer, inet_address_source)) {
+		GST_DEBUG("check_source_address: source ip address does not match");
+		return FALSE;
+	}
+	return TRUE;
 }
 
 static GstPadProbeReturn
 filter_ssrc_rtp_buffer (GstBuffer *buffer, SipFilterSsrcInfo* filter_info)
 {
-	GstRTPBuffer rtp_buffer =  GST_RTP_BUFFER_INIT;
-	GstPadProbeReturn result = GST_PAD_PROBE_OK;
-
-	if (gst_rtp_buffer_map (buffer, GST_MAP_READWRITE, &rtp_buffer)) {
-		GST_DEBUG ("filter old ssrc RTP buffer");
-		guint32 checked_ssrc = gst_rtp_buffer_get_ssrc (&rtp_buffer);
-		guint32 seq_number = gst_rtp_buffer_get_seq  (&rtp_buffer);
-		guint32 ts = gst_rtp_buffer_get_timestamp  (&rtp_buffer);
-
-		GST_DEBUG("Filtering RTP buffer with ssrc %u and sequence %u, and ts %u", checked_ssrc, seq_number, ts);
-		if (check_ssrc (checked_ssrc, filter_info, seq_number, ts)) {
-			GST_INFO ("RTP packet dropped from a previous RTP flow with SSRC %u", checked_ssrc);
-			gst_rtp_buffer_unmap (&rtp_buffer);
-			return GST_PAD_PROBE_DROP;
-		} else {
-			// We are pushing an EXPECTED SSRC, so after its processing this probe is no longer needed
-			GST_DEBUG ("filter old ssrc forwarded buffer %u", checked_ssrc);
-			if (checked_ssrc != filter_info->expected) {
-				gboolean ssrc_switched = FALSE;
-
-				// SSRC not expected and not from last stream, stream switching is happening
- 				if (checked_ssrc != filter_info->current) {
-					g_rec_mutex_lock (&filter_info->mutex);
-					if (checked_ssrc != filter_info->current) {
-						// Old stream must be filtered out from now on
-						filter_info->old = filter_info->current;
-						filter_info->last_switch = get_current_time_ms();
-
-						// Get sure next Buffers will be easily checked for new current stream
-						filter_info->current = checked_ssrc;
-						// Calculate ts jump so that we can adapt RTP buffers and SR for new stream to keep kmsrtpsynchronizer happy
-						filter_info->jump_ts = calculate_jump_ts (filter_info, seq_number, ts);
-
-						GST_DEBUG ("SSRC switched, calculated ts jump %ld, last ts %u, current ts %u, seq number: %u", filter_info->jump_ts, filter_info->last_ts, ts, seq_number);
-						ssrc_switched = TRUE;
-					}
-					g_rec_mutex_unlock (&filter_info->mutex);
-				}
-
-				// We have just switched SSRCs some anomalous situation
-				// Kind of hack: we will change SSRC in buffer to original one so that
-				// pipeline does not get disrupted and media continue flowing to already connected elements
-				if (filter_info->media_session == VIDEO_RTP_SESSION) {
-					// if this is video, this is an unexpected media switching, to allow further media comm
-					// We just correct SSRC and let buffer continue flow, otherwise streaming task would be stopped
-					GST_DEBUG("Switching SSRC, original: %u, switched: %u", filter_info->expected, checked_ssrc);
-					gst_rtp_buffer_set_ssrc (&rtp_buffer, filter_info->expected);
-				} else if (filter_info->media_session == AUDIO_RTP_SESSION) {
-					// If this is audio, it may be a VoIP situation of media switching.
-					// IT is marked by marker and SSRC is switched and timestamping process is restarted to a random point
-					if (ssrc_switched) {
-						GST_INFO("VoIP RTP flow internally switched, old SSRC %u, new one %u", filter_info->expected, checked_ssrc);
-					}
-
-					// We fix ssrc and timestamping
-					fix_rtp_buffer_voip_switched_ssrc (&rtp_buffer, filter_info);
-
-					// Let buffer continue processing
-					result = GST_PAD_PROBE_OK;
-				}
-
-			}
-			gst_rtp_buffer_unmap (&rtp_buffer);
-			return result;
-		}
+	// First we decide if filter out or not RTP buffer depending on source address
+	if (!check_source_address (buffer, filter_info->peer_address)) {
+		GST_DEBUG("filter_ssrc_rtp_buffer: dropping RTP packet");
+		return GST_PAD_PROBE_DROP;
 	}
 
-	GST_WARNING ("Buffer not mapped to RTP");
+	// We now leave ssrc and timestamp management to downstream gstreamer elements, so no further filtering nor manipulation needed here.
 	return GST_PAD_PROBE_OK;
 }
 
@@ -287,11 +96,8 @@ filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	SipFilterSsrcInfo* filter_info = (SipFilterSsrcInfo*) user_data;
 	GstBuffer *buffer;
 
-	GST_DEBUG ("Filtering RTP packets from previous flows to this receiver");
 	buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 	if (buffer != NULL) {
-		GST_DEBUG ("RTP buffer received from Filtering RTP packets from previous flows to this receiver");
-
 		return filter_ssrc_rtp_buffer (buffer, filter_info);
 	} else  {
 		GstBufferList *buffer_list;
@@ -307,24 +113,6 @@ filter_ssrc_rtp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 	return GST_PAD_PROBE_OK;
 }
 
-
-static guint32
-fix_rtcp_ts (SipFilterSsrcInfo* filter_info, guint32 rtptime)
-{
-	gint64 aux_ts = rtptime;
-
-	// We fix timestamping to keep kmsrtpsynchronizer happy
-	if (filter_info->jump_ts != 0) {
-		aux_ts -= filter_info->jump_ts;
-
-		if (aux_ts < 0)
-			aux_ts += G_MAXUINT32;
-	}
-
-	GST_DEBUG ("Fixing RTCP TS: original %u, fixed %ld", rtptime, aux_ts);
-	return aux_ts;
-}
-
 static GstPadProbeReturn
 filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
@@ -333,84 +121,14 @@ filter_ssrc_rtcp (GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 
 	buffer = GST_PAD_PROBE_INFO_BUFFER (info);
 
-	GstRTCPBuffer rtcp_buffer = GST_RTCP_BUFFER_INIT;
-
-	GST_DEBUG ("Filtering RTCP buffer from previous flows to this receiver");
-    if (gst_rtcp_buffer_map (buffer, GST_MAP_READWRITE, &rtcp_buffer)) {
-    	GstRTCPPacket packet;
-		gboolean has_packet;
-
-		has_packet = gst_rtcp_buffer_get_first_packet (&rtcp_buffer, &packet);
-
-		GST_DEBUG ("Filtering RTCP packets from previous flows to this receiver");
-
-    	if (has_packet) {
-    		GstRTCPType  packet_type = gst_rtcp_packet_get_type (&packet);
-
-    		if (packet_type == GST_RTCP_TYPE_SR) {
-        		guint32 ssrc, rtptime, packet_count, octet_count;
-        		guint64 ntptime;
-
-    			gst_rtcp_packet_sr_get_sender_info    (&packet, &ssrc, &ntptime, &rtptime, &packet_count, &octet_count);
-    			GST_DEBUG ("Got RTCP ssrc: %u ntptime: %lu, rtptime: %u, packet count: %u, octect_count: %u", ssrc, ntptime, rtptime, packet_count, octet_count);
-    			if (check_ssrc_rtcp (ssrc, filter_info)) {
-    				GST_DEBUG("Unexpected SSRC RTCP packet received: %u, expected: %u", ssrc, filter_info->expected);
-    				// If any packet in a buffer has an unexpectd SSRc, all buffer can be dropped
-    		    	gst_rtcp_buffer_unmap (&rtcp_buffer);
-    				return GST_PAD_PROBE_DROP;
-    			} else {
-    				if (ssrc != filter_info->expected) {
-    					if (filter_info->media_session == AUDIO_RTP_SESSION) {
-        					while (has_packet) {
-        						switch (packet_type) {
-        						case GST_RTCP_TYPE_SR:
-        							{
-										guint32 fixed_rtptime = fix_rtcp_ts (filter_info, rtptime);
-										GST_DEBUG ("Fixed RTCP ssrc: %u ntptime: %lu, rtptime: %u, packet count: %u, octect_count: %u", filter_info->expected, ntptime, fixed_rtptime, packet_count, octet_count);
-										gst_rtcp_packet_sr_set_sender_info  (&packet, filter_info->expected, ntptime, fixed_rtptime, packet_count, octet_count);
-        							}
-                					break;
-        						case GST_RTCP_TYPE_BYE:
-        							gst_rtcp_packet_bye_add_ssrc  (&packet, filter_info->expected);
-        							break;
-
-        						// Feedback packets, should let them go
-        						case GST_RTCP_TYPE_APP:
-        						case GST_RTCP_TYPE_RR:
-        						case GST_RTCP_TYPE_XR:
-        						case GST_RTCP_TYPE_RTPFB:
-        						case GST_RTCP_TYPE_PSFB:
-        							break;
-        						case GST_RTCP_TYPE_SDES:
-        						case GST_RTCP_TYPE_INVALID:
-        						default:
-        							gst_rtcp_packet_remove (&packet);
-        							break;
-        						}
-            		    		has_packet = gst_rtcp_packet_move_to_next (&packet);
-            		    		packet_type = gst_rtcp_packet_get_type (&packet);
-        					}
-    					} else if (filter_info->media_session == VIDEO_RTP_SESSION) {
-        					while (has_packet) {
-        						if (packet_type == GST_RTCP_TYPE_SR) {
-                					gst_rtcp_packet_sr_set_sender_info  (&packet, filter_info->expected, ntptime, rtptime, packet_count, octet_count);
-        						} else {
-        							gst_rtcp_packet_remove (&packet);
-        						}
-            		    		has_packet = gst_rtcp_packet_move_to_next (&packet);
-            		    		packet_type = gst_rtcp_packet_get_type (&packet);
-        					}
-    					}
-    				}
-    		    	gst_rtcp_buffer_unmap (&rtcp_buffer);
-    				return GST_PAD_PROBE_OK;
-    			}
-    		}
-    	}
-    	gst_rtcp_buffer_unmap (&rtcp_buffer);
+	// First we decide if filter out or not RTP buffer depending on source address
+	if (!check_source_address (buffer, filter_info->peer_rtcp_address)) {
+		GST_DEBUG("filter_ssrc_rtp_buffer: dropping RTCP packet");
+		return GST_PAD_PROBE_DROP;
 	}
 
-    return GST_PAD_PROBE_OK;
+	// We now leave ssrc and timestamp management to downstream gstreamer elements, so no further filtering nor manipulation needed here.
+	return GST_PAD_PROBE_OK;
 }
 
 
@@ -488,40 +206,89 @@ kms_sip_rtp_filter_release_probe_rtcp (GstPad *pad, gulong probe_id)
 }
 
 SipFilterSsrcInfo*
-kms_sip_rtp_filter_create_filtering_info (guint32 expected, SipFilterSsrcInfo* previous, guint32 media_session, gboolean continue_stream)
+kms_sip_rtp_filter_create_filtering_info (SipFilterSsrcInfo* previous, guint media_type)
 {
-	SipFilterSsrcInfo* info = g_new (SipFilterSsrcInfo, 1);
+	SipFilterSsrcInfo* info = g_new0 (SipFilterSsrcInfo, 1);
+	GInetAddress *addr;
+	gchar *addr_str;
+	guint port;
 
 	// Initialize filter_info
-	info->expected = expected;
-	info->current = expected;
-	info->old = 0L;
-	info->last_switch = 0L;
-	info->media_session = media_session;
-	info->last_seq = 0;
-	info->last_ts = 0;
-	info->last_ts_delta = 0;
-	info->jump_ts = 0;
+	info->peer_address = NULL;
+	info->peer_rtcp_address = NULL;
+	info->media_type = media_type;
 
 	g_rec_mutex_init (&info->mutex);
 
-	GST_DEBUG("create_filtering_info, setting expected ssrc: %u", expected);
 	if (previous != NULL) {
-		GST_DEBUG("create_filtering_info, setting old ssrc: %u", previous->expected);
-		// If we have previous media connection, we need to take note of previous SSRC to discard late packets
-		if ((previous->expected != 0) && !continue_stream) {
-			info->old = previous->expected;
-			info->last_switch = get_current_time_ms ();
+		if (previous->peer_address == NULL) {
+			GST_DEBUG("create_filtering_info, no expected remote RTP address yet");
+		} else {
+			port = g_inet_socket_address_get_port (previous->peer_address);
+			addr = g_inet_socket_address_get_address (previous->peer_address);
+			addr_str = g_inet_address_to_string (addr);
+			GST_DEBUG("create_filtering_info, setting expected remote address : %s:%d", addr_str, port);
+			g_free(addr_str);
+		}
+		if (previous->peer_rtcp_address == NULL) {
+			GST_DEBUG("create_filtering_info, no expected remote RTCP address yet");
+		} else {
+			port = g_inet_socket_address_get_port (previous->peer_rtcp_address);
+			addr = g_inet_socket_address_get_address (previous->peer_rtcp_address);
+			addr_str = g_inet_address_to_string (addr);
+			GST_DEBUG("create_filtering_info, setting expected remote RTCP address : %s:%d", addr_str, port);
+			g_free(addr_str);
 		}
 	}
 
 	return info;
 }
 
+void kms_sip_rtp_filter_set_addresses (SipFilterSsrcInfo *filter_info, GInetSocketAddress *rtp_address, GInetSocketAddress *rtcp_address)
+{
+	if (rtp_address != NULL) {
+		filter_info->peer_address = rtp_address;
+	}
+	if (rtcp_address != NULL) {
+		filter_info->peer_rtcp_address = rtcp_address;
+	}
+}
+
+
 void kms_sip_rtp_filter_release_filtering_info (SipFilterSsrcInfo* info)
 {
 	g_rec_mutex_clear (&info->mutex);
+	if (info->peer_address != NULL) {
+		g_object_unref(info->peer_address);
+	}
+	if (info->peer_rtcp_address != NULL) {
+		g_object_unref(info->peer_rtcp_address);
+	}
 	g_free (info);
+}
+
+
+void kms_sip_rtp_filter_set_added_client_rtp (GstElement * gstmultiudpsink, gchararray host, gint port, gpointer udata)
+{
+	SipFilterSsrcInfo *info = (SipFilterSsrcInfo*) udata;
+	GInetSocketAddress *addr = (GInetSocketAddress*) g_inet_socket_address_new_from_string (host, port);
+	GST_DEBUG("Filtering source RTP %s: %d", host, port);
+	if (info->peer_address != NULL)  {
+		g_object_unref(info->peer_address);
+	}
+	info->peer_address = addr;
+}
+
+void kms_sip_rtp_filter_set_added_client_rtcp (GstElement * gstmultiudpsink, gchararray host, gint port, gpointer udata)
+{
+	SipFilterSsrcInfo *info = (SipFilterSsrcInfo*) udata;
+	GInetSocketAddress *addr = (GInetSocketAddress*) g_inet_socket_address_new_from_string (host, port);
+	GST_DEBUG("Filtering source RTCP %s:%d", host, port);
+
+	if (info->peer_rtcp_address != NULL)  {
+		g_object_unref(info->peer_rtcp_address);
+	}
+	info->peer_rtcp_address = addr;
 }
 
 

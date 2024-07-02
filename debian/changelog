@@ -1,3 +1,15 @@
+kms-siprtpendpoint (1.5.1) RELEASED; urgency=medium
+
+  * release 1.5.1 memory fixes
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Wed, 21 May 2024 10:38:39 +0000
+
+kms-siprtpendpoint (1.5.0) RELEASED; urgency=medium
+
+  * release 1.5.0
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Wed, 7 May 2024 10:38:39 +0000
+
 kms-siprtpendpoint (1.4.0) RELEASED; urgency=medium
 
   * release 1.4.0
