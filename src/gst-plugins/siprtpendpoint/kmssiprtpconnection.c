@@ -228,7 +228,7 @@ static void
 kms_sip_rtp_connection_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  KmsSipRtpConnection *self = KMS_RTP_CONNECTION (object);
+  KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (object);
 
   switch (prop_id) {
     case PROP_MAX_KBPS:
@@ -253,7 +253,7 @@ static void
 kms_sip_rtp_connection_get_property (GObject * object,
     guint prop_id, GValue * value, GParamSpec * pspec)
 {
-  KmsSipRtpConnection *self = KMS_RTP_CONNECTION (object);
+  KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (object);
 
   switch (prop_id) {
     case PROP_MAX_KBPS:
@@ -339,6 +339,7 @@ kms_sip_rtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gbo
   gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
 }
 
+static void
 kms_sip_rtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *base_rtp_conn)
 {
   KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (base_rtp_conn);

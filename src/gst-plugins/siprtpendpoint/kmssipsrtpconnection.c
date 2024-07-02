@@ -27,7 +27,7 @@
 
 
 
-GST_CAT_DEFAULT kmssipsrtpconnection
+#define GST_CAT_DEFAULT kmssipsrtpconnection
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define GST_DEFAULT_NAME "kmssipsrtpconnection"
@@ -291,12 +291,12 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 		  }
 	  }
 
-	  conn->traffic_shaper = gst_element_factory_make ("trafficshaper", NULL);
-	  if (conn->priv->max_kbps > 0){
-		g_object_set (G_OBJECT(conn->traffic_shaper), "max-kbps", conn->priv->max_kbps, NULL);
+	  sip_conn->traffic_shaper = gst_element_factory_make ("trafficshaper", NULL);
+	  if (sip_conn->priv->max_kbps > 0){
+		  g_object_set (G_OBJECT(sip_conn->traffic_shaper), "max-kbps", sip_conn->priv->max_kbps, NULL);
 	  }
-	  if (conn->priv->max_bucket_size > 0){
-		g_object_set (G_OBJECT(conn->traffic_shaper), "max-bucket-size", conn->priv->max_bucket_size, NULL);
+	  if (sip_conn->priv->max_bucket_size > 0){
+		  g_object_set (G_OBJECT(sip_conn->traffic_shaper), "max-bucket-size", sip_conn->priv->max_bucket_size, NULL);
 	  }
 
 
@@ -388,7 +388,7 @@ static void
 kms_sip_srtp_connection_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec)
 {
-  KmsSipSrtpConnection *self = KMS_RTP_CONNECTION (object);
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (object);
 
   switch (prop_id) {
     case PROP_MAX_KBPS:
@@ -413,7 +413,7 @@ static void
 kms_sip_srtp_connection_get_property (GObject * object,
     guint prop_id, GValue * value, GParamSpec * pspec)
 {
-  KmsSipSrtpConnection *self = KMS_RTP_CONNECTION (object);
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (object);
 
   switch (prop_id) {
     case PROP_MAX_KBPS:
@@ -499,6 +499,7 @@ kms_sip_srtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gb
   gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
 }
 
+static void
 kms_sip_srtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *base_rtp_conn)
 {
   KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);

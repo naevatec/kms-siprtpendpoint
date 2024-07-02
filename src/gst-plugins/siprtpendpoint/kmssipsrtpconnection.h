@@ -27,9 +27,9 @@ G_BEGIN_DECLS
 
 
 #define KMS_TYPE_SIP_SRTP_CONNECTION \
-  (kms_rtp_connection_get_type())
+  (kms_sip_srtp_connection_get_type())
 #define KMS_SIP_SRTP_CONNECTION(obj) \
-  (G_TYPE_CHECK_INSTANCE_CAST((obj),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSrtpConnection))
+  (G_TYPE_CHECK_INSTANCE_CAST((obj),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnection))
 #define KMS_SIP_SRTP_CONNECTION_CLASS(klass) \
   (G_TYPE_CHECK_CLASS_CAST((klass),KMS_TYPE_SIP_SRTP_CONNECTION,KmsRtpConnectionClass))
 #define KMS_IS_SIP_SRTP_CONNECTION(obj) \
