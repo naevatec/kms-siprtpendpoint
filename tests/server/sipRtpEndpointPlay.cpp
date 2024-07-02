@@ -811,6 +811,133 @@ reconnection_process_answer_back_state_changes_ipv6()
 
 
 
+static void
+bitrate_limiter_impl (bool useIpv6)
+{
+  config.add ("modules.kurento.RtpEndpoint.maxKbps", 450);
+  config.add ("modules.kurento.RtpEndpoint.maxBucketSize", 20);
+
+  std::atomic<bool> media_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+
+  src->connect (rtpEpOfferer);
+
+  rtpEpAnswerer->getSignalMediaStateChanged().connect ([&] (
+  MediaStateChanged event) {
+    std::shared_ptr <MediaState> state = event.getNewState();
+    BOOST_CHECK (state->getValue() == MediaState::CONNECTED);
+    media_state_changed = true;
+    cv.notify_one();
+  });
+
+  std::string offer = rtpEpOfferer->generateOffer ();
+  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+  std::string answer = rtpEpAnswerer->processOffer (offer);
+  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+  rtpEpOfferer->processAnswer (answer);
+
+  cv.wait (lck, [&] () {
+    return media_state_changed.load();
+  });
+
+  if (!media_state_changed) {
+    BOOST_ERROR ("Not media state chagned");
+  }
+
+  sleep(10);
+
+  releaseTestSrc (src);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+}
+
+
+static void
+bitrate_overloadded_impl (bool useIpv6)
+{
+  config.add ("modules.kurento.RtpEndpoint.maxKbps", 40);
+  config.add ("modules.kurento.RtpEndpoint.maxBucketSize", 12);
+
+  std::atomic<bool> media_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+
+  src->connect (rtpEpOfferer);
+
+  rtpEpAnswerer->getSignalMediaStateChanged().connect ([&] (
+  MediaStateChanged event) {
+    std::shared_ptr <MediaState> state = event.getNewState();
+    BOOST_CHECK (state->getValue() == MediaState::CONNECTED);
+    media_state_changed = true;
+    cv.notify_one();
+  });
+
+  std::string offer = rtpEpOfferer->generateOffer ();
+  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+  std::string answer = rtpEpAnswerer->processOffer (offer);
+  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+  rtpEpOfferer->processAnswer (answer);
+
+  cv.wait (lck, [&] () {
+    return media_state_changed.load();
+  });
+
+  if (!media_state_changed) {
+    BOOST_ERROR ("Not media state chagned");
+  }
+
+  sleep(10);
+
+  releaseTestSrc (src);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+}
+
+static void
+bitrate_limiter ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_limiter_impl (false);
+}
+
+static void
+bitrate_limiter_ipv6 ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_limiter_impl (true);
+}
+
+static void
+bitrate_overloadded ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_overloadded_impl (false);
+}
+
+static void
+bitrate_overloadded_ipv6 ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_overloadded_impl (true);
+}
+
+
+
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
@@ -822,6 +949,8 @@ init_unit_test_suite ( int , char *[] )
   test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
   test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
+  test->add (BOOST_TEST_CASE ( &bitrate_limiter ), 0, /* timeout */ 150);
+  test->add (BOOST_TEST_CASE ( &bitrate_overloadded ), 0, /* timeout */ 150);
 
   if (false) {
 	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
@@ -829,6 +958,8 @@ init_unit_test_suite ( int , char *[] )
 	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
 	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15000);
 	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15000);
+      test->add (BOOST_TEST_CASE ( &bitrate_limiter_ipv6 ), 0, /* timeout */ 150);
+	  test->add (BOOST_TEST_CASE ( &bitrate_overloadded_ipv6 ), 0, /* timeout */ 150);
   }
   return test;
 }
