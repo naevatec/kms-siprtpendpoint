@@ -1,7 +1,9 @@
+
 #ifndef __GST_TRAFFIC_SHAPER_H__
 #define __GST_TRAFFIC_SHAPER_H__
 
 #include <commons/kmselement.h>
+#include <commons/kmsloop.h>
 
 G_BEGIN_DECLS
 
@@ -31,15 +33,16 @@ struct _GstTrafficShaper
 
   GMutex loop_mutex;
   GCond start_cond;
-  GMainLoop *main_loop;
+  GCond stop_cond;
+  KmsLoop *main_loop;
   gboolean running;
-  long bucket_size;
-  GstClockTime prev_time;
-  gint64 last_ready_time;
+  glong bucket_size;   // Measured in bits
+  gint64 prev_time;    // Measured in us
 
   /* properties */
   gint max_kbps;
-  gint max_bucket_size;
+  glong max_bucket_size;  // Measured in bits
+  glong max_storage_size; // measured in bits
 };
 
 struct _GstTrafficShaperClass

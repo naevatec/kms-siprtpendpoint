@@ -22,31 +22,47 @@
 #include <gst/rtp/gstrtpbuffer.h>
 #include <gst/rtp/gstrtcpbuffer.h>
 
-// TODO: this hack can be removed when we integrate this into kms-elements and make kms_rtp_connection_new  able to
-// get an object factory
-/*struct _KmsSrtpConnectionPrivate
+#define DEFAULT_MAX_KBPS -1
+#define DEFAULT_MAX_BUCKET_SIZE -1
+
+
+
+GST_CAT_DEFAULT kmssipsrtpconnection
+GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
+
+#define GST_DEFAULT_NAME "kmssipsrtpconnection"
+
+#define KMS_SIP_SRTP_CONNECTION_GET_PRIVATE(obj) (   \
+  G_TYPE_INSTANCE_GET_PRIVATE (                 \
+    (obj),                                      \
+    KMS_TYPE_SIP_SRTP_CONNECTION,                    \
+    KmsSipSrtpConnectionPrivate                     \
+  )                                             \
+)
+
+struct _KmsSipSrtpConnectionPrivate
 {
-  GSocket *rtp_socket;
-  GstElement *rtp_udpsink;
-  GstElement *rtp_udpsrc;
+  gint max_kbps;
+  gint max_bucket_size;
+};
 
-  GSocket *rtcp_socket;
-  GstElement *rtcp_udpsink;
-  GstElement *rtcp_udpsrc;
+enum
+{
+  PROP_0,
+  PROP_MAX_KBPS,
+  PROP_MAX_BUCKET_SIZE
+};
 
-  GstElement *srtpenc;
-  GstElement *srtpdec;
 
-  gboolean added;
-  gboolean connected;
-  gboolean is_client;
+static void
+kms_sip_srtp_connection_interface_init (KmsIRtpConnectionInterface * iface);
 
-  gchar *r_key;
-  guint r_auth;
-  guint r_cipher;
-  gboolean r_updated;
-  gboolean r_key_set;
-}; */
+G_DEFINE_TYPE_WITH_CODE (KmsSipSrtpConnection, kms_sip_srtp_connection,
+    KMS_TYPE_SRTP_CONNECTION,
+    G_IMPLEMENT_INTERFACE (KMS_TYPE_I_RTP_CONNECTION,
+        kms_sip_srtp_connection_interface_init));
+
+
 
 static gchar *auths[] = {
   NULL,
@@ -246,10 +262,12 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 	  // the gstreamer object factory for the connection, so that we can simplify this function
 	  GObject *obj;
 	  KmsSrtpConnection *conn;
+    KmsSipSrtpConnection *sip_conn;
 	  GSocketFamily socket_family;
 
-	  obj = g_object_new (KMS_TYPE_SRTP_CONNECTION, NULL);
+	  obj = g_object_new (KMS_TYPE_SIP_SRTP_CONNECTION, NULL);
 	  conn = KMS_SRTP_CONNECTION (obj);
+    sip_conn = KMS_SIP_SRTP_CONNECTION(conn);
 
 	  if (use_ipv6) {
 	    socket_family = G_SOCKET_FAMILY_IPV6;
@@ -272,6 +290,15 @@ kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ip
 		    return NULL;
 		  }
 	  }
+
+	  conn->traffic_shaper = gst_element_factory_make ("trafficshaper", NULL);
+	  if (conn->priv->max_kbps > 0){
+		g_object_set (G_OBJECT(conn->traffic_shaper), "max-kbps", conn->priv->max_kbps, NULL);
+	  }
+	  if (conn->priv->max_bucket_size > 0){
+		g_object_set (G_OBJECT(conn->traffic_shaper), "max-bucket-size", conn->priv->max_bucket_size, NULL);
+	  }
+
 
 	  conn->r_updated = FALSE;
 	  conn->r_key_set = FALSE;
@@ -335,3 +362,187 @@ kms_sip_srtp_connection_release_probes (KmsSrtpConnection *conn, gulong rtp_prob
 	  gst_object_unref (pad);
 }
 
+
+static void
+kms_sip_srtp_connection_init (KmsSipSrtpConnection * self)
+{
+  self->priv = KMS_SIP_SRTP_CONNECTION_GET_PRIVATE (self);
+
+  self->priv->max_bucket_size = -1;
+  self->priv->max_kbps = -1;
+}
+
+static void
+kms_sip_srtp_connection_finalize (GObject * object)
+{
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (object);
+
+  GST_DEBUG_OBJECT (self, "finalize");
+
+  g_clear_object (&self->traffic_shaper);
+  /* chain up */
+  G_OBJECT_CLASS (kms_sip_srtp_connection_parent_class)->finalize (object);
+}
+
+static void
+kms_sip_srtp_connection_set_property (GObject * object, guint prop_id,
+    const GValue * value, GParamSpec * pspec)
+{
+  KmsSipSrtpConnection *self = KMS_RTP_CONNECTION (object);
+
+  switch (prop_id) {
+    case PROP_MAX_KBPS:
+      self->priv->max_kbps = g_value_get_int (value);
+      if (self->traffic_shaper != NULL) {
+        g_object_set (G_OBJECT(self->traffic_shaper), "max-kbps", self->priv->max_kbps, NULL);
+      }
+      break;
+    case PROP_MAX_BUCKET_SIZE:
+      self->priv->max_bucket_size = g_value_get_int (value);
+      if (self->traffic_shaper != NULL) {
+        g_object_set (G_OBJECT(self->traffic_shaper), "max-bucket-size", self->priv->max_bucket_size, NULL);
+      }
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+kms_sip_srtp_connection_get_property (GObject * object,
+    guint prop_id, GValue * value, GParamSpec * pspec)
+{
+  KmsSipSrtpConnection *self = KMS_RTP_CONNECTION (object);
+
+  switch (prop_id) {
+    case PROP_MAX_KBPS:
+      g_value_set_int (value, self->priv->max_kbps);
+      break;
+    case PROP_MAX_BUCKET_SIZE:
+      g_value_set_int (value, self->priv->max_bucket_size);
+      break;
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+  }
+}
+
+static void
+kms_sip_srtp_connection_class_init (KmsSipSrtpConnectionClass * klass)
+{
+  GObjectClass *gobject_class;
+
+  GST_DEBUG_CATEGORY_INIT (GST_CAT_DEFAULT, GST_DEFAULT_NAME, 0,
+      GST_DEFAULT_NAME);
+
+  gobject_class = G_OBJECT_CLASS (klass);
+  gobject_class->finalize = kms_sip_srtp_connection_finalize;
+  gobject_class->get_property = kms_sip_srtp_connection_get_property;
+  gobject_class->set_property = kms_sip_srtp_connection_set_property;
+
+   /**
+   * GstTrafficShaper:max-kbps:
+   *
+   * The maximum number of kilobits to let through per second. Setting this
+   * property to a positive value enables network congestion simulation using
+   * a token bucket algorithm. Also see the "max-bucket-size" property,
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_KBPS,
+      g_param_spec_int ("max-kbps", "Maximum Kbps",
+          "The maximum number of kilobits to let through per second "
+          "(-1 = unlimited)", -1, G_MAXINT, DEFAULT_MAX_KBPS,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  /**
+   * GstTrafficShaper:max-bucket-size:
+   *
+   * The size of the token bucket, related to burstiness resilience.
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_BUCKET_SIZE,
+      g_param_spec_int ("max-bucket-size", "Maximum Bucket Size (Kb)",
+          "The size of the token bucket, related to burstiness resilience "
+          "(-1 = unlimited)", -1, G_MAXINT, DEFAULT_MAX_BUCKET_SIZE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+ 
+
+  g_type_class_add_private (klass, sizeof (KmsSipSrtpConnectionPrivate));
+}
+
+
+static KmsIRtpConnectionInterface*
+get_parent_iface (KmsSipSrtpConnection *object)
+{
+  KmsSrtpConnectionClass *klass = g_type_class_peek (kms_srtp_connection_get_type());
+
+  return g_type_interface_peek (klass, kms_i_rtp_connection_get_type());
+}
+
+static void
+kms_sip_srtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gboolean active)
+{
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);
+  KmsSrtpConnection *rtp_conn = KMS_SRTP_CONNECTION(self);
+  static KmsIRtpConnectionInterface *iface = NULL;
+  
+  if (iface == NULL) {
+	iface = get_parent_iface(self);
+  }
+
+  iface->sink_sync_state_with_parent (KMS_I_RTP_CONNECTION (self));
+  gst_bin_add_many (bin, 
+  	g_object_ref (self->traffic_shaper), NULL);
+  gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
+}
+
+kms_sip_srtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *base_rtp_conn)
+{
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);
+  static KmsIRtpConnectionInterface *iface = NULL;
+  
+  if (iface == NULL) {
+	iface = get_parent_iface(self);
+  }
+
+  iface->sink_sync_state_with_parent (KMS_I_RTP_CONNECTION (self));
+  gst_element_sync_state_with_parent (self->traffic_shaper);
+}
+
+static GstPad *
+kms_sip_srtp_connection_request_rtp_sink (KmsIRtpConnection * base_rtp_conn)
+{
+  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);
+
+  return gst_element_get_static_pad (self->traffic_shaper, "sink");
+}
+
+
+
+
+#define TYPE_IFACE   (iface_get_type())
+
+static void
+kms_sip_srtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
+{
+  KmsIRtpConnectionInterface *old_iface;
+  KmsSipSrtpConnectionClass *klass = g_type_class_peek (kms_sip_srtp_connection_get_type());
+
+  if (klass != NULL) {
+	old_iface = g_type_interface_peek (klass, kms_i_rtp_connection_get_type());
+
+	iface->add = kms_sip_srtp_connection_add;
+	iface->src_sync_state_with_parent = old_iface->src_sync_state_with_parent;
+	iface->sink_sync_state_with_parent =
+		kms_sip_srtp_connection_sink_sync_state_with_parent;
+	iface->request_rtp_sink = kms_sip_srtp_connection_request_rtp_sink;
+	iface->request_rtp_src = old_iface->request_rtp_src;
+	iface->request_rtcp_sink = old_iface->request_rtp_sink;
+	iface->request_rtcp_src = old_iface->request_rtcp_src;
+	iface->set_latency_callback = old_iface->set_latency_callback;
+	iface->collect_latency_stats = old_iface->collect_latency_stats;
+  }
+}
