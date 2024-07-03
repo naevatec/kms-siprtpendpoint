@@ -107,11 +107,13 @@ kms_sip_srtp_connection_new_pad_cb (GstElement * element, GstPad * pad,
 {
   GstPadTemplate *templ;
   GstPad *sinkpad = NULL;
+  KmsSipSrtpConnection *sip_conn = KMS_SIP_SRTP_CONNECTION (conn);
 
   templ = gst_pad_get_pad_template (pad);
 
   if (g_strcmp0 (GST_PAD_TEMPLATE_NAME_TEMPLATE (templ), "rtp_src_%u") == 0) {
-    sinkpad = gst_element_get_static_pad (conn->rtp_udpsink, "sink");
+    gst_element_link (sip_conn->traffic_shaper, conn->rtp_udpsink);
+    sinkpad = gst_element_get_static_pad (sip_conn->traffic_shaper, "sink");
   } else if (g_strcmp0 (GST_PAD_TEMPLATE_NAME_TEMPLATE (templ),
           "rtcp_src_%u") == 0) {
     sinkpad = gst_element_get_static_pad (conn->rtcp_udpsink, "sink");
@@ -493,10 +495,9 @@ kms_sip_srtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gb
 	iface = get_parent_iface(self);
   }
 
-  iface->sink_sync_state_with_parent (KMS_I_RTP_CONNECTION (self));
+  iface->add (base_rtp_conn, bin, active);
   gst_bin_add_many (bin, 
   	g_object_ref (self->traffic_shaper), NULL);
-  gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
 }
 
 static void
@@ -512,16 +513,6 @@ kms_sip_srtp_connection_sink_sync_state_with_parent (KmsIRtpConnection *base_rtp
   iface->sink_sync_state_with_parent (KMS_I_RTP_CONNECTION (self));
   gst_element_sync_state_with_parent (self->traffic_shaper);
 }
-
-static GstPad *
-kms_sip_srtp_connection_request_rtp_sink (KmsIRtpConnection * base_rtp_conn)
-{
-  KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);
-
-  return gst_element_get_static_pad (self->traffic_shaper, "sink");
-}
-
-
 
 
 #define TYPE_IFACE   (iface_get_type())
@@ -539,7 +530,7 @@ kms_sip_srtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
 	iface->src_sync_state_with_parent = old_iface->src_sync_state_with_parent;
 	iface->sink_sync_state_with_parent =
 		kms_sip_srtp_connection_sink_sync_state_with_parent;
-	iface->request_rtp_sink = kms_sip_srtp_connection_request_rtp_sink;
+	iface->request_rtp_sink = old_iface->request_rtp_sink;
 	iface->request_rtp_src = old_iface->request_rtp_src;
 	iface->request_rtcp_sink = old_iface->request_rtp_sink;
 	iface->request_rtcp_src = old_iface->request_rtcp_src;

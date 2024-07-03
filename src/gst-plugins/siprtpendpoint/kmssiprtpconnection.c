@@ -333,10 +333,9 @@ kms_sip_rtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gbo
 	iface = get_parent_iface(self);
   }
 
-  iface->sink_sync_state_with_parent (KMS_I_RTP_CONNECTION (self));
+  iface->add(base_rtp_conn, bin, active);
   gst_bin_add_many (bin, 
   	g_object_ref (self->traffic_shaper), NULL);
-  gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
 }
 
 static void
@@ -357,7 +356,9 @@ static GstPad *
 kms_sip_rtp_connection_request_rtp_sink (KmsIRtpConnection * base_rtp_conn)
 {
   KmsSipRtpConnection *self = KMS_SIP_RTP_CONNECTION (base_rtp_conn);
+  KmsRtpConnection *rtp_conn = KMS_RTP_CONNECTION (base_rtp_conn);
 
+  gst_element_link (self->traffic_shaper, rtp_conn->rtp_udpsink);
   return gst_element_get_static_pad (self->traffic_shaper, "sink");
 }
 
