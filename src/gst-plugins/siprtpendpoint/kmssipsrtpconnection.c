@@ -488,7 +488,6 @@ static void
 kms_sip_srtp_connection_add (KmsIRtpConnection * base_rtp_conn, GstBin * bin, gboolean active)
 {
   KmsSipSrtpConnection *self = KMS_SIP_SRTP_CONNECTION (base_rtp_conn);
-  KmsSrtpConnection *rtp_conn = KMS_SRTP_CONNECTION(self);
   static KmsIRtpConnectionInterface *iface = NULL;
   
   if (iface == NULL) {
