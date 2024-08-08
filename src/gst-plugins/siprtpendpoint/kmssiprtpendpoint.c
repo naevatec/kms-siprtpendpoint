@@ -982,6 +982,7 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
 		if (depayloader == NULL) {
 			// No connection possible.
+   		GST_PAD_STREAM_UNLOCK (pad);
 			return;
 		}
 		output_agnosticbin = get_outputagnostic_from_depayloader (depayloader);
