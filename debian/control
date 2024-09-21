@@ -4,9 +4,9 @@ Priority: optional
 Build-Depends: debhelper (>= 9),
  cmake,
  pkg-config,
- kurento-module-core-dev (>= 7.0.0),
- kurento-module-elements-dev (>= 7.0.0),
- kurento-module-filters-dev (>= 7.0.0),
+ kurento-module-core-dev (>= 7.1.0),
+ kurento-module-elements-dev (>= 7.1.0),
+ kurento-module-filters-dev (>= 7.1.0),
 Standards-Version: 4.0.0
 Homepage: www.kurento.org
 Vcs-Browser: https://
@@ -16,18 +16,18 @@ Package: kms-siprtpendpoint
 Architecture: any
 Section: libs
 Depends: ${shlibs:Depends}, ${misc:Depends},
- kurento-module-core (>= 7.0.0),
- kurento-module-elements (>= 7.0.0),
- kurento-module-filters (>= 7.0.0)
+ kurento-module-core (>= 7.1.0),
+ kurento-module-elements (>= 7.1.0),
+ kurento-module-filters (>= 7.1.0)
 Description: Kurento SipRtpEndpoint
 
 Package: kms-siprtpendpoint-dev
 Architecture: any
 Section: libdevel
 Depends: kms-siprtpendpoint (= ${binary:Version}),
- kurento-module-core-dev (>= 7.0.0),
- kurento-module-elements-dev (>= 7.0.0),
- kurento-module-filters-dev (>= 7.0.0),
+ kurento-module-core-dev (>= 7.1.0),
+ kurento-module-elements-dev (>= 7.1.0),
+ kurento-module-filters-dev (>= 7.1.0),
 Description: Kurento SipRtpEndpoint - Development files
 
 Package: kms-siprtpendpoint-dbg

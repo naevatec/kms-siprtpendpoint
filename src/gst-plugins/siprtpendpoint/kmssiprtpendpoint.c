@@ -29,8 +29,6 @@
 #include "kmssipsrtpconnection.h"
 #include <commons/kmsbasesdpendpoint.h>
 #include <commons/constants.h>
-#include <commons/kmsrtpsynchronizer.h>
-#include <commons/sdp_utils.h>
 #include <gst/sdp/gstsdpmessage.h>
 #include <gst/video/video-event.h>
 
@@ -101,114 +99,6 @@ struct _KmsSipRtpEndpointPrivate
   GHashTable *selector_pads;
 };
 
-
-/** Bit of a hack to be able to manage rtp synchronizer before updating KLurento*/
-typedef struct _RtpMediaConfig RtpMediaConfig;
-typedef struct _KmsRembLocal KmsRembLocal;
-typedef struct _KmsRembRemote KmsRembRemote;
-
-struct _KmsRTPSessionStats
-{
-  GObject *rtp_session;
-  GstSDPDirection direction;
-  GSList *ssrcs;                /* list of all jitter buffers associated to a ssrc */
-};
-
-
-typedef struct _KmsBaseRTPStats KmsBaseRTPStats;
-struct _KmsBaseRTPStats
-{
-  gboolean enabled;
-  GHashTable *rtp_stats;
-  GSList *probes;
-  /* End-to-end average stream stats */
-  GHashTable *avg_e2e;          /* <"pad_name", StreamE2EAvgStat> */
-};
-
-
-struct _KmsBaseRtpEndpointPrivate
-{
-  KmsBaseRtpSession *sess;
-
-  GstElement *rtpbin;
-  KmsMediaState media_state;
-  GstSDPDirection offer_dir;
-
-  gboolean support_fec;
-  gboolean rtcp_mux;
-  gboolean rtcp_nack;
-  gboolean rtcp_remb;
-
-  RtpMediaConfig *audio_config;
-  RtpMediaConfig *video_config;
-
-  guint min_video_recv_bw;
-  guint min_video_send_bw;
-  guint max_video_send_bw;
-
-  /* Medias protected by ulpfec */
-  KmsList *prot_medias;
-
-  /* REMB */
-  GstStructure *remb_params;
-  KmsRembLocal *rl;
-  KmsRembRemote *rm;
-
-  /* Port range */
-  guint min_port;
-  guint max_port;
-
-  /* RTP settings */
-  guint mtu;
-
-  /* RTP statistics */
-  KmsBaseRTPStats stats;
-
-  /* Timestamps */
-  gssize init_stats;
-  FILE *stats_file;
-
-  /* Synchronization */
-  KmsRtpSynchronizer *sync_audio;
-  KmsRtpSynchronizer *sync_video;
-  gboolean perform_video_sync;
-};
-
-struct _KmsRtpSynchronizerPrivate
-{
-  GRecMutex mutex;
-
-  gboolean feeded_sorted;
-
-  guint32 ssrc;
-  gint32 pt;
-  gint32 clock_rate;
-
-  // Base time, initialized from the first RTCP Sender Report.
-  gboolean base_initiated;
-  gboolean base_initiated_logged;
-  GstClockTime base_ntp_time;
-  GstClockTime base_sync_time;
-
-  // Base time used for interpolation while the first RTCP SR arrives.
-  gboolean base_interpolate_initiated;
-  GstClockTime base_interpolate_ext_ts;
-  GstClockTime base_interpolate_pts;
-
-  GstClockTime rtp_ext_ts; // Extended timestamp: robust against input wraparound
-  GstClockTime last_rtcp_ext_ts;
-  GstClockTime last_rtcp_ntp_time;
-
-  /* Feeded sorted case */
-  GstClockTime fs_last_rtp_ext_ts;
-  GstClockTime fs_last_pts;
-
-  /* Stats recording */
-  FILE *stats_file;
-  GMutex stats_mutex;
-};
-
-
 /* Properties */
 enum
 {
@@ -234,12 +124,6 @@ static KmsBaseSdpEndpointClass *base_sdp_endpoint_type;
 
 
 /*----------- Session cloning ---------------*/
-#define KMS_RTP_SYNCHRONIZER_LOCK(rtpsynchronizer) \
-  (g_rec_mutex_lock (&KMS_RTP_SYNCHRONIZER_CAST ((rtpsynchronizer))->priv->mutex))
-#define KMS_RTP_SYNCHRONIZER_UNLOCK(rtpsynchronizer) \
-  (g_rec_mutex_unlock (&KMS_RTP_SYNCHRONIZER_CAST ((rtpsynchronizer))->priv->mutex))
-
-
 static KmsSipRtpEndpointCloneData*
 kms_sip_rtp_endpoint_get_clone_data (GList *sessionData)
 {
@@ -982,7 +866,7 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 
 		if (depayloader == NULL) {
 			// No connection possible.
-   		GST_PAD_STREAM_UNLOCK (pad);
+   			GST_PAD_STREAM_UNLOCK (pad);
 			return;
 		}
 		output_agnosticbin = get_outputagnostic_from_depayloader (depayloader);
@@ -1112,7 +996,6 @@ static void
 kms_sip_rtp_endpoint_deactivate_audio_synchronizer (KmsSipRtpEndpoint *self, GstElement *jitterbuffer, guint ssrc)
 {
 	GstPad *src_pad;
-	KmsBaseRtpEndpointPrivate *base_priv;
 
 	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer: deactivate sycnhronizer");
 	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
@@ -1120,21 +1003,12 @@ kms_sip_rtp_endpoint_deactivate_audio_synchronizer (KmsSipRtpEndpoint *self, Gst
 	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       (GstPadProbeCallback) audio_sync_rtp_probe, self, NULL);
   	g_object_unref (src_pad);
-
-	// Quick and dirty hack to deactivate synchronizer (jitterbuffer should do its work)
-	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer, deactivating rtpsynchornizer for track with ssrc %u ", ssrc);
-	base_priv = KMS_BASE_RTP_ENDPOINT(self)->priv;
-	if (base_priv->sync_audio != NULL) {
-		base_priv->sync_audio->priv->ssrc = 1;
-	}
-
 }
 
 static void 
 kms_sip_rtp_endpoint_deactivate_video_synchronizer (KmsSipRtpEndpoint *self, GstElement *jitterbuffer, guint ssrc)
 {
 	GstPad *src_pad;
-	KmsBaseRtpEndpointPrivate *base_priv;
 
 	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_video_synchronizer: Adjust video jitterbuffer PTS out");
 	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
@@ -1142,13 +1016,6 @@ kms_sip_rtp_endpoint_deactivate_video_synchronizer (KmsSipRtpEndpoint *self, Gst
 	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       (GstPadProbeCallback) video_sync_rtp_probe, self, NULL);
   	g_object_unref (src_pad);
-
-	// Quick and dirty hack to deactivate synchronizer (jitterbuffer should do its work)
-	GST_DEBUG_OBJECT(self, "kms_sip_rtp_endpoint_deactivate_video_synchronizer, deactivating rtpsynchornizer for track with ssrc %d ", ssrc);
-	base_priv = KMS_BASE_RTP_ENDPOINT(self)->priv;
-	if (base_priv->sync_video != NULL) {
-		base_priv->sync_video->priv->ssrc = 1;
-	}
 }
 
 static void
