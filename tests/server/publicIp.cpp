@@ -254,11 +254,11 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  test->add (BOOST_TEST_CASE ( &no_public_ip ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &public_ipv4 ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &public_ipv6 ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &public_ipv4_cfg ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &public_ipv6_cfg ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &no_public_ip ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &public_ipv4 ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &public_ipv6 ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &public_ipv4_cfg ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &public_ipv6_cfg ), 0, /* timeout */ 20);
   
   return test;
 }

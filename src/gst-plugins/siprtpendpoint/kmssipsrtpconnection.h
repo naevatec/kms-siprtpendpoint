@@ -61,13 +61,13 @@ GType kms_sip_srtp_connection_get_type (void);
 KmsSrtpConnection *
 kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
 		GSocket *rtp_sock, GSocket *rtcp_sock,
-		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gint dscp_value);
+		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id,  gulong *rtp_sink_signal_id, gulong *rtcp_sink_signal_id, gint dscp_value);
 
 void
-kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id);
+kms_sip_srtp_connection_add_probes (KmsSrtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gulong *rtp_sink_signal_id, gulong *rtcp_sink_signal_id);
 
 void
-kms_sip_srtp_connection_release_probes (KmsSrtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id);
+kms_sip_srtp_connection_release_probes (KmsSrtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id, gulong rtp_sink_signal_id, gulong rtcp_sink_signal_id);
 
 void kms_sip_srtp_connection_retrieve_sockets (KmsSrtpConnection *conn, GSocket **rtp, GSocket **rtcp);
 

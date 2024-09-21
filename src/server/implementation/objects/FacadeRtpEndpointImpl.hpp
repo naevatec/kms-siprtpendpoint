@@ -162,6 +162,7 @@ private:
   sigc::signal<void, ConnectionStateChanged> signalConnectionStateChanged;
   sigc::signal<void, MediaSessionStarted> signalMediaSessionStarted;
   sigc::signal<void, MediaSessionTerminated> signalMediaSessionTerminated;
+  sigc::signal<void, MediaFlowOutStateChanged> signalMediaFlowOutStateChanged;
   sigc::signal<void, OnKeySoftLimit> signalOnKeySoftLimit;
 
   sigc::connection connMediaStateChanged;
@@ -169,6 +170,7 @@ private:
   sigc::connection connMediaSessionStarted;
   sigc::connection connMediaSessionTerminated;
   sigc::connection connOnKeySoftLimit;
+  sigc::connection connMediaFlowOutStateChanged;
 
 
 

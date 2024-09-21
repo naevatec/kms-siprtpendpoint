@@ -171,7 +171,7 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
 }
 
 static void
-releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
+releaseTestElement (std::shared_ptr<MediaElementImpl> &ep)
 {
   std::string id = ep->getId();
 
@@ -181,7 +181,7 @@ releaseTestSrc (std::shared_ptr<MediaElementImpl> &ep)
 
 class TestEventHandler: public kurento::EventHandler
 {
-private:
+protected:
 	std::condition_variable *testCV;
 	std::string lastEvent;
 
@@ -203,6 +203,58 @@ public:
 	}
 };
 
+class FlowOutStateChangedHandler: public TestEventHandler
+{
+
+private:
+  bool audioFlowing = false;
+  bool videoFlowing = false;
+
+public:
+	FlowOutStateChangedHandler (std::condition_variable *cv, std::shared_ptr<MediaObjectImpl> object): TestEventHandler(cv, object)
+	{ }
+
+  bool isMediaFlowing (Json::Value &value, std::string media)
+  {
+    std::string mediaType = value.get ("data", "").get("mediaType", "").asString();
+
+    if (mediaType == media) {
+      std::string flowing = value.get ("data", "").get("state", "").asString();
+      if (flowing == "FLOWING") {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool isAudioFlowing (Json::Value &value) 
+  {
+    return isMediaFlowing(value, "AUDIO");
+  }
+
+  bool isVideoFlowing (Json::Value &value) 
+  {
+    return isMediaFlowing(value, "VIDEO");
+  }
+
+	virtual void sendEvent (Json::Value &value)
+	{
+        BOOST_TEST_MESSAGE ("EventHandledr: " + value.toStyledString());
+        lastEvent = value.toStyledString();
+        if (isAudioFlowing(value)) {
+          audioFlowing = true;
+        }
+        if (isVideoFlowing(value)) {
+          videoFlowing = true;
+        }
+        if (audioFlowing && videoFlowing) {
+          if (testCV)
+            testCV->notify_one();
+        }
+	}
+};
+
 static void
 media_flow_out_forward_impl (bool useIpv6, bool useCrypto)
 {
@@ -215,7 +267,7 @@ media_flow_out_forward_impl (bool useIpv6, bool useCrypto)
   std::shared_ptr <MediaElementImpl> src = createTestSrc();
   std::shared_ptr <PassThroughImpl> pt = createPassThrough ();
 
-  std::shared_ptr<TestEventHandler> testEH (new TestEventHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
+  std::shared_ptr<TestEventHandler> testEH (new FlowOutStateChangedHandler (&cv,std::dynamic_pointer_cast <MediaObjectImpl> (rtpEpAnswerer)));
 
   src->connect (rtpEpOfferer);
 
@@ -240,7 +292,7 @@ media_flow_out_forward_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("No event received");
   }
 
-  releaseTestSrc (src);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -297,7 +349,7 @@ media_flow_in_forward_impl (bool useIpv6, bool useCrypto)
   if (testEH->getLastEvent().empty()) {
     BOOST_ERROR ("NoEvent received");
   }
-  releaseTestSrc (src);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -355,7 +407,7 @@ element_connected_forward_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("NoEvent received");
   }
 
-  releaseTestSrc (src);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -416,7 +468,7 @@ element_disconnected_forward_impl (bool useIpv6, bool useCrypto)
     BOOST_ERROR ("NoEvent received");
   }
 
-  releaseTestSrc (src);
+  releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
   releaseRtpEndpoint (rtpEpAnswerer);
   releasePassTrhough (pt);
@@ -459,7 +511,7 @@ element_release_impl ()
 
 		  sleep (1);
 
-		  releaseTestSrc (src);
+		  releaseTestElement (src);
 		  releaseRtpEndpoint (rtpEpOfferer);
 		  releaseRtpEndpoint (rtpEpAnswerer);
 		  releasePassTrhough (pt);
@@ -498,21 +550,21 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
   if (true)
-	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 1000);
-  if (false)
-	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &element_connected_forward ), 0, /* timeout */ 20);
   if (true)
-	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 1000);
+	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward ), 0, /* timeout */ 20);
+  if (true)
+	  test->add (BOOST_TEST_CASE ( &element_release ), 0, /* timeout */ 20);
 
   if (false) {
-	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &element_connected_forward_ipv6 ), 0, /* timeout */ 5);
-	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward_ipv6 ), 0, /* timeout */ 5);
+	  test->add (BOOST_TEST_CASE ( &media_flow_out_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &media_flow_in_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &element_connected_forward_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &element_disconnected_forward_ipv6 ), 0, /* timeout */ 20);
   }
   return test;
 }

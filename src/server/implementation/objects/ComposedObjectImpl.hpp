@@ -136,8 +136,8 @@ private:
 
   sigc::connection connElementConnectedSrc;
   sigc::connection connElementConnectedSink;
-  //sigc::connection connElementDisconnectedSrc;
-  //sigc::connection connElementDisconnectedSink;
+  sigc::connection connElementDisconnectedSrc;
+  sigc::connection connElementDisconnectedSink;
   sigc::connection connMediaTranscodingStateChangeSrc;
   sigc::connection connMediaTranscodingStateChangeSink;
   sigc::connection connMediaFlowOutStateChange;
@@ -148,11 +148,6 @@ private:
   sigc::connection connErrorSink;
   sigc::connection connErrorlinkedSrc;
   sigc::connection connErrorlinkedSink;
-
-  std::list<GstPad*> padsToReview;
-  std::map<gpointer, unsigned long> signals_to_disconnect;
-
-
 
   std::recursive_mutex linkMutex;
 

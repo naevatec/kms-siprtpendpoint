@@ -203,6 +203,11 @@ bool FacadeRtpEndpointImpl::connect (const std::string &eventType, std::shared_p
 	    handler->setConnection (conn);
 	    return true;
 	}
+	if ("MediaFlowOutStateChanged" == eventType) {
+    	sigc::connection conn = connectEventToExternalHandler<MediaFlowOutStateChanged> (signalMediaFlowOutStateChanged, wh);
+	    handler->setConnection (conn);
+	    return true;
+	}
 	return ComposedObjectImpl::connect (eventType, handler);
 }
 
@@ -1063,6 +1068,7 @@ FacadeRtpEndpointImpl::disconnectForwardSignals ()
 	connMediaSessionStarted.disconnect ();
 	connMediaSessionTerminated.disconnect ();
 	connOnKeySoftLimit.disconnect ();
+	connMediaFlowOutStateChanged.disconnect();
 }
 
 void
@@ -1115,6 +1121,16 @@ FacadeRtpEndpointImpl::connectForwardSignals ()
 		  raiseEvent<OnKeySoftLimit> (event, sth, signalOnKeySoftLimit);
 	  });
 
+	  connMediaFlowOutStateChanged = std::dynamic_pointer_cast<MediaElementImpl>(rtp_ep)->signalMediaFlowOutStateChanged.connect([ &, wt ] (
+				MediaFlowOutStateChanged event) {
+			std::shared_ptr<MediaObject> sth = wt.lock ();
+			if (!sth)
+				return;
+
+			raiseEvent<MediaFlowOutStateChanged> (event, sth, signalMediaFlowOutStateChanged);
+		});
+
+
 }
 
 void FacadeRtpEndpointImpl::setProperties (std::shared_ptr<SipRtpEndpointImpl> from)
@@ -1141,7 +1157,7 @@ FacadeRtpEndpointImpl::renewInternalEndpoint (std::shared_ptr<SipRtpEndpointImpl
 {
 	std::shared_ptr<SipRtpEndpointImpl> tmp = rtp_ep;
 
-	if (rtp_ep != NULL) {
+	if (rtp_ep != nullptr) {
 		disconnectForwardSignals ();
 	}
 

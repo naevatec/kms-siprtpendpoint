@@ -43,7 +43,8 @@ testSipRtpEndpoint (kurento::ModuleManager &moduleManager,
     moduleManager.getFactory ("SipRtpEndpoint")->createObject (config, "",
         w.JsonValue);
   std::shared_ptr <kurento::SipRtpEndpoint> siprtp = std::dynamic_pointer_cast<kurento::SipRtpEndpoint > (object);
-  kurento::MediaSet::getMediaSet()->release (object);
+  siprtp = nullptr;
+  //kurento::MediaSet::getMediaSet()->release (object);
 }
 
 void
@@ -57,7 +58,7 @@ show_library ()
 
 
 	  flags = G_MODULE_BIND_LOCAL;
-	  module = g_module_open ("/home/devel/kms-omni-build/build-Debug/kms-siprtpendpoint/src/gst-plugins/siprtpendpoint/libsiprtpendpoint.so", flags);
+	  module = g_module_open ("./src/gst-plugins/siprtpendpoint/libsiprtpendpoint.so", flags);
 	  ret = g_module_symbol (module, "gst_plugin_desc", &ptr);
 	  desc = (GstPluginDesc *) ptr;
 
@@ -96,6 +97,7 @@ main (int argc, char **argv)
   testSipRtpEndpoint (moduleManager, mediaPipeline);
 
   kurento::MediaSet::getMediaSet()->release (mediaPipeline);
+  mediaPipeline = nullptr;
 
   return 0;
 }
