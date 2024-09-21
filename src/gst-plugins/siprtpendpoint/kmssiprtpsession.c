@@ -199,7 +199,7 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
     dscp_value = -1;
   }
   conn = kms_sip_rtp_connection_new (min_port, max_port,
-      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe, dscp_value);
+      KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe, &rtp_sink_signal, &rtcp_sink_signal, dscp_value);
 
   if ((rtp_probe != 0) || (rtcp_probe != 0)) {
 	  kms_sip_rtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe, rtp_sink_signal, rtcp_sink_signal);
