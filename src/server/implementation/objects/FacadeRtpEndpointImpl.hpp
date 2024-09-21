@@ -51,7 +51,8 @@ public:
                         std::shared_ptr<SDES> crypto,
 				                bool cryptoAgnostic,
 				                bool useIpv6,
-                        std::shared_ptr<DSCPValue> qosDscp,
+                        std::shared_ptr<DSCPValue> audioQosDscp,
+                        std::shared_ptr<DSCPValue> videoQosDscp,
                         std::string externalIPv4,
                         std::string externalIPv6);
 
@@ -236,7 +237,8 @@ private:
 
   bool useIpv6Cache;
 
-  std::shared_ptr<DSCPValue> qosDscpCache;
+  std::shared_ptr<DSCPValue> audioQosDscpCache;
+  std::shared_ptr<DSCPValue> videoQosDscpCache;
   std::string externalIPv4Cache;
   std::string externalIPv6Cache;
 

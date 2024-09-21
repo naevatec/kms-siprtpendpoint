@@ -468,7 +468,8 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
                                          std::shared_ptr<SDES> crypto,
                                          bool cryptoAgnostic,
                                          bool useIpv6,
-                                         std::shared_ptr<DSCPValue> qosDscp,
+                                         std::shared_ptr<DSCPValue> audioQosDscp,
+                                         std::shared_ptr<DSCPValue> videoQosDscp,
                                          const std::string &externalIPv4,
                                          const std::string &externalIPv6) const
 {
@@ -484,7 +485,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
   return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, 
-                                    useIpv6, qosDscp, externalIPv4, externalIPv6);
+                                    useIpv6, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6);
 }
 
 
