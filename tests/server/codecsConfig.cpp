@@ -153,7 +153,7 @@ init_unit_test_suite ( int , char *[] )
 {
   test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpoint" );
 
-  test->add (BOOST_TEST_CASE ( &codecs_config ), 0, /* timeout */ 15000);
+  test->add (BOOST_TEST_CASE ( &codecs_config ), 0, /* timeout */ 20);
   
   return test;
 }

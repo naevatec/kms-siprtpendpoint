@@ -69,7 +69,7 @@ struct _KmsSipRtpSessionClass
   /* signals */
   void (*clone_connections) (KmsSipRtpSession *self, GHashTable *conns);
 
-  void (*store_rtp_filtering_info) (KmsSipRtpSession *ses, KmsRtpConnection *conn, gulong rtp_probe, gulong rtcp_probe);
+  void (*store_rtp_filtering_info) (KmsSipRtpSession *ses, KmsRtpConnection *conn, gulong rtp_probe, gulong rtcp_probe, gulong rtp_sink_signal, gulong rtcp_sink_signal);
 
 };
 

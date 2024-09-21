@@ -48,6 +48,8 @@ struct _KmsSipRtpProbeFilteringInfo
 	KmsRtpConnection *conn;
 	gulong rtp_probe;
 	gulong rtcp_probe;
+  gulong rtp_sink_signal;
+  gulong rtcp_sink_signal;
 };
 
 struct _KmsSipRtpSessionPrivate
@@ -81,7 +83,7 @@ kms_sip_rtp_session_new (KmsBaseSdpEndpoint * ep, guint id,
 
 
 static void
-kms_sip_rtp_session_store_rtp_filtering_info (KmsSipRtpSession *ses, KmsRtpConnection *conn, gulong rtp_probe, gulong rtcp_probe)
+kms_sip_rtp_session_store_rtp_filtering_info (KmsSipRtpSession *ses, KmsRtpConnection *conn, gulong rtp_probe, gulong rtcp_probe, gulong rtp_sink_signal, gulong rtcp_sink_signal)
 {
 	  KmsSipRtpProbeFilteringInfo *info;
 
@@ -93,6 +95,8 @@ kms_sip_rtp_session_store_rtp_filtering_info (KmsSipRtpSession *ses, KmsRtpConne
 	  info->conn = conn;
 	  info->rtp_probe = rtp_probe;
 	  info->rtcp_probe = rtcp_probe;
+	  info->rtp_sink_signal = rtp_sink_signal;
+	  info->rtcp_sink_signal = rtcp_sink_signal;
 
 	  ses->priv->rtp_filtering_info = g_list_append (ses->priv->rtp_filtering_info, info);
 }
@@ -142,7 +146,7 @@ km_sip_rtp_session_setup_filter_info (KmsSipRtpSession *self, const gchar *media
 	  }
 
 	  if (filter_info == NULL) {
-		  filter_info = kms_sip_rtp_filter_create_filtering_info (0, NULL, media_type, TRUE);
+		  filter_info = kms_sip_rtp_filter_create_filtering_info (NULL, media_type);
 		  if (media_type == AUDIO_RTP_SESSION) {
 			  self->audio_filter_info = filter_info;
 		  } else if (media_type == VIDEO_RTP_SESSION) {
@@ -171,6 +175,8 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
   SipFilterSsrcInfo* filter_info = NULL;
   gulong rtp_probe = 0;
   gulong rtcp_probe = 0;
+  gulong rtp_sink_signal = 0;
+  gulong rtcp_sink_signal = 0;
   const gchar *media_str;
   KmsRtpConnection *conn;
   gint dscp_value;
@@ -196,7 +202,7 @@ kms_sip_rtp_session_create_connection (KmsBaseRtpSession * base_rtp_sess,
       KMS_RTP_SESSION (base_rtp_sess)->use_ipv6, rtp_sock, rtcp_sock, filter_info, &rtp_probe, &rtcp_probe, dscp_value);
 
   if ((rtp_probe != 0) || (rtcp_probe != 0)) {
-	  kms_sip_rtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe);
+	  kms_sip_rtp_session_store_rtp_filtering_info (self, conn, rtp_probe, rtcp_probe, rtp_sink_signal, rtcp_sink_signal);
   }
 
   return KMS_I_RTP_CONNECTION (conn);
@@ -240,7 +246,7 @@ kms_sip_rtp_session_free_filter_info (gpointer data)
 	KmsSipRtpProbeFilteringInfo *info = (KmsSipRtpProbeFilteringInfo*) data;
 
 	GST_DEBUG ("Releasing RTP/RTCP filtering probes");
-	kms_sip_rtp_connection_release_probes (info->conn, info->rtp_probe, info->rtcp_probe);
+	kms_sip_rtp_connection_release_probes (info->conn, info->rtp_probe, info->rtcp_probe, info->rtp_sink_signal, info->rtcp_sink_signal);
 	g_free (data);
 }
 

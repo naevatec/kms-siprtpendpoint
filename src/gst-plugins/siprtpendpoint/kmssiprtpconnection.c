@@ -50,10 +50,10 @@ kms_sip_rtp_connection_retrieve_sockets (KmsRtpConnection *conn, GSocket **rtp, 
 
 
 void
-kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id)
+kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gulong *rtp_sink_signal_id, gulong *rtcp_sink_signal_id)
 {
 	  // If we are reusing sockets, it is possible that packets from old connection (old ssrcs) arrive to the sockets
-	  // They should be avoided as they may auto setup the new connection for old SSRCs, preventing the new connection to succed
+	  // They should be avoided as they may auto setup the new connection for old SSRCs, preventing the new connection to succeed
 	  GstPad *pad;
 
 	  pad = gst_element_get_static_pad (conn->rtcp_udpsrc, "src");
@@ -64,12 +64,15 @@ kms_sip_rtp_connection_add_probes (KmsRtpConnection *conn, SipFilterSsrcInfo* fi
 	  pad = gst_element_get_static_pad (conn->rtp_udpsrc, "src");
 	  *rtp_probe_id = kms_sip_rtp_filter_setup_probe_rtp (pad, filter_info);
 	  gst_object_unref (pad);
+
+  	  *rtp_sink_signal_id = g_signal_connect (conn->rtp_udpsink, "client-added", G_CALLBACK(kms_sip_rtp_filter_set_added_client_rtp), filter_info);
+  	  *rtcp_sink_signal_id = g_signal_connect (conn->rtcp_udpsink, "client-added", G_CALLBACK(kms_sip_rtp_filter_set_added_client_rtcp), filter_info);
 }
 
 
 KmsRtpConnection *
 kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6, GSocket *rtp_sock, GSocket *rtcp_sock,
-		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gint dscp_value)
+		SipFilterSsrcInfo* filter_info, gulong *rtp_probe_id, gulong *rtcp_probe_id, gulong *rtp_sink_signal_id, gulong *rtcp_sink_signal_id, gint dscp_value)
 {
 	  // TODO: When this integrated in kms-elements we can modify kms_rtp_connection_new to allow espcifying
 	  // the gstreamer object factory for the connection, so that we can simplify this function
@@ -108,7 +111,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  conn->rtcp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  conn->rtcp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 
-	  kms_sip_rtp_connection_add_probes (conn, filter_info, rtp_probe_id, rtcp_probe_id);
+	  kms_sip_rtp_connection_add_probes (conn, filter_info, rtp_probe_id, rtcp_probe_id, rtp_sink_signal_id, rtcp_sink_signal_id);
 
 	  g_object_set (conn->rtp_udpsink, "socket", conn->rtp_socket,
 	      "sync", FALSE, "async", FALSE, NULL);
@@ -137,7 +140,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 }
 
 void
-kms_sip_rtp_connection_release_probes (KmsRtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id)
+kms_sip_rtp_connection_release_probes (KmsRtpConnection *conn, gulong rtp_probe_id, gulong rtcp_probe_id, gulong rtp_sink_signal_id, gulong rtcp_sink_signal_id)
 {
 	  GstPad *pad;
 
@@ -150,6 +153,13 @@ kms_sip_rtp_connection_release_probes (KmsRtpConnection *conn, gulong rtp_probe_
 	  pad = gst_element_get_static_pad (conn->rtp_udpsrc, "src");
 	  kms_sip_rtp_filter_release_probe_rtp (pad, rtp_probe_id);
 	  gst_object_unref (pad);
+
+	  if (rtp_sink_signal_id != 0) {
+		g_signal_handler_disconnect (conn->rtp_udpsink, rtp_sink_signal_id);
+	  }
+	  if (rtcp_sink_signal_id != 0) {
+		g_signal_handler_disconnect (conn->rtcp_udpsink, rtcp_sink_signal_id);
+	  }
 }
 
 
