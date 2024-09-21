@@ -1094,12 +1094,7 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 			G_CALLBACK (kms_sip_rtp_endpoint_rtpbin_pad_added), self, NULL, G_CONNECT_AFTER);
   	}
 
-  self->priv->use_sdes_cache = NULL;
-  self->priv->sessionData = NULL;
-  self->priv->audio_dscp_value = DEFAULT_QOS_DSCP;
-  self->priv->video_dscp_value = DEFAULT_QOS_DSCP;
-
-  GST_DEBUG ("Initialized RTP Endpoint %p", self);
+  	GST_DEBUG ("Initialized RTP Endpoint %p", self);
 }
 
 gboolean
