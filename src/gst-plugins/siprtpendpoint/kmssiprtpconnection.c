@@ -161,7 +161,7 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  rtp_conn->rtcp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  rtp_conn->rtcp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
 
-	  kms_sip_rtp_connection_add_probes (rtp_conn, filter_info, rtp_probe_id, rtcp_probe_id);
+	  kms_sip_rtp_connection_add_probes (rtp_conn, filter_info, rtp_probe_id, rtcp_probe_id, rtp_sink_signal_id, rtcp_sink_signal_id);
 
 	  g_object_set (rtp_conn->rtp_udpsink, "socket", rtp_conn->rtp_socket,
 	      "sync", FALSE, "async", FALSE, NULL);
