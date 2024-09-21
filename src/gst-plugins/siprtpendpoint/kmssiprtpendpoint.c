@@ -83,6 +83,22 @@ struct _KmsSipRtpEndpointPrivate
 
   gint audio_dscp_value;
   gint video_dscp_value;
+
+  GstElement *rtpbin;
+  gulong pad_added_signal;
+
+  GstElement *audio_track_selector;
+  GstElement *video_track_selector;
+
+  gint64 last_audio_ssrc_switch;
+  gint64 last_video_ssrc_switch;
+
+  guint current_ssrc_audio_track;
+  guint current_ssrc_video_track;
+
+  GHashTable *pads_to_ssrc;  // Aux table to know the ssrc of a track on its corresponding leg of the pipeline (jitterbuffer element)
+  GHashTable *selector_pads;
+
 };
 
 /* Properties */
@@ -1058,7 +1074,8 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 	
 	self->priv->use_sdes_cache = -1;
 	self->priv->sessionData = NULL;
-	self->priv->dscp_value = DEFAULT_QOS_DSCP;
+	self->priv->audio_dscp_value = DEFAULT_QOS_DSCP;
+	self->priv->video_dscp_value = DEFAULT_QOS_DSCP;
 	if (rtpbin != NULL) {
 		self->priv->rtpbin = gst_object_ref(rtpbin);
 	} else {
