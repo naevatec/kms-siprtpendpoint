@@ -65,6 +65,9 @@ G_DEFINE_TYPE_WITH_CODE (KmsSipRtpEndpoint,
   )                                          \
 )
 
+#define DEFAULT_MAX_KBPS -1
+#define DEFAULT_MAX_BUCKET_SIZE -1
+#define DEFAULT_MAX_BUCKET_STORAGE -1
 
 typedef struct _KmsSipRtpEndpointCloneData KmsSipRtpEndpointCloneData;
 
@@ -99,6 +102,10 @@ struct _KmsSipRtpEndpointPrivate
 
   GHashTable *pads_to_ssrc;  // Aux table to know the ssrc of a track on its corresponding leg of the pipeline (jitterbuffer element)
   GHashTable *selector_pads;
+
+  gint max_kbps;
+  gint max_bucket_size;
+  glong max_bucket_storage_size;
 };
 
 /* Properties */
@@ -107,7 +114,10 @@ enum
   PROP_0,
   PROP_AUDIO_SSRC,
   PROP_VIDEO_SSRC,
-  PROP_QOS_DSCP
+  PROP_QOS_DSCP,
+  PROP_MAX_KBPS,
+  PROP_MAX_BUCKET_SIZE,
+  PROP_MAX_BUCKET_STORAGE
 };
 
 
@@ -416,13 +426,192 @@ kms_sip_rtp_endpoint_process_answer (KmsBaseSdpEndpoint * ep,
 	return KMS_BASE_SDP_ENDPOINT_CLASS(kms_sip_rtp_endpoint_parent_class)->process_answer (ep, sess_id, answer);
 }
 
+static KmsRtpBaseConnection *
+kms_sip_rtp_endpoint_get_connection (KmsSipRtpEndpoint * self, KmsSdpSession * sess,
+    KmsSdpMediaHandler * handler, const GstSDPMedia * media)
+{
+	return kms_rtp_session_get_connection (KMS_RTP_SESSION (sess), handler);
+}
+
+
 static void
 kms_sip_rtp_endpoint_start_transport_send (KmsBaseSdpEndpoint *base_sdp_endpoint,
     KmsSdpSession *sess, gboolean offerer)
 {
+	guint len;
+	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT (base_sdp_endpoint);
+  	const GstSDPConnection *msg_conn;
+
+	/* chain up */
 	KMS_BASE_SDP_ENDPOINT_CLASS(kms_sip_rtp_endpoint_parent_class)->start_transport_send (base_sdp_endpoint, sess, offerer);
 
+  	msg_conn = gst_sdp_message_get_connection (sess->remote_sdp);
+
+  	len = gst_sdp_message_medias_len (sess->remote_sdp);
+	for (guint i = 0; i < len; i++) {
+		const GstSDPMedia *media = gst_sdp_message_get_media (sess->remote_sdp, i);
+		const GstSDPConnection *media_con;
+   		KmsSdpMediaHandler *handler;
+		KmsRtpBaseConnection *conn;
+
+		if (gst_sdp_media_get_port (media) == 0) {
+			continue;
+		}		
+
+		if (gst_sdp_media_connections_len (media) != 0) {
+			media_con = gst_sdp_media_get_connection (media, 0);
+		} else {
+			media_con = msg_conn;
+		}
+
+		if (media_con == NULL || media_con->address == NULL	|| media_con->address[0] == '\0') {
+			continue;
+		}
+
+		handler = kms_sdp_agent_get_handler_by_index (KMS_SDP_SESSION (sess)->agent, i);
+		if (handler == NULL) {
+			continue;
+		}
+
+		conn = kms_sip_rtp_endpoint_get_connection (self, sess, handler, media);
+		g_object_unref (handler);
+		if (conn == NULL) {
+			continue;
+		}
+
+		// Set bitrate restrictions if any
+		if (self->priv->max_kbps > 0) {
+			g_object_set (G_OBJECT(conn), "max-kbps", self->priv->max_kbps, NULL);
+		}
+		if (self->priv->max_bucket_size > 0) {
+			g_object_set (G_OBJECT(conn), "max-bucket-size", self->priv->max_bucket_size, NULL);
+		}
+		if (self->priv->max_bucket_storage_size > 0) {
+			g_object_set (G_OBJECT(conn), "max-bucket-storage", self->priv->max_bucket_storage_size, NULL);
+		}
+	}
 }
+
+static void
+base_conn_set_max_kbps (gpointer key,  gpointer value,  gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+	
+	if (KMS_IS_SIP_RTP_CONNECTION(value)) {
+    	KmsSipRtpConnection *conn = KMS_SIP_RTP_CONNECTION(value);
+
+    	g_object_set (conn, "max-kbps", endpoint->priv->max_kbps, NULL);
+	} else if (KMS_IS_SIP_SRTP_CONNECTION(value)) {
+    	KmsSipSrtpConnection *conn = KMS_SIP_SRTP_CONNECTION(value);
+
+    	g_object_set (conn, "max-kbps", endpoint->priv->max_kbps, NULL);
+  	}
+}
+
+static void
+base_conn_set_max_bucket_size (gpointer key,  gpointer value,  gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+
+  	if (KMS_IS_SIP_RTP_CONNECTION(value)) {
+    	KmsSipRtpConnection *conn = KMS_SIP_RTP_CONNECTION(value);
+
+    	g_object_set (conn, "max-bucket-size", endpoint->priv->max_bucket_size, NULL);
+  	} else if (KMS_IS_SIP_SRTP_CONNECTION(value)) {
+	    KmsSipSrtpConnection *conn = KMS_SIP_SRTP_CONNECTION(value);
+
+    	g_object_set (conn, "mmax-bucket-size", endpoint->priv->max_bucket_size, NULL);
+  	}
+}
+
+static void
+base_conn_set_max_bucket_storage (gpointer key, gpointer value, gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+
+  	if (KMS_IS_SIP_RTP_CONNECTION(value)) {
+    	KmsSipRtpConnection *conn = KMS_SIP_RTP_CONNECTION(value);
+
+    	g_object_set (conn, "max-bucket-storage", endpoint->priv->max_bucket_storage_size, NULL);
+  	} else if (KMS_IS_SIP_SRTP_CONNECTION(value)) {
+	    KmsSipSrtpConnection *conn = KMS_SIP_SRTP_CONNECTION(value);
+
+    	g_object_set (conn, "mmax-bucket-storage", endpoint->priv->max_bucket_storage_size, NULL);
+  	}
+}
+
+static void
+base_ses_set_max_kbps (gpointer key,  gpointer value,  gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+  	KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION(value);
+
+  	if (ses != NULL) {
+    	GHashTable *conns = ses->conns;
+
+    	g_hash_table_foreach (conns, base_conn_set_max_kbps, endpoint);
+  	}
+}
+
+static void
+base_ses_set_max_bucket_size (gpointer key,  gpointer value,  gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+  	KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION(value);
+
+  	if (ses != NULL) {
+    	GHashTable *conns = ses->conns;
+
+    	g_hash_table_foreach (conns, base_conn_set_max_bucket_size, endpoint);
+  	}
+}
+
+static void
+base_ses_set_max_bucket_storage (gpointer key, gpointer value, gpointer user_data)
+{
+	KmsSipRtpEndpoint *endpoint = KMS_SIP_RTP_ENDPOINT(user_data);
+  	KmsBaseRtpSession *ses = KMS_BASE_RTP_SESSION(value);
+
+  	if (ses != NULL) {
+    	GHashTable *conns = ses->conns;
+
+    	g_hash_table_foreach (conns, base_conn_set_max_bucket_storage, endpoint);
+  	}
+}
+
+static void
+kms_sip_rtp_endpoint_set_max_kbps (KmsSipRtpEndpoint *self)
+{
+  	// FIXME: Bitrate settings are applied independntly to all connections in the endpoint
+  	// They should have a common tocken bucket
+  	KmsBaseSdpEndpoint *baseSdpEp = KMS_BASE_SDP_ENDPOINT(self);
+  	GHashTable *sess = kms_base_sdp_endpoint_get_sessions (baseSdpEp);
+
+  	g_hash_table_foreach (sess, base_ses_set_max_kbps, self);
+}
+
+static void
+kms_sip_rtp_endpoint_set_max_bucket_size (KmsSipRtpEndpoint *self)
+{
+  	// FIXME: Bitrate settings are applied independntly to all connections in the endpoint
+  	// They should have a common tocken bucket
+  	KmsBaseSdpEndpoint *baseSdpEp = KMS_BASE_SDP_ENDPOINT(self);
+  	GHashTable *conns = kms_base_sdp_endpoint_get_sessions (baseSdpEp);
+
+  	g_hash_table_foreach (conns, base_ses_set_max_bucket_size, self);
+}
+
+static void 
+kms_sip_rtp_endpoint_set_max_bucket_storage (KmsSipRtpEndpoint *self)
+{
+  	// FIXME: Bitrate settings are applied independntly to all connections in the endpoint
+  	// They should have a common tocken bucket
+  	KmsBaseSdpEndpoint *baseSdpEp = KMS_BASE_SDP_ENDPOINT(self);
+  	GHashTable *conns = kms_base_sdp_endpoint_get_sessions (baseSdpEp);
+
+  	g_hash_table_foreach (conns, base_ses_set_max_bucket_storage, self);
+}
+
 
 static KmsSipRtpEndpointCloneData*
 kms_sip_rtp_endpoint_create_clone_data (KmsSipRtpEndpoint *self, KmsBaseRtpSession *ses, guint32 audio_ssrc, guint32 video_ssrc, gboolean continue_audio_stream, gboolean continue_video_stream)
@@ -533,6 +722,18 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
 	case PROP_QOS_DSCP:
 		self->priv->dscp_value = g_value_get_int (value);
 		break;
+    case PROP_MAX_KBPS:
+		self->priv->max_kbps = g_value_get_int (value);
+		kms_sip_rtp_endpoint_set_max_kbps (self);
+		break;
+    case PROP_MAX_BUCKET_SIZE:
+		self->priv->max_bucket_size = g_value_get_int (value);
+		kms_sip_rtp_endpoint_set_max_bucket_size (self);
+		break;
+    case PROP_MAX_BUCKET_STORAGE:
+		self->priv->max_bucket_storage_size = g_value_get_long (value);
+		kms_sip_rtp_endpoint_set_max_bucket_storage (self);
+		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -558,6 +759,15 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
     	break;
 	case PROP_QOS_DSCP:
 		g_value_set_int (value, self->priv->dscp_value);
+		break;
+	case PROP_MAX_KBPS:
+		g_value_set_int (value, self->priv->max_kbps);
+		break;
+	case PROP_MAX_BUCKET_SIZE:
+		g_value_set_int (value, self->priv->max_bucket_size);
+		break;
+	case PROP_MAX_BUCKET_STORAGE:
+		g_value_set_int (value, self->priv->max_bucket_storage_size);
 		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -638,6 +848,47 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
   base_sdp_endpoint_class->configure_media = kms_sip_rtp_endpoint_configure_media;
 
   klass->clone_to_new_ep = kms_sip_rtp_endpoint_clone_to_new_ep;
+
+   /**
+   * GstTrafficShaper:max-kbps:
+   *
+   * The maximum number of kilobits to let through per second. Setting this
+   * property to a positive value enables network congestion simulation using
+   * a token bucket algorithm. Also see the "max-bucket-size" property,
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_KBPS,
+      g_param_spec_int ("max-kbps", "Maximum Kbps",
+          "The maximum number of kilobits to let through per second "
+          "(-1 = unlimited)", -1, G_MAXINT, DEFAULT_MAX_KBPS,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  /**
+   * GstTrafficShaper:max-bucket-size:
+   *
+   * The size of the token bucket, related to burstiness resilience.
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_BUCKET_SIZE,
+      g_param_spec_int ("max-bucket-size", "Maximum Bucket Size (Kb)",
+          "The size of the token bucket, related to burstiness resilience "
+          "(-1 = unlimited)", -1, G_MAXINT, DEFAULT_MAX_BUCKET_SIZE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
+
+  /**
+   * GstTrafficShaper:min-bucket-size:
+   *
+   * The maximum kbits that can be stored delayed to be traffci shaped.
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_BUCKET_STORAGE,
+      g_param_spec_long ("max-bucket-storage", "Maximum delayed storage size Size (Bytes)",
+          "The maximum amount of storage allowed for delayed packets in kbits "
+          "(-1 = unlimited)", -1, G_MAXLONG, DEFAULT_MAX_BUCKET_STORAGE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_AUDIO_SSRC,
       g_param_spec_uint ("audio-ssrc",

@@ -48,6 +48,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_PUBLIC_IPV6 "externalIPv6"
 #define PARAM_MAX_KBPS "max-kbps"
 #define PARAM_MAX_BUCKET_SIZE "max-bucket-size"
+#define PARAM_MAX_BUCKET_STORAGE "max-bucket-storage"
 
 
 
@@ -296,8 +297,10 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
 {
   std::string maxKbpsValue;
   std::string maxBucketSizeValue;
+  std::string maxBucketStorageValue;
   int maxKbps = 0;
   int maxBucketSize = 0;
+  long maxBucketStorage = 0;
 
   this->qosDscp = qosDscp;
 
@@ -377,11 +380,21 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
     } catch (...) { }
   }
 
+  if (getConfigValue<std::string,SipRtpEndpoint>(&maxBucketStorageValue, PARAM_MAX_BUCKET_STORAGE)) {
+    GST_INFO ("MAX-BUCKET-STORAGE default configured value is %s", maxBucketStorageValue.c_str() );
+    try {
+      maxBucketStorage = std::stoi (maxBucketStorageValue);
+    } catch (...) { }
+  }
+
   if (maxKbps > 0) {
     g_object_set (element, "max-kbps", maxKbps, NULL);
   }
   if (maxBucketSize > 0) {
     g_object_set (element, "max-bucket-size", maxBucketSize, NULL);
+  }
+  if (maxBucketStorage > 0) {
+    g_object_set (element, "max-bucket-storage", maxBucketStorage, NULL);
   }
 
   if (!crypto->isSetCrypto() ) {

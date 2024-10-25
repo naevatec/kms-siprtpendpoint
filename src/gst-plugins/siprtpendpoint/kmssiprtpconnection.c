@@ -37,11 +37,13 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 
 #define DEFAULT_MAX_KBPS -1
 #define DEFAULT_MAX_BUCKET_SIZE -1
+#define DEFAULT_MAX_BUCKET_STORAGE -1
 
 struct _KmsSipRtpConnectionPrivate
 {
   gint max_kbps;
   gint max_bucket_size;
+  glong max_bucket_storage;
 };
 
 
@@ -50,7 +52,8 @@ enum
 {
   PROP_0,
   PROP_MAX_KBPS,
-  PROP_MAX_BUCKET_SIZE
+  PROP_MAX_BUCKET_SIZE,
+  PROP_MAX_BUCKET_STORAGE
 };
 
 
@@ -154,6 +157,9 @@ kms_sip_rtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv
 	  if (conn->priv->max_bucket_size > 0){
 		g_object_set (G_OBJECT(conn->traffic_shaper), "max-bucket-size", conn->priv->max_bucket_size, NULL);
 	  }
+	  if (conn->priv->max_bucket_storage > 0){
+		g_object_set (G_OBJECT(conn->traffic_shaper), "max-bucket-storage", conn->priv->max_bucket_storage, NULL);
+	  }
 
 	  rtp_conn->rtp_udpsink = gst_element_factory_make ("multiudpsink", NULL);
 	  rtp_conn->rtp_udpsrc = gst_element_factory_make ("udpsrc", NULL);
@@ -253,6 +259,12 @@ kms_sip_rtp_connection_set_property (GObject * object, guint prop_id,
         g_object_set (G_OBJECT(self->traffic_shaper), "max-bucket-size", self->priv->max_bucket_size, NULL);
       }
       break;
+    case PROP_MAX_BUCKET_STORAGE:
+      self->priv->max_bucket_storage = g_value_get_long (value);
+      if (self->traffic_shaper != NULL) {
+        g_object_set (G_OBJECT(self->traffic_shaper), "max-bucket-storage", self->priv->max_bucket_storage, NULL);
+      }
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -271,6 +283,9 @@ kms_sip_rtp_connection_get_property (GObject * object,
       break;
     case PROP_MAX_BUCKET_SIZE:
       g_value_set_int (value, self->priv->max_bucket_size);
+      break;
+    case PROP_MAX_BUCKET_STORAGE:
+      g_value_set_int (value, self->priv->max_bucket_storage);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -319,6 +334,18 @@ kms_sip_rtp_connection_class_init (KmsSipRtpConnectionClass * klass)
           "(-1 = unlimited)", -1, G_MAXINT, DEFAULT_MAX_BUCKET_SIZE,
           G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
  
+  /**
+   * GstTrafficShaper:min-bucket-size:
+   *
+   * The maximum kbits that can be stored delayed to be traffci shaped.
+   *
+   * Since: 1.14
+   */
+  g_object_class_install_property (gobject_class, PROP_MAX_BUCKET_STORAGE,
+      g_param_spec_long ("max-bucket-storage", "Maximum delayed storage size Size (Bytes)",
+          "The maximum amount of storage allowed for delayed packets in kbits "
+          "(-1 = unlimited)", -1, G_MAXLONG, DEFAULT_MAX_BUCKET_STORAGE,
+          G_PARAM_READWRITE | G_PARAM_CONSTRUCT | G_PARAM_STATIC_STRINGS));
 
   g_type_class_add_private (klass, sizeof (KmsSipRtpConnectionPrivate));
 }
