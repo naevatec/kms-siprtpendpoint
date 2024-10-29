@@ -445,7 +445,7 @@ kms_sip_srtp_connection_get_property (GObject * object,
       g_value_set_int (value, self->priv->max_bucket_size);
       break;
     case PROP_MAX_BUCKET_STORAGE:
-      g_value_set_int (value, self->priv->max_bucket_storage);
+      g_value_set_long (value, self->priv->max_bucket_storage);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);

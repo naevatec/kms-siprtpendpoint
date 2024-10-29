@@ -1159,7 +1159,7 @@ bitrate_limiter_impl (bool useIpv6)
   std::string pipeId;
 
   config.add ("modules.siprtp.SipRtpEndpoint.max-kbps", 450);
-  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 20);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 4500);
   config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-storage", 1000000);
 
   pipeId = mediaPipelineId;
@@ -1191,6 +1191,7 @@ bitrate_limiter_impl (bool useIpv6)
 
   rtpEpOfferer->processAnswer (answer);
 
+  dumpPipeline ("bitrate_limiter_1.dot");
   cv.wait (lck, [&] () {
     return media_state_changed.load();
   });
@@ -1200,7 +1201,7 @@ bitrate_limiter_impl (bool useIpv6)
   }
 
   sleep(10);
-  dumpPipeline ("bitrate_limiter.dot");
+  dumpPipeline ("bitrate_limiter_2.dot");
 
   releaseTestElement (src);
   releaseRtpEndpoint (rtpEpOfferer);
@@ -1211,8 +1212,8 @@ bitrate_limiter_impl (bool useIpv6)
 static void
 bitrate_overloadded_impl (bool useIpv6)
 {
-  config.add ("modules.siprtp.SipRtpEndpoint.max-kbps", 40);
-  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 12);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-kbps", 250);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 3000);
 
   std::atomic<bool> media_state_changed (false);
   std::condition_variable cv;
@@ -1291,29 +1292,25 @@ init_unit_test_suite ( int , char *[] )
 {
 	test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
 
-if (false) {
-  test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 1500000);
-  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 1500000);
-}
-  test->add (BOOST_TEST_CASE ( &bitrate_limiter ), 0, /* timeout */ 15000);
-  test->add (BOOST_TEST_CASE ( &bitrate_overloadded ), 0, /* timeout */ 15000);
-if (false) {
+  test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &bitrate_limiter ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &bitrate_overloadded ), 0, /* timeout */ 15);
   test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 20);
   test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 20);
-}
 
   if (false) {
 	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15000);
-	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15000);
-      test->add (BOOST_TEST_CASE ( &bitrate_limiter_ipv6 ), 0, /* timeout */ 150);
-	  test->add (BOOST_TEST_CASE ( &bitrate_overloadded_ipv6 ), 0, /* timeout */ 150);
+	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15);
+      test->add (BOOST_TEST_CASE ( &bitrate_limiter_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &bitrate_overloadded_ipv6 ), 0, /* timeout */ 15);
 	  test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 20);
 	  test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 20);
   }

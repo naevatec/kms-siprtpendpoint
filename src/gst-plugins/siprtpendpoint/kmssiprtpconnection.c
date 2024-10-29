@@ -285,7 +285,7 @@ kms_sip_rtp_connection_get_property (GObject * object,
       g_value_set_int (value, self->priv->max_bucket_size);
       break;
     case PROP_MAX_BUCKET_STORAGE:
-      g_value_set_int (value, self->priv->max_bucket_storage);
+      g_value_set_long (value, self->priv->max_bucket_storage);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -407,7 +407,8 @@ static void
 kms_sip_rtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
 {
   KmsIRtpConnectionInterface *old_iface;
-  KmsSipRtpConnectionClass *klass = g_type_class_peek (kms_sip_rtp_connection_get_type());
+  GType sip_rtp_connection_type = kms_sip_rtp_connection_get_type();
+  KmsSipRtpConnectionClass *klass = g_type_class_ref (sip_rtp_connection_type);
 
   if (klass != NULL) {
 	old_iface = g_type_interface_peek (klass, kms_i_rtp_connection_get_type());
@@ -418,7 +419,7 @@ kms_sip_rtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
 		kms_sip_rtp_connection_sink_sync_state_with_parent;
 	iface->request_rtp_sink = kms_sip_rtp_connection_request_rtp_sink;
 	iface->request_rtp_src = old_iface->request_rtp_src;
-	iface->request_rtcp_sink = old_iface->request_rtp_sink;
+	iface->request_rtcp_sink = old_iface->request_rtcp_sink;
 	iface->request_rtcp_src = old_iface->request_rtcp_src;
 	iface->set_latency_callback = old_iface->set_latency_callback;
 	iface->collect_latency_stats = old_iface->collect_latency_stats;

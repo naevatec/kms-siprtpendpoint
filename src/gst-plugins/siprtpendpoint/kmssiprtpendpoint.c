@@ -767,7 +767,7 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
 		g_value_set_int (value, self->priv->max_bucket_size);
 		break;
 	case PROP_MAX_BUCKET_STORAGE:
-		g_value_set_int (value, self->priv->max_bucket_storage_size);
+		g_value_set_long (value, self->priv->max_bucket_storage_size);
 		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
