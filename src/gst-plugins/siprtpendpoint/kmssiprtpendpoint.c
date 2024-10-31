@@ -1324,6 +1324,10 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 	self->priv->current_ssrc_video_track = 0;
 	self->priv->pads_to_ssrc = g_hash_table_new_full (NULL, NULL, gst_object_unref, NULL);
 	self->priv->selector_pads = g_hash_table_new_full (NULL, NULL, NULL, gst_object_unref);
+
+	self->priv->max_kbps = DEFAULT_MAX_KBPS;
+	self->priv->max_bucket_size = DEFAULT_MAX_BUCKET_SIZE;
+	self->priv->max_bucket_storage_size = DEFAULT_MAX_BUCKET_STORAGE;
 	
 	kms_sip_rtp_endpoint_intercept_jitter_buffers (self);
 	if (self->priv->rtpbin != NULL) {

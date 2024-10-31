@@ -226,6 +226,7 @@ kms_sip_rtp_connection_init (KmsSipRtpConnection * self)
 
   self->priv->max_bucket_size = -1;
   self->priv->max_kbps = -1;
+  self->priv->max_bucket_storage = -1;
 }
 
 static void

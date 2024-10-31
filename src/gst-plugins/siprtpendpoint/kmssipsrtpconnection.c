@@ -386,6 +386,7 @@ kms_sip_srtp_connection_init (KmsSipSrtpConnection * self)
 
   self->priv->max_bucket_size = -1;
   self->priv->max_kbps = -1;
+  self->priv->max_bucket_storage = 1;
 }
 
 static void
@@ -555,7 +556,8 @@ static void
 kms_sip_srtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
 {
   KmsIRtpConnectionInterface *old_iface;
-  KmsSipSrtpConnectionClass *klass = g_type_class_peek (kms_sip_srtp_connection_get_type());
+  GType sip_srtp_connection_type = kms_sip_srtp_connection_get_type();
+  KmsSipSrtpConnectionClass *klass = g_type_class_ref (sip_srtp_connection_type);
 
   if (klass != NULL) {
 	old_iface = g_type_interface_peek (klass, kms_i_rtp_connection_get_type());
@@ -566,7 +568,7 @@ kms_sip_srtp_connection_interface_init (KmsIRtpConnectionInterface * iface)
 		kms_sip_srtp_connection_sink_sync_state_with_parent;
 	iface->request_rtp_sink = old_iface->request_rtp_sink;
 	iface->request_rtp_src = old_iface->request_rtp_src;
-	iface->request_rtcp_sink = old_iface->request_rtp_sink;
+	iface->request_rtcp_sink = old_iface->request_rtcp_sink;
 	iface->request_rtcp_src = old_iface->request_rtcp_src;
 	iface->set_latency_callback = old_iface->set_latency_callback;
 	iface->collect_latency_stats = old_iface->collect_latency_stats;
