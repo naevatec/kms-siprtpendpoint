@@ -53,7 +53,10 @@ public:
 				                bool useIpv6,
                         std::shared_ptr<DSCPValue> qosDscp,
                         std::string externalIPv4,
-                        std::string externalIPv6);
+                        std::string externalIPv6, 
+                        int maxKbpsParam, 
+                        int maxBurstSize, 
+                        int maxShapingStorage);
 
   virtual ~FacadeRtpEndpointImpl ();
 
@@ -239,6 +242,10 @@ private:
   std::shared_ptr<DSCPValue> qosDscpCache;
   std::string externalIPv4Cache;
   std::string externalIPv6Cache;
+
+  int maxKbps;
+  int maxBurstSize;
+  int maxShapingStorage;
 
   class StaticConstructor
   {

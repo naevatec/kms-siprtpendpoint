@@ -46,7 +46,10 @@ public:
 				            bool useIpv6,
                     std::shared_ptr<DSCPValue> qosDscp,
                     std::string externalIPv4,
-                    std::string externalIPv6);
+                    std::string externalIPv6, 
+                    int maxKbps, 
+                    int maxBurstSize, 
+                    int maxShapingStorage);
 
   virtual ~SipRtpEndpointImpl ();
 
@@ -58,6 +61,9 @@ public:
           std::shared_ptr<DSCPValue> qosDscp,
           std::string externalIPv4,
           std::string externalIPv6,
+          int maxKbps,
+          int maxBurstSize,
+          int maxStorageSize,
 		      const std::string &sdp,
 		      bool continue_audio_stream,
 		      bool continue_video_stream);

@@ -58,6 +58,16 @@
       <p>
       Another one is that when dealing with early media (used with SIP answer to INVITE 183). Sometimes the remote peer signals an early media (SIP answer 183 with an SDP) and then a definitive answer (200 with another SDP). But in fact there is no stream switching. SSRC, base timestamp, all is preserved. The point is that there is no change in media and no renegotiation is needed. The bad point is how to decide when renegotiation happens (two consecutive processAnswer) if packets correspondo to old stream or if no stream switching has happened. If control application is able to know that no stream switching is happening, and no renegotiation is needed it could just skip renegotiation (second processAnswer). But if not we can only make a guess: if second answer include same streams that first answer (same IP, port and profile), ost surely there is no stream switching. so that guess is also made on SipRtpEndpoint so that it behaves as expected in VoIP environments
       </p>
+      <p>It is possible to traffic shape the network packets being sent for each audio and video channel. For that there is some optiona contructor parameters that allows to enable
+      and control the traffic shaping feature. These parameters are as follows:
+      <ul style='list-style-type:circle'>
+      	<li>maxKbps represents the maximum allowd bitrate in kbits per second that the network will send</li>
+      	<li>maxBurstSize represents the maximum allowed burst in bytes. The burst is the amount of data allowed to be sent without traffic shaping restriction, setting this to default value (-1) effectively disables traffic shaping.</li>
+      	<li>maxShapingStorage, represents the maximum storage allocated for the traffic shaper in bytes. As traffic shaping may delay some data before sent to the network, those data buffers need to be stored until sent. This maximum figure provides 
+        an upper limit to how much data can be stored, by default is unlimited, but in case the traffic shaping configuration has not been correctly calculated, this may result in memory being 
+        used for this without limitation causing effects much like a memory leak. On the other hand if this sotrage limit is reached, packet drops will happen much like if the network has dropped them.</li>
+      </ul>
+      </p>
       ",
       "constructor":
         {
@@ -109,6 +119,27 @@
               "type": "String",
               "optional": true,
               "defaultValue": ""
+            }, 
+            {
+              "name": "maxKbps",
+              "doc": "Maximum number of kilobits per second that the network connection will send to the network. Default value (-1) means unlimited.",
+              "type": "int",
+              "optional": true,
+              "defaultValue": -1
+            }, 
+            {
+              "name": "maxBurstSize",
+              "doc": "Maximum burst size allowed in bytes. A burst is the maximum allowed data that is sent to the network withouth traffic shaping limitations. Default value (-1) means unlimited and effectively disables the traffic shaping feature",
+              "type": "int",
+              "optional": true,
+              "defaultValue": -1
+            }, 
+            {
+              "name": "maxShapingStorage",
+              "doc": "Maximum data that is stored for the traffic shaping feature in bytes. As traffics shaping operates it may need to delay network buffers before being sent to the network. This parameter marks maximum sotrage allowed for this. When reached that maximum storage, network buffers will be dropped without being sent to the network. Default value (-1) means unlimited storage. Keep in mind that unlimited sotrage may cause memory being overused for the traffic shaping feature if not correctly configured",
+              "type": "int",
+              "optional": true,
+              "defaultValue": -1
             }
           ]
         },
