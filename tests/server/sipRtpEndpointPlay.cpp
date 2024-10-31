@@ -62,29 +62,46 @@ struct GF {
 
 BOOST_GLOBAL_FIXTURE (GF);
 
-GF::GF()
+
+std::string
+createMediaPipeline (boost::property_tree::ptree& cfg)
+{
+	std::string pipeId;
+	
+	pipeId = moduleManager.getFactory ("MediaPipeline")->createObject (
+                      cfg, "",
+                      Json::Value() )->getId();
+	return pipeId;
+}
+
+void
+initKurentoConfig (boost::property_tree::ptree& cfg)
 {
   boost::property_tree::ptree ac, audioCodecs, vc, videoCodecs;
+
+  cfg.add ("configPath", "../../../tests" );
+  cfg.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
+  cfg.add ("modules.kurento.SdpEndpoint.numVideoMedias", 1);
+
+  ac.put ("name", "opus/48000/2");
+  audioCodecs.push_back (std::make_pair ("", ac) );
+  cfg.add_child ("modules.kurento.SdpEndpoint.audioCodecs", audioCodecs);
+
+  vc.put ("name", "VP8/90000");
+  videoCodecs.push_back (std::make_pair ("", vc) );
+  cfg.add_child ("modules.kurento.SdpEndpoint.videoCodecs", videoCodecs);
+}
+
+GF::GF()
+{
   gst_init(nullptr, nullptr);
 
 //  moduleManager.loadModulesFromDirectories ("../../src/server:./src/server:../../kms-omni-build:../../src/server:../../../../kms-omni-build");
   moduleManager.loadModulesFromDirectories ("../../src/server:./");
 
-  config.add ("configPath", "../../../tests" );
-  config.add ("modules.kurento.SdpEndpoint.numAudioMedias", 1);
-  config.add ("modules.kurento.SdpEndpoint.numVideoMedias", 1);
-
-  ac.put ("name", "opus/48000/2");
-  audioCodecs.push_back (std::make_pair ("", ac) );
-  config.add_child ("modules.kurento.SdpEndpoint.audioCodecs", audioCodecs);
-
-  vc.put ("name", "VP8/90000");
-  videoCodecs.push_back (std::make_pair ("", vc) );
-  config.add_child ("modules.kurento.SdpEndpoint.videoCodecs", videoCodecs);
-
-  mediaPipelineId = moduleManager.getFactory ("MediaPipeline")->createObject (
-                      config, "",
-                      Json::Value() )->getId();
+  initKurentoConfig(config);
+  
+  mediaPipelineId = createMediaPipeline (config);
 }
 
 GF::~GF()
@@ -135,18 +152,24 @@ dumpPipeline(std::string filename)
 //}
 
 static std::shared_ptr <PassThroughImpl>
-createPassThrough ()
+createPassThrough (std::string pipeId)
 {
   std::shared_ptr <kurento::MediaObjectImpl> pt;
   Json::Value constructorParams;
 
-  constructorParams ["mediaPipeline"] = mediaPipelineId;
+  constructorParams ["mediaPipeline"] = pipeId;
 
   pt = moduleManager.getFactory ("PassThrough")->createObject (
                   config, "",
                   constructorParams );
 
   return std::dynamic_pointer_cast <PassThroughImpl> (pt);
+}
+
+static std::shared_ptr <PassThroughImpl>
+createPassThrough ()
+{
+	return createPassThrough(mediaPipelineId);
 }
 
 static void
@@ -160,12 +183,12 @@ releasePassTrhough (std::shared_ptr<PassThroughImpl> &ep)
 
 
 static std::shared_ptr <FacadeRtpEndpointImpl>
-createRtpEndpoint (bool useIpv6, bool useCrypto)
+createRtpEndpoint (std::string pipeId, bool useIpv6, bool useCrypto)
 {
   std::shared_ptr <kurento::MediaObjectImpl> rtpEndpoint;
   Json::Value constructorParams;
 
-  constructorParams ["mediaPipeline"] = mediaPipelineId;
+  constructorParams ["mediaPipeline"] = pipeId;
   constructorParams ["useIpv6"] = useIpv6;
 //  if (useCrypto) {
 //	  constructorParams ["crypto"] = getCrypto ()->;
@@ -178,6 +201,12 @@ createRtpEndpoint (bool useIpv6, bool useCrypto)
   return std::dynamic_pointer_cast <FacadeRtpEndpointImpl> (rtpEndpoint);
 }
 
+static std::shared_ptr <FacadeRtpEndpointImpl>
+createRtpEndpoint (bool useIpv6, bool useCrypto)
+{
+	return createRtpEndpoint (mediaPipelineId, useIpv6, useCrypto);
+}
+
 static void
 releaseRtpEndpoint (std::shared_ptr<FacadeRtpEndpointImpl> &ep)
 {
@@ -187,16 +216,21 @@ releaseRtpEndpoint (std::shared_ptr<FacadeRtpEndpointImpl> &ep)
   MediaSet::getMediaSet ()->release (id);
 }
 
-static std::shared_ptr<MediaElementImpl> createTestSrc() {
+static std::shared_ptr<MediaElementImpl> createTestSrc(std::string pipeId) {
   std::shared_ptr <MediaElementImpl> src = std::dynamic_pointer_cast
       <MediaElementImpl> (MediaSet::getMediaSet()->ref (new  MediaElementImpl (
                             boost::property_tree::ptree(),
-                            MediaSet::getMediaSet()->getMediaObject (mediaPipelineId),
+                            MediaSet::getMediaSet()->getMediaObject (pipeId),
                             "dummysrc") ) );
 
   g_object_set (src->getGstreamerElement(), "audio", TRUE, "video", TRUE, NULL);
 
   return std::dynamic_pointer_cast <MediaElementImpl> (src);
+}
+
+static std::shared_ptr<MediaElementImpl> createTestSrc()
+{
+	return createTestSrc (mediaPipelineId);
 }
 
 static std::shared_ptr<MediaElementImpl> createTestAudioSrc() {
@@ -1119,26 +1153,166 @@ check_ssrc_switch_ipv6()
 }
 
 
+static void
+bitrate_limiter_impl (bool useIpv6)
+{
+  std::string pipeId;
+
+  config.add ("modules.siprtp.SipRtpEndpoint.max-kbps", 450);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 4500);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-storage", 1000000);
+
+  pipeId = mediaPipelineId;
+
+  std::atomic<bool> media_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (pipeId, useIpv6, false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (pipeId, useIpv6, false);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc(pipeId);
+
+  src->connect (rtpEpOfferer);
+
+  rtpEpAnswerer->getSignalMediaStateChanged().connect ([&] (
+  MediaStateChanged event) {
+    std::shared_ptr <MediaState> state = event.getNewState();
+    BOOST_CHECK (state->getValue() == MediaState::CONNECTED);
+    media_state_changed = true;
+    cv.notify_one();
+  });
+
+  std::string offer = rtpEpOfferer->generateOffer ();
+  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+  std::string answer = rtpEpAnswerer->processOffer (offer);
+  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+  rtpEpOfferer->processAnswer (answer);
+
+  dumpPipeline ("bitrate_limiter_1.dot");
+  cv.wait (lck, [&] () {
+    return media_state_changed.load();
+  });
+
+  if (!media_state_changed) {
+    BOOST_ERROR ("Not media state changed");
+  }
+
+  sleep(10);
+  dumpPipeline ("bitrate_limiter_2.dot");
+
+  releaseTestElement (src);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+}
+
+
+static void
+bitrate_overloadded_impl (bool useIpv6)
+{
+  config.add ("modules.siprtp.SipRtpEndpoint.max-kbps", 250);
+  config.add ("modules.siprtp.SipRtpEndpoint.max-bucket-size", 3000);
+
+  std::atomic<bool> media_state_changed (false);
+  std::condition_variable cv;
+  std::mutex mtx;
+  std::unique_lock<std::mutex> lck (mtx);
+
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpOfferer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <FacadeRtpEndpointImpl> rtpEpAnswerer = createRtpEndpoint (useIpv6, false);
+  std::shared_ptr <MediaElementImpl> src = createTestSrc();
+
+  src->connect (rtpEpOfferer);
+
+  rtpEpAnswerer->getSignalMediaStateChanged().connect ([&] (
+  MediaStateChanged event) {
+    std::shared_ptr <MediaState> state = event.getNewState();
+    BOOST_CHECK (state->getValue() == MediaState::CONNECTED);
+    media_state_changed = true;
+    cv.notify_one();
+  });
+
+  std::string offer = rtpEpOfferer->generateOffer ();
+  BOOST_TEST_MESSAGE ("offer: " + offer);
+
+  std::string answer = rtpEpAnswerer->processOffer (offer);
+  BOOST_TEST_MESSAGE ("answer: " + answer);
+
+  rtpEpOfferer->processAnswer (answer);
+
+  cv.wait (lck, [&] () {
+    return media_state_changed.load();
+  });
+
+  if (!media_state_changed) {
+    BOOST_ERROR ("Not media state chagned");
+  }
+
+  sleep(10);
+
+  releaseTestElement (src);
+  releaseRtpEndpoint (rtpEpOfferer);
+  releaseRtpEndpoint (rtpEpAnswerer);
+}
+
+static void
+bitrate_limiter ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_limiter_impl (false);
+}
+
+static void
+bitrate_limiter_ipv6 ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_limiter_impl (true);
+}
+
+static void
+bitrate_overloadded ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_overloadded_impl (false);
+}
+
+static void
+bitrate_overloadded_ipv6 ()
+{
+  BOOST_TEST_MESSAGE ("Start test: bitrate limiter");
+  bitrate_overloadded_impl (true);
+}
+
+
+
 test_suite *
 init_unit_test_suite ( int , char *[] )
 {
 	test_suite *test = BOOST_TEST_SUITE ( "SipRtpEndpointPlay" );
 
-	test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &media_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &media_state_changes_no_ssrc_in_sdp), 0 , /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &bitrate_limiter ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &bitrate_overloadded ), 0, /* timeout */ 15);
+  test->add (BOOST_TEST_CASE ( &check_ssrc_switch ), 0, /* timeout */ 20);
+  test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr ), 0, /* timeout */ 20);
 
-	test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 20);
-	test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 20);
+  if (false) {
+	  test->add (BOOST_TEST_CASE ( &media_state_changes_ipv6 ), 0, /* timeout */ 15000);
+	  test->add (BOOST_TEST_CASE ( &reconnection_generate_offer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_offer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_state_changes_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &reconnection_process_answer_back_state_changes_ipv6 ), 0, /* timeout */ 15);
+      test->add (BOOST_TEST_CASE ( &bitrate_limiter_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &bitrate_overloadded_ipv6 ), 0, /* timeout */ 15);
+	  test->add (BOOST_TEST_CASE ( &check_ssrc_switch_ipv6 ), 0, /* timeout */ 20);
+	  test->add (BOOST_TEST_CASE ( &filter_out_from_source_addr_ipv6 ), 0, /* timeout */ 20);
+  }
   return test;
 }

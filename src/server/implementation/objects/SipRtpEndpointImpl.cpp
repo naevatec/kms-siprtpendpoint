@@ -48,6 +48,10 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define PARAM_VIDEO_CODECS "videoCodecs"
 #define PARAM_PUBLIC_IPV4 "externalIPv4"
 #define PARAM_PUBLIC_IPV6 "externalIPv6"
+#define PARAM_MAX_KBPS "max-kbps"
+#define PARAM_MAX_BUCKET_SIZE "max-bucket-size"
+#define PARAM_MAX_BUCKET_STORAGE "max-bucket-storage"
+
 
 
 namespace kurento
@@ -290,15 +294,23 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                         std::shared_ptr<DSCPValue> audioQosDscp,
                                         std::shared_ptr<DSCPValue> videoQosDscp,
                                         std::string externalIPv4,
-                                        std::string externalIPv6)
+                                        std::string externalIPv6, 
+                                        int maxKbpsParam, 
+                                        int maxBurstSize, 
+                                        int maxShapingStorage)
   : BaseRtpEndpointImpl (conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
 {
-  std::string cfg_qos_dscp_value;
+  std::string maxKbpsValue;
+  std::string maxBucketSizeValue;
+  std::string maxBucketStorageValue;
+  int maxKbps = 0;
+  int maxBucketSize = 0;
+  long maxBucketStorage = 0;
 
   if (qosDscp->getValue () == DSCPValue::NO_VALUE) {
-    std::string cfg_dscp_value;
+    std::string cfg_qos_dscp_value;
 
     if (getConfigValue<std::string,SipRtpEndpoint>(&cfg_qos_dscp_value, 
         PARAM_QOS_DSCP)) {
@@ -389,6 +401,56 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
     }
 
   }
+
+  if (maxKbpsParam <= 0) {
+    if (getConfigValue<std::string,SipRtpEndpoint>(&maxKbpsValue, PARAM_MAX_KBPS)) {
+      GST_INFO ("MAX-KBPS default configured value is %s", maxKbpsValue.c_str() );
+      try {
+        maxKbps = std::stoi (maxKbpsValue);
+      } catch (...) { 
+        maxKbps = -1;  // Default value
+      }
+    }
+  } else {
+    maxKbps = maxKbpsParam;
+  }
+
+  if (maxBurstSize <= 0) {
+    if (getConfigValue<std::string,SipRtpEndpoint>(&maxBucketSizeValue, PARAM_MAX_BUCKET_SIZE)) {
+      GST_INFO ("MAX-BUCKET-SIZE default configured value is %s", maxBucketSizeValue.c_str() );
+      try {
+        maxBucketSize = std::stoi (maxBucketSizeValue);
+      } catch (...) { 
+        maxBucketSize = -1;
+      }
+    }
+  } else {
+    maxBucketSize = maxBurstSize;
+  }
+
+  if (maxShapingStorage <= 0) {
+    if (getConfigValue<std::string,SipRtpEndpoint>(&maxBucketStorageValue, PARAM_MAX_BUCKET_STORAGE)) {
+      GST_INFO ("MAX-BUCKET-STORAGE default configured value is %s", maxBucketStorageValue.c_str() );
+      try {
+        maxBucketStorage = std::stoi (maxBucketStorageValue);
+      } catch (...) { 
+        maxBucketStorage = -1;
+      }
+    }
+  } else {
+    maxBucketStorage = maxShapingStorage;
+  }
+
+  if (maxKbps > 0) {
+    g_object_set (element, "max-kbps", maxKbps, NULL);
+  }
+  if (maxBucketSize > 0) {
+    g_object_set (element, "max-bucket-size", maxBucketSize, NULL);
+  }
+  if (maxBucketStorage > 0) {
+    g_object_set (element, "max-bucket-storage", maxBucketStorage, NULL);
+  }
+
   if (!crypto->isSetCrypto() ) {
     return;
   }
@@ -486,7 +548,10 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
                                          std::shared_ptr<DSCPValue> audioQosDscp,
                                          std::shared_ptr<DSCPValue> videoQosDscp,
                                          const std::string &externalIPv4,
-                                         const std::string &externalIPv6) const
+                                         const std::string &externalIPv6, 
+                                         int maxKbps, 
+                                         int maxBurstSize, 
+                                         int maxShapingStorage) const
 {
   // Here we have made a real special construct to deal with Kurento object system to inreface with
   // an implementation of and object composed of others.
@@ -500,7 +565,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
   return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, 
-                                    useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6);
+                                    useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6, maxKbps, maxBurstSize, maxShapingStorage);
 }
 
 
@@ -548,13 +613,16 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (
   std::shared_ptr<DSCPValue> videoQosDscp,
   std::string externalIPv4,
   std::string externalIPv6,
+  int maxKbps,
+  int maxBurstSize,
+  int maxStorageSize,
   const std::string &sdp,
   bool continue_audio_stream,
   bool continue_video_stream)
 {
 	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = 
     std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, 
-                                        mediaPipeline, crypto, useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6));
+                                        mediaPipeline, crypto, useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6, maxKbps, maxBurstSize, maxStorageSize));
 
 	// Recover ports (sockets) from last SipRtpEndpoint and SSRCs to filter out old traffic
 	this->cloneToNewEndpoint (newEndpoint, sdp, continue_audio_stream, 

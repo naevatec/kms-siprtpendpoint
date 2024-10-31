@@ -26,6 +26,38 @@
 G_BEGIN_DECLS
 
 
+#define KMS_TYPE_SIP_SRTP_CONNECTION \
+  (kms_sip_srtp_connection_get_type())
+#define KMS_SIP_SRTP_CONNECTION(obj) \
+  (G_TYPE_CHECK_INSTANCE_CAST((obj),KMS_TYPE_SIP_SRTP_CONNECTION,KmsSipSrtpConnection))
+#define KMS_SIP_SRTP_CONNECTION_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_CAST((klass),KMS_TYPE_SIP_SRTP_CONNECTION,KmsRtpConnectionClass))
+#define KMS_IS_SIP_SRTP_CONNECTION(obj) \
+  (G_TYPE_CHECK_INSTANCE_TYPE((obj),KMS_TYPE_SIP_SRTP_CONNECTION))
+#define KMS_IS_SIP_SRTP_CONNECTION_CLASS(klass) \
+  (G_TYPE_CHECK_CLASS_TYPE((klass),KMS_TYPE_SIP_SRTP_CONNECTION))
+#define KMS_SIP_SRTP_CONNECTION_CAST(obj) ((KmsSipSrtpConnection*)(obj))
+typedef struct _KmsSipSrtpConnectionPrivate KmsSipSrtpConnectionPrivate;
+typedef struct _KmsSipSrtpConnection KmsSipSrtpConnection;
+typedef struct _KmsSipSrtpConnectionClass KmsSipSrtpConnectionClass;
+
+struct _KmsSipSrtpConnection
+{
+  KmsSrtpConnection parent;
+
+  GstElement *traffic_shaper;
+
+  KmsSipSrtpConnectionPrivate *priv;
+};
+
+struct _KmsSipSrtpConnectionClass
+{
+  KmsSrtpConnectionClass parent_class;
+};
+
+GType kms_sip_srtp_connection_get_type (void);
+
+
 KmsSrtpConnection *
 kms_sip_srtp_connection_new (guint16 min_port, guint16 max_port, gboolean use_ipv6,
 		GSocket *rtp_sock, GSocket *rtcp_sock,

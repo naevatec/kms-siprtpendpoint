@@ -55,7 +55,10 @@ public:
                         std::shared_ptr<DSCPValue> audioQosDscp,
                         std::shared_ptr<DSCPValue> videoQosDscp,
                         std::string externalIPv4,
-                        std::string externalIPv6);
+                        std::string externalIPv6, 
+                        int maxKbpsParam, 
+                        int maxBurstSize, 
+                        int maxShapingStorage);
 
   virtual ~FacadeRtpEndpointImpl ();
 
@@ -243,6 +246,10 @@ private:
   std::shared_ptr<DSCPValue> videoQosDscpCache;
   std::string externalIPv4Cache;
   std::string externalIPv6Cache;
+
+  int maxKbps;
+  int maxBurstSize;
+  int maxShapingStorage;
 
   class StaticConstructor
   {

@@ -31,6 +31,7 @@
 #include <MediaState.hpp>
 #include "SDES.hpp"
 #include "CryptoSuite.hpp"
+#include <GstreamerDotDetails.hpp>
 
 #include <sigc++/connection.h>
 
@@ -182,6 +183,38 @@ static std::shared_ptr<MediaElementImpl> createTestSrc() {
 
   return std::dynamic_pointer_cast <MediaElementImpl> (src);
 }
+
+static void
+dumpPipeline (std::shared_ptr<MediaPipeline> pipeline, std::string fileName)
+{
+  std::string pipelineDot;
+  std::shared_ptr<GstreamerDotDetails> details (new GstreamerDotDetails ("SHOW_ALL"));
+
+  pipelineDot = pipeline->getGstreamerDot (details);
+  std::ofstream out(fileName);
+
+  out << pipelineDot;
+  out.close ();
+
+}
+
+
+
+static void
+dumpPipeline (std::string pipelineId, std::string fileName)
+{
+  std::shared_ptr<MediaPipeline> pipeline = std::dynamic_pointer_cast<MediaPipeline> (MediaSet::getMediaSet ()->getMediaObject (pipelineId));
+  dumpPipeline (pipeline, fileName);
+
+//  MediaSet::getMediaSet ()->release (pipelineId);
+}
+
+static void
+dumpPipeline(std::string filename)
+{
+	dumpPipeline (mediaPipelineId, filename);
+}
+
 
 static std::string sdp_test_1 = "v=0\r\n"
 								"o=iPECSCM 7619561 7619561 IN IP4 192.168.131.114\r\n"
@@ -392,6 +425,8 @@ reconnection_generate_offer_state_changes_impl (bool cryptoOffer, bool agnosticO
 	  cv.wait_for (lck, std::chrono::milliseconds(1500), [&] () {
 	    return media_state_changed.load();
 	  });
+
+	  dumpPipeline ("reconnection_generate_offer_state_changes_impl.dot");
 
 	  conn.disconnect ();
 	  if (!media_state_changed && mediaShouldFlow) {
