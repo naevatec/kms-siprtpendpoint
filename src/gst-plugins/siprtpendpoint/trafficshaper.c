@@ -363,15 +363,26 @@ gst_traffic_shaper_get_property (GObject * object,
     guint prop_id, GValue * value, GParamSpec * pspec)
 {
   GstTrafficShaper *trafficshaper = GST_TRAFFIC_SHAPER (object);
+  glong val;
 
   switch (prop_id) {
     case PROP_MAX_KBPS:
       g_value_set_int (value, trafficshaper->max_kbps);
       break;
     case PROP_MAX_BUCKET_SIZE:
-      g_value_set_long (value, trafficshaper->max_bucket_size/8);
+      if (trafficshaper->max_bucket_size < 0) {
+        val = -1;
+      } else {
+        val = trafficshaper->max_bucket_size/8;
+      }
+      g_value_set_long (value, val);
       break;
     case PROP_MAX_BUCKET_STORAGE:
+      if (trafficshaper->max_storage_size < 0) {
+        val = -1;
+      } else {
+        val = trafficshaper->max_storage_size/8;
+      }
       g_value_set_long (value, trafficshaper->max_storage_size/8);
       break;
     case PROP_CURRENT_BUCKET_SIZE:
