@@ -122,6 +122,7 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
                                   			std::shared_ptr<SDES> crypto,
 								  			bool cryptoAgnostic,
 								  			bool useIpv6,
+								  			std::shared_ptr<DSCPValue> qosDscp,
 								  			std::shared_ptr<DSCPValue> audioQosDscp,
 								  			std::shared_ptr<DSCPValue> videoQosDscp,
                     						std::string externalIPv4,
@@ -129,13 +130,14 @@ FacadeRtpEndpointImpl::FacadeRtpEndpointImpl (const boost::property_tree::ptree 
   : ComposedObjectImpl (conf,
                          std::dynamic_pointer_cast<MediaPipeline> (mediaPipeline)), cryptoCache (crypto), useIpv6Cache (useIpv6)
 {
+  this->qosDscpCache = qosDscp;
   this->audioQosDscpCache = audioQosDscp;
   this->videoQosDscpCache = videoQosDscp;
   this->externalIPv4Cache = externalIPv4;
   this->externalIPv6Cache = externalIPv6;
   this->cryptoAgnostic = cryptoAgnostic;
 
-  rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6));
+  rtp_ep = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, mediaPipeline, crypto, useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6));
   audioCapsSet = NULL;
   videoCapsSet = NULL;
   rembParamsSet = NULL;
@@ -249,7 +251,7 @@ std::string FacadeRtpEndpointImpl::generateOffer (std::shared_ptr<OfferOptions> 
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, qosDscpCache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
 
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
@@ -287,7 +289,7 @@ std::string FacadeRtpEndpointImpl::generateOffer ()
 		GST_WARNING ("Exception generating offer in SipRtpEndpoint: %s", e1.what());
 		throw e1;
 	}
-	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
+	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoCache, useIpv6Cache, qosDscpCache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
 
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
@@ -377,7 +379,7 @@ std::string FacadeRtpEndpointImpl::processOffer (const std::string &offer)
 	// If we get here is either SDP offer didn't match existing endpoint regarding crypto
 	// or existing endpoint was already negotiated.
 	// In either case, cryptoToUse contains the cryptoCofniguration needed to instantiate new SipRtpEndpoint
-	newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
+	newEndpoint = std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, qosDscpCache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache));
 	newEndpoint->postConstructor();
 	renewInternalEndpoint (newEndpoint);
 	answer = newEndpoint->processOffer(modifiableOffer);
@@ -446,7 +448,7 @@ std::string FacadeRtpEndpointImpl::processAnswer (const std::string &answer)
 		GST_INFO ("No change in audio stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
 	if (continue_video_stream)
 		GST_INFO ("No change in video stream, it is expected that received audio will preserve IP, port, SSRC and base timestamp");
-	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache, modifiableAnswer, continue_audio_stream, continue_video_stream);
+	newEndpoint = rtp_ep->getCleanEndpoint (config, getMediaPipeline (), cryptoToUse, useIpv6Cache, qosDscpCache, audioQosDscpCache, videoQosDscpCache, externalIPv4Cache, externalIPv6Cache, modifiableAnswer, continue_audio_stream, continue_video_stream);
 	if (this->isCryptoAgnostic ()) {
 		if (cryptoToUse->isSetCrypto()) {
 			if (this->agnosticCryptoAudioSsrc != 0) {

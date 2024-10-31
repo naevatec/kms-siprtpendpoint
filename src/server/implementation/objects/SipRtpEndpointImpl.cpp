@@ -41,6 +41,7 @@ GST_DEBUG_CATEGORY_STATIC (GST_CAT_DEFAULT);
 #define KMS_SRTP_CIPHER_AES_CM_128_SIZE  ((gsize)30)
 #define KMS_SRTP_CIPHER_AES_CM_256_SIZE  ((gsize)46)
 
+#define PARAM_QOS_DSCP "qos-dscp"
 #define PARAM_AUDIO_QOS_DSCP "audio-qos-dscp"
 #define PARAM_VIDEO_QOS_DSCP "video-qos-dscp"
 #define PARAM_AUDIO_CODECS "audioCodecs"
@@ -285,6 +286,7 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                                         std::shared_ptr<MediaPipeline> mediaPipeline,
                                         std::shared_ptr<SDES> crypto,
                                         bool useIpv6,
+                                        std::shared_ptr<DSCPValue> qosDscp,
                                         std::shared_ptr<DSCPValue> audioQosDscp,
                                         std::shared_ptr<DSCPValue> videoQosDscp,
                                         std::string externalIPv4,
@@ -293,8 +295,20 @@ SipRtpEndpointImpl::SipRtpEndpointImpl (const boost::property_tree::ptree &conf,
                          std::dynamic_pointer_cast<MediaObjectImpl> (mediaPipeline),
                          FACTORY_NAME, useIpv6)
 {
-  this->audioQosDscp = audioQosDscp;
-  this->videoQosDscp = videoQosDscp;
+  std::string cfg_qos_dscp_value;
+
+  if (qosDscp->getValue () == DSCPValue::NO_VALUE) {
+    std::string cfg_dscp_value;
+
+    if (getConfigValue<std::string,SipRtpEndpoint>(&cfg_qos_dscp_value, 
+        PARAM_QOS_DSCP)) {
+      GST_INFO ("QOS-DSCP default configured value is %s", cfg_qos_dscp_value.c_str() );
+      qosDscp = std::make_shared<DSCPValue> (cfg_qos_dscp_value);
+    }
+  }
+
+  this->audioQosDscp = qosDscp;
+  this->videoQosDscp = qosDscp;
 
   if (audioQosDscp->getValue () == DSCPValue::NO_VALUE) {
     std::string cfg_dscp_value;
@@ -468,6 +482,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
                                          std::shared_ptr<SDES> crypto,
                                          bool cryptoAgnostic,
                                          bool useIpv6,
+                                         std::shared_ptr<DSCPValue> qosDscp,
                                          std::shared_ptr<DSCPValue> audioQosDscp,
                                          std::shared_ptr<DSCPValue> videoQosDscp,
                                          const std::string &externalIPv4,
@@ -485,7 +500,7 @@ SipRtpEndpointImplFactory::createObject (const boost::property_tree::ptree &conf
   // and that needs to implement all methods from this object interface and surely
   // delegate on this class (or other depending on the funtionality).
   return new FacadeRtpEndpointImpl (conf, mediaPipeline, crypto, cryptoAgnostic, 
-                                    useIpv6, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6);
+                                    useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6);
 }
 
 
@@ -528,6 +543,7 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (
   const boost::property_tree::ptree &conf,
   std::shared_ptr<MediaPipeline> mediaPipeline,
   std::shared_ptr<SDES> crypto, bool useIpv6,
+  std::shared_ptr<DSCPValue> qosDscp,
   std::shared_ptr<DSCPValue> audioQosDscp,
   std::shared_ptr<DSCPValue> videoQosDscp,
   std::string externalIPv4,
@@ -538,7 +554,7 @@ std::shared_ptr<SipRtpEndpointImpl> SipRtpEndpointImpl::getCleanEndpoint (
 {
 	std::shared_ptr<SipRtpEndpointImpl> newEndpoint = 
     std::shared_ptr<SipRtpEndpointImpl>(new SipRtpEndpointImpl (conf, 
-                                        mediaPipeline, crypto, useIpv6, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6));
+                                        mediaPipeline, crypto, useIpv6, qosDscp, audioQosDscp, videoQosDscp, externalIPv4, externalIPv6));
 
 	// Recover ports (sockets) from last SipRtpEndpoint and SSRCs to filter out old traffic
 	this->cloneToNewEndpoint (newEndpoint, sdp, continue_audio_stream, 
