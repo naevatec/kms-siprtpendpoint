@@ -45,6 +45,8 @@ public:
                     std::shared_ptr<SDES> crypto,
 				            bool useIpv6,
                     std::shared_ptr<DSCPValue> qosDscp,
+                    std::shared_ptr<DSCPValue> audioQosDscp,
+                    std::shared_ptr<DSCPValue> videoQosDscp,
                     std::string externalIPv4,
                     std::string externalIPv6);
 
@@ -56,6 +58,8 @@ public:
           std::shared_ptr<MediaPipeline> mediaPipeline,
           std::shared_ptr<SDES> crypto, bool useIpv6,
           std::shared_ptr<DSCPValue> qosDscp,
+          std::shared_ptr<DSCPValue> audioQosDscp,
+          std::shared_ptr<DSCPValue> videoQosDscp,
           std::string externalIPv4,
           std::string externalIPv6,
 		      const std::string &sdp,
@@ -89,7 +93,8 @@ public:
 protected:
 private:
 
-  std::shared_ptr<DSCPValue> qosDscp;
+  std::shared_ptr<DSCPValue> audioQosDscp;
+  std::shared_ptr<DSCPValue> videoQosDscp;
   std::string externalIPv4;
   std::string externalIPv6;
   gulong handlerOnKeySoftLimit = 0;

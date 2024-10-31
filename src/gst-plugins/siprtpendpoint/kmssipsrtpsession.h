@@ -57,7 +57,8 @@ struct _KmsSipSrtpSession
   // FIXME: We need to kep this in sync with the property in siprtpendpoint, 
   // A decision to make, changes to this property only affect to subsequent sessions
   // or changes to this property shoudl be automatically propagated donw to the multiudpsink
-  gint dscp_value;
+  gint audio_dscp_value;
+  gint video_dscp_value;
 
   KmsSipSrtpSessionPrivate *priv;
 };
@@ -75,7 +76,7 @@ struct _KmsSipSrtpSessionClass
 
 GType kms_sip_srtp_session_get_type (void);
 
-KmsSipSrtpSession *kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager, gboolean use_ipv6, gint dscp_value);
+KmsSipSrtpSession *kms_sip_srtp_session_new (KmsBaseSdpEndpoint * ep, guint id, KmsIRtpSessionManager * manager, gboolean use_ipv6, gint audio_dscp_value, gint video_dscp_value);
 
 G_END_DECLS
 #endif /* __KMS_SIP_SRTP_SESSION_H__ */

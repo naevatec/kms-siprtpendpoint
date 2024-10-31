@@ -81,7 +81,8 @@ struct _KmsSipRtpEndpointPrivate
 
   GList *sessionData;
 
-  gint dscp_value;
+  gint audio_dscp_value;
+  gint video_dscp_value;
 
   GstElement *rtpbin;
   gulong pad_added_signal;
@@ -97,6 +98,7 @@ struct _KmsSipRtpEndpointPrivate
 
   GHashTable *pads_to_ssrc;  // Aux table to know the ssrc of a track on its corresponding leg of the pipeline (jitterbuffer element)
   GHashTable *selector_pads;
+
 };
 
 /* Properties */
@@ -105,7 +107,8 @@ enum
   PROP_0,
   PROP_AUDIO_SSRC,
   PROP_VIDEO_SSRC,
-  PROP_QOS_DSCP
+  PROP_AUDIO_QOS_DSCP,
+  PROP_VIDEO_QOS_DSCP
 };
 
 
@@ -255,7 +258,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 
   g_object_get (self, "use-ipv6", &use_ipv6, NULL);
   if (isUseSdes(self)) {
-	KmsSipSrtpSession *sip_srtp_ses = kms_sip_srtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->dscp_value);
+	KmsSipSrtpSession *sip_srtp_ses = kms_sip_srtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->audio_dscp_value, self->priv->video_dscp_value);
     *sess = KMS_SDP_SESSION (sip_srtp_ses);
 	if (self->priv->sessionData != NULL) {
 		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
@@ -263,7 +266,7 @@ kms_sip_rtp_endpoint_create_session_internal (KmsBaseSdpEndpoint * base_sdp,
 		sip_srtp_ses->video_filter_info = data->video_filter_info;
 	}
   } else {
-	KmsSipRtpSession *sip_rtp_ses = kms_sip_rtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->dscp_value);
+	KmsSipRtpSession *sip_rtp_ses = kms_sip_rtp_session_new (base_sdp, id, manager, use_ipv6, self->priv->audio_dscp_value, self->priv->video_dscp_value);
     *sess = KMS_SDP_SESSION (sip_rtp_ses);
 	if (self->priv->sessionData != NULL) {
 		data = (KmsSipRtpEndpointCloneData*) self->priv->sessionData->data;
@@ -528,8 +531,11 @@ kms_sip_rtp_endpoint_set_property (GObject * object, guint prop_id,
 
     	self->priv->current_ssrc_video_track = ssrc;
     	break;
-	case PROP_QOS_DSCP:
-		self->priv->dscp_value = g_value_get_int (value);
+	case PROP_AUDIO_QOS_DSCP:
+		self->priv->audio_dscp_value = g_value_get_int (value);
+		break;
+	case PROP_VIDEO_QOS_DSCP:
+		self->priv->video_dscp_value = g_value_get_int (value);
 		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -554,8 +560,11 @@ kms_sip_rtp_endpoint_get_property (GObject * object, guint prop_id,
     case PROP_VIDEO_SSRC:
        	g_value_set_uint (value, self->priv->current_ssrc_video_track);
     	break;
-	case PROP_QOS_DSCP:
-		g_value_set_int (value, self->priv->dscp_value);
+	case PROP_AUDIO_QOS_DSCP:
+		g_value_set_int (value, self->priv->audio_dscp_value);
+		break;
+	case PROP_VIDEO_QOS_DSCP:
+		g_value_set_int (value, self->priv->video_dscp_value);
 		break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -649,9 +658,15 @@ kms_sip_rtp_endpoint_class_init (KmsSipRtpEndpointClass * klass)
 		  0, G_MAXUINT, DEFAULT_VIDEO_SSRC,
 		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-  g_object_class_install_property (gobject_class, PROP_QOS_DSCP,
-      g_param_spec_int ("qos-dscp",
-          "QoS DSCP", "Set to assign DSCP value for network traffice sent",
+  g_object_class_install_property (gobject_class, PROP_AUDIO_QOS_DSCP,
+      g_param_spec_int ("audio-qos-dscp",
+          "Audio QoS DSCP", "Set to assign DSCP value for audio network traffice sent",
+		  -1, G_MAXINT, DEFAULT_QOS_DSCP,
+		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class, PROP_VIDEO_QOS_DSCP,
+      g_param_spec_int ("video-qos-dscp",
+          "Video QoS DSCP", "Set to assign DSCP value for video network traffice sent",
 		  -1, G_MAXINT, DEFAULT_QOS_DSCP,
 		  G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
@@ -1059,7 +1074,8 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 	
 	self->priv->use_sdes_cache = -1;
 	self->priv->sessionData = NULL;
-	self->priv->dscp_value = DEFAULT_QOS_DSCP;
+	self->priv->audio_dscp_value = DEFAULT_QOS_DSCP;
+	self->priv->video_dscp_value = DEFAULT_QOS_DSCP;
 	if (rtpbin != NULL) {
 		self->priv->rtpbin = gst_object_ref(rtpbin);
 	} else {
