@@ -101,7 +101,21 @@
             },
             {
               "name": "qosDscp",
-              "doc": "DSCP value to be used in network traffic sent from this endpoint",
+              "doc": "DSCP value to be used in both audio and video network traffic sent from this endpoint unless something is set or configured for specifically audio or video",
+              "type": "DSCPValue",
+              "optional": true,
+              "defaultValue": "NO_VALUE"
+            },
+            {
+              "name": "audioQosDscp",
+              "doc": "DSCP value to be used in audio network traffic sent from this endpoint",
+              "type": "DSCPValue",
+              "optional": true,
+              "defaultValue": "NO_VALUE"
+            },
+            {
+              "name": "videoQosDscp",
+              "doc": "DSCP value to be used in video network traffic sent from this endpoint",
               "type": "DSCPValue",
               "optional": true,
               "defaultValue": "NO_VALUE"
