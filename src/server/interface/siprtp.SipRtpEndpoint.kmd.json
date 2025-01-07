@@ -8,7 +8,7 @@
           <li>providing SDP renegotiation features that allow easy implementation of <a href='https://tools.ietf.org/html/draft-ietf-sip-183-00'>SIP 183</a> like flows. This endpoint inherits from :rom:cls:`BaseRtpEndpoint`</li>
           <li>PRoviding flexible adaptation to use SRTP or not. That is, if this endpoint is configured with crypto, it can also be configured to offer SRTP only or SRTP and RTP communication channels, and can also process RTP or SRTP offers transperently.</li>
       </ul>
-      </p>
+      <p></p>
       <p>
       It is however recommended that if you do not need any of thess features, to use the :rom:cls:`RtpEndpoint` to avoid unneeded overload due to the components instatiated to allow renegotiation. 
       </p>
@@ -16,6 +16,7 @@
       Unlike :rom:cls:`RtpEndpoint` this endpoint allows calling the SDP negotiation methods `generateOffer`, `processOffer` and `processOffer`
       at any time regardless of the status of any previous SDP negotiation.
       </p>
+      <p>
       When any of the SDP negotiation methods are called and no previous negotiation has been made, the same rules that apply to 
       :rom:cls:`RtpEndpoint` will apply now.
       </p>
@@ -30,7 +31,6 @@
         <li>`processOffer`, much like the previous one, if a previous negotiation was initiated or even completed, media will be discarded, ports and ssrcs may also change as it will be answering to a different SDP offer</li>
         <li>`processAnswer`, similar to the previous this has some subtelties, as we are processing a new answer, original offer is maintained, this implies that ports, ssrcs and codecs offered by this endpoint are preserved. This implies that this new answer must be generated as a response to the original offer</li>
       </ul>
-      </p>
       <p>
       If the answer changes chosen codecs, it may be possible that the endpoint processing the answer also instantiates a transcoder to adapt to the new codecs. 
       This is needed because, if the original negotiation established some codecs, this affect at the pipeline and any other connected media Element. 
@@ -51,14 +51,14 @@
       	    the answer processed contains valid m lines (port set to a valid number different from 0) for both RTP/AVP and RTP/SAVP lines, the endpoint will 
       	    just establish one of the set (if possible the one corresponding to RTP/SAVP profile)</li>
       </ul>
-      </p>
       <p>
       There are some elements to take into account when dealing with VoIP environments. First one is that they can change SSRC on the fly  of a live RTP flow. This may be due to internal switching of media in VoIP provider, but it makes the RtpEndpoint useless as any change on the fly to the SSRC takes the RtpEndpoint to an open ended pipeline that causes a 'not linked' error and pauses the RtpEndpoint. SipRtpEndpoint supports SSRC switcjing on the fly by examining incoming SSRC in RTP/RTCP packets and if not used in previous media connections it let them pass, but changing in the RTP/RTCP packet the SSRC to the one of the first packet received in current RTP flow.
       </p>
       <p>
       Another one is that when dealing with early media (used with SIP answer to INVITE 183). Sometimes the remote peer signals an early media (SIP answer 183 with an SDP) and then a definitive answer (200 with another SDP). But in fact there is no stream switching. SSRC, base timestamp, all is preserved. The point is that there is no change in media and no renegotiation is needed. The bad point is how to decide when renegotiation happens (two consecutive processAnswer) if packets correspondo to old stream or if no stream switching has happened. If control application is able to know that no stream switching is happening, and no renegotiation is needed it could just skip renegotiation (second processAnswer). But if not we can only make a guess: if second answer include same streams that first answer (same IP, port and profile), ost surely there is no stream switching. so that guess is also made on SipRtpEndpoint so that it behaves as expected in VoIP environments
       </p>
-      <p>It is possible to traffic shape the network packets being sent for each audio and video channel. For that there is some optiona contructor parameters that allows to enable
+      <p>
+      It is possible to traffic shape the network packets being sent for each audio and video channel. For that there is some optiona contructor parameters that allows to enable
       and control the traffic shaping feature. These parameters are as follows:
       <ul style='list-style-type:circle'>
       	<li>maxKbps represents the maximum allowd bitrate in kbits per second that the network will send</li>
@@ -67,7 +67,6 @@
         an upper limit to how much data can be stored, by default is unlimited, but in case the traffic shaping configuration has not been correctly calculated, this may result in memory being 
         used for this without limitation causing effects much like a memory leak. On the other hand if this sotrage limit is reached, packet drops will happen much like if the network has dropped them.</li>
       </ul>
-      </p>
       ",
       "constructor":
         {
