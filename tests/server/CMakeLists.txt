@@ -109,6 +109,27 @@ target_link_libraries(test_sip_rtp_endpoint_play
   ${Boost_SYSTEM_LIBRARY}
 )
 
+# add_test_program(test_sip_rtp_endpoint_concurrent sipRtpEndpointConcurrent.cpp)
+# add_dependencies(test_sip_rtp_endpoint_concurrent kmssiprtpmodule)
+# set_property(TARGET test_sip_rtp_endpoint_concurrent
+#   PROPERTY INCLUDE_DIRECTORIES
+#     ${KmsJsonRpc_INCLUDE_DIRS}
+#     ${sigc++-2.0_INCLUDE_DIRS}
+#     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation/objects
+#     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/implementation
+#     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/server/interface
+#     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/interface/generated-cpp
+#     ${CMAKE_CURRENT_BINARY_DIR}/../../src/server/implementation/generated-cpp
+#     ${KMSCORE_INCLUDE_DIRS}
+#     ${gstreamer-1.0_INCLUDE_DIRS}
+# )
+# target_link_libraries(test_sip_rtp_endpoint_concurrent
+#   ${LIBRARY_NAME}impl
+#   ${KMSCORE_LIBRARIES}
+#   ${Boost_FILESYSTEM_LIBRARY}
+#   ${Boost_SYSTEM_LIBRARY}
+# )
+
 add_test_program(test_sip_rtp_endpoint_agnostic_srtp sipRtpEndpoint_agnostic_srtp.cpp)
 add_dependencies(test_sip_rtp_endpoint_agnostic_srtp kmssiprtpmodule)
 set_property(TARGET test_sip_rtp_endpoint_agnostic_srtp
