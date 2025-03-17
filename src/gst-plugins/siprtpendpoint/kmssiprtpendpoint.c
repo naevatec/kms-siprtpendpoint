@@ -101,9 +101,6 @@ struct _KmsSipRtpEndpointPrivate
   guint current_ssrc_audio_track;
   guint current_ssrc_video_track;
 
-  GHashTable *pads_to_ssrc;  // Aux table to know the ssrc of a track on its corresponding leg of the pipeline (jitterbuffer element)
-  GHashTable *selector_pads;
-
   gint max_kbps;
   gint max_bucket_size;
   glong max_bucket_storage_size;
@@ -792,9 +789,6 @@ kms_sip_rtp_endpoint_finalize (GObject * object)
 
   	GST_DEBUG_OBJECT (self, "finalize");
 
-	g_hash_table_destroy(self->priv->selector_pads);
-  	g_hash_table_destroy(self->priv->pads_to_ssrc);
-
 	if (self->priv->audio_track_selector != NULL) {
 		gst_object_unref(self->priv->audio_track_selector);
 	}
@@ -1067,7 +1061,7 @@ kms_sip_rtp_endpoint_connect_depayloader_to_selector (KmsSipRtpEndpoint *self, G
 
 	g_object_set(track_selector, "active-pad", sink_pad, NULL);
 	GST_DEBUG_OBJECT(self, "Adding track input pad %s to %s track selector with ssrc %u", sink_pad->object.name, (media_type== AUDIO_RTP_SESSION)? "audio":"video", ssrc);
-	g_hash_table_insert(self->priv->selector_pads, GINT_TO_POINTER(ssrc), g_object_ref(sink_pad));
+	g_object_set_data(G_OBJECT(sink_pad), "ssrc", GUINT_TO_POINTER(ssrc));
 
 	gst_object_unref (src_pad);
 	gst_object_unref(sink_pad);
@@ -1145,6 +1139,43 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
  	}
 }
 
+static GstPad*
+kms_sip_rtp_endpoint_get_ssrc_pad (KmsSipRtpEndpoint *self, GstElement *track_selector, guint ssrc)
+{
+	GstIterator *it = gst_element_iterate_sink_pads(track_selector);
+	GValue item = G_VALUE_INIT;
+	gboolean done = FALSE;
+	GstPad *track_pad = NULL;
+
+	while (!done) {
+		switch (gst_iterator_next(it, &item)) {
+			case GST_ITERATOR_OK: {
+				GstPad *pad = g_value_get_object(&item);
+				guint pad_ssrc = 0;
+
+				pad_ssrc = GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(pad), "ssrc"));
+				if (pad_ssrc == ssrc) {
+					track_pad = pad;
+					done = TRUE;
+				}
+				g_value_reset(&item);
+				break;
+			}
+			case GST_ITERATOR_RESYNC:
+				gst_iterator_resync(it);
+				break;
+			case GST_ITERATOR_ERROR:
+			case GST_ITERATOR_DONE:
+				done = TRUE;
+				break;
+		}
+	}
+
+	g_value_unset(&item);
+	gst_iterator_free(it);
+
+	return track_pad;
+}
 
 static gboolean
 set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
@@ -1198,7 +1229,8 @@ set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
 		self->priv->current_ssrc_video_track = ssrc;
 	}
 
-	active_track_pad = g_hash_table_lookup (self->priv->selector_pads, GINT_TO_POINTER(ssrc));
+	// Get the pad in track_selector that has a metadata tagged as "ssrc" to the value of ssrc
+	active_track_pad = kms_sip_rtp_endpoint_get_ssrc_pad (self, track_selector, ssrc);
 	if ((track_selector != NULL) && (active_track_pad != NULL)) {
 		GST_DEBUG_OBJECT(self, "set_output_active_track: switching track selector %s  from ssrc %u to %u in pad %s", track_selector->object.name, current_ssrc, ssrc, active_track_pad->object.name);
 		g_object_set (track_selector, "active-pad", active_track_pad, NULL);
@@ -1229,7 +1261,7 @@ static GstPadProbeReturn
 video_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 {
 	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
-	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
+	guint ssrc = GPOINTER_TO_UINT(g_object_get_data (G_OBJECT(pad), "ssrc"));
 
 	if (ssrc == 0) {
 		GST_ERROR_OBJECT(self, "video_sync_rtp_probe, no video SSRC");
@@ -1246,7 +1278,7 @@ static GstPadProbeReturn
 audio_sync_rtp_probe (GstPad * pad, GstPadProbeInfo * info, gpointer elem)
 {
 	KmsSipRtpEndpoint *self = KMS_SIP_RTP_ENDPOINT(elem);
-	guint ssrc = GPOINTER_TO_UINT(g_hash_table_lookup(self->priv->pads_to_ssrc, pad));
+	guint ssrc = GPOINTER_TO_UINT(g_object_get_data (G_OBJECT(pad), "ssrc"));
 
 	if (ssrc == 0) {
 		GST_ERROR_OBJECT(self, "audio_sync_rtp_probe, no audio SSRC");
@@ -1266,7 +1298,7 @@ kms_sip_rtp_endpoint_deactivate_audio_synchronizer (KmsSipRtpEndpoint *self, Gst
 
 	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_audio_synchronizer: deactivate sycnhronizer");
 	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
-	g_hash_table_insert(self->priv->pads_to_ssrc, g_object_ref(src_pad), GUINT_TO_POINTER(ssrc));
+	g_object_set_data (G_OBJECT(src_pad), "ssrc", GUINT_TO_POINTER(ssrc));
 	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       (GstPadProbeCallback) audio_sync_rtp_probe, self, NULL);
   	g_object_unref (src_pad);
@@ -1279,7 +1311,7 @@ kms_sip_rtp_endpoint_deactivate_video_synchronizer (KmsSipRtpEndpoint *self, Gst
 
 	GST_INFO_OBJECT (jitterbuffer, "kms_sip_rtp_endpoint_deactivate_video_synchronizer: Adjust video jitterbuffer PTS out");
 	src_pad = gst_element_get_static_pad (jitterbuffer, "src");
-	g_hash_table_insert(self->priv->pads_to_ssrc, g_object_ref(src_pad), GUINT_TO_POINTER(ssrc));
+	g_object_set_data (G_OBJECT(src_pad), "ssrc", GUINT_TO_POINTER(ssrc));
 	gst_pad_add_probe (src_pad, GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_BUFFER_LIST,
       (GstPadProbeCallback) video_sync_rtp_probe, self, NULL);
   	g_object_unref (src_pad);
@@ -1337,8 +1369,6 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 	self->priv->video_track_selector = NULL;self->priv->last_audio_ssrc_switch = 0;
 	self->priv->last_video_ssrc_switch = 0;
 	self->priv->current_ssrc_video_track = 0;
-	self->priv->pads_to_ssrc = g_hash_table_new_full (NULL, NULL, gst_object_unref, NULL);
-	self->priv->selector_pads = g_hash_table_new_full (NULL, NULL, NULL, gst_object_unref);
 
 	self->priv->max_kbps = DEFAULT_MAX_KBPS;
 	self->priv->max_bucket_size = DEFAULT_MAX_BUCKET_SIZE;
