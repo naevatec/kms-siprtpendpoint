@@ -21,7 +21,8 @@ RUN apt update && apt install -y --no-install-recommends \
     cmake \
     git \
     gnupg \
-    gdb
+    gdb \ 
+    curl
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
 
