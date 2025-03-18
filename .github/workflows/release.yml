@@ -91,8 +91,10 @@ jobs:
           docker cp temp:/artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
           docker cp temp:/artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
           docker cp temp:/artifacts/debian/kms-siprtpendpoint-dev_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/java/*.jar ./artifacts/java
-          docker cp temp:/artifacts/js/*.tgz ./artifacts/js
+          docker cp temp:/artifacts/java/siprtp-${SIPRTP_VERSION}.jar ./artifacts/java
+          docker cp temp:/artifacts/java/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts/java
+          docker cp temp:/artifacts/js/kurento-module-siprtp-${SIPRTP_VERSION}.tgz ./artifacts/js
+          docker cp temp:/artifacts/js/kurento-module-siprtp-${SIPRTP_VERSION}-jsdoc.tgz ./artifacts/js
           docker rm -f temp
 
       - name: upload debian artifacts
