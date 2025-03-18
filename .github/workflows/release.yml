@@ -81,18 +81,6 @@ jobs:
              -t siprtp_build .
           cd ../..
 
-      - name: Build docker image
-        if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
-        run: |
-          cd ci-scripts/docker
-          docker build --no-cache \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=24.04 \
-             -t $IMAGE_NAME:$SIPRTP_VERSION .
-          cd ../..
-
       - name: Get artifacts
         run: |
           mkdir ./artifacts
@@ -122,6 +110,20 @@ jobs:
         with:
           name: js artifacts
           path: ./artifacts/js/*.tgz
+          
+      - name: Build docker image
+        if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
+        run: |
+          cd ci-scripts/docker
+          docker build \
+             --build-context sources=../../ \
+             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+             --build-arg DISTRIB_CODENAME=noble \
+             --build-arg UBUNTU_VERSION=24.04 \
+             -t $IMAGE_NAME:$SIPRTP_VERSION .
+          cd ../..
+
 
 
   publish-release:
