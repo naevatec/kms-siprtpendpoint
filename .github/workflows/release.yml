@@ -76,7 +76,7 @@ jobs:
              --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
              --build-arg KURENTO_VERSION=$KURENTO_VERSION \
              --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=24.04 \
+             --build-arg UBUNTU_VERSION=ubuntu1 \
              --target siprtp_build \
              -t siprtp_build .
           cd ../..
@@ -88,9 +88,9 @@ jobs:
           mkdir ./artifacts/java
           mkdir ./artifacts/js
           docker create --name temp siprtp_build
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dev_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dev_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
           docker cp temp:/artifacts/java/*.jar ./artifacts/java
           docker cp temp:/artifacts/js/*.tgz ./artifacts/js
           docker rm -f temp
@@ -122,7 +122,7 @@ jobs:
              --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
              --build-arg KURENTO_VERSION=$KURENTO_VERSION \
              --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=24.04 \
+             --build-arg UBUNTU_VERSION=ubuntu1 \
              -t $IMAGE_NAME:$SIPRTP_VERSION .
           cd ../..
 
