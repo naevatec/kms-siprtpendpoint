@@ -47,7 +47,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-            - name: Set environment variables
+      - name: Set environment variables
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "SIPRTP_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
