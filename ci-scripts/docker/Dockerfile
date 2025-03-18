@@ -63,7 +63,7 @@ ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 
 RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
 
-RUN apt install -y nodejs npm && npm install -g bower
+RUN apt install -y nodejs && npm install -g bower
 
 
 FROM build_base AS siprtp_build
