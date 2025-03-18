@@ -88,7 +88,9 @@ jobs:
           mkdir ./artifacts/java
           mkdir ./artifacts/js
           docker create --name temp siprtp_build
-          docker cp temp:/artifacts/debian/*deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
+          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dev_${SIPRTP_VERSION}24.04_amd64.deb ./artifacts/debian
           docker cp temp:/artifacts/java/*.jar ./artifacts/java
           docker cp temp:/artifacts/js/*.tgz ./artifacts/js
           docker rm -f temp
@@ -110,7 +112,7 @@ jobs:
         with:
           name: js artifacts
           path: ./artifacts/js/*.tgz
-          
+
       - name: Build docker image
         if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
         run: |
