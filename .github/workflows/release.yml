@@ -121,7 +121,7 @@ jobs:
           path: ./artifacts/js/*.tgz
 
 
-publish-release:
+  publish-release:
     runs-on: ubuntu-latest  
     needs: build-artifacts
     steps:  
