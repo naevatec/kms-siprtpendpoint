@@ -67,6 +67,9 @@ jobs:
         run: |
           echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
           echo "FORCE_RELEASE=${FORCE_RELEASE}"
+          echo "IMAGE_NAME=${IMAGE_NAME}"
+          echo "KURENTO_VERSION=${KURENTO_VERSION}"
+          echo "CREATE_DOCKER_IMAGE=${CREATE_DOCKER_IMAGE}"
           cd ci-scripts/docker
           docker build --no-cache \
              --build-context sources=../../ \
