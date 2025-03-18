@@ -1,4 +1,4 @@
-name: Run Script
+name: Compile and release
 
 on:
   push:
@@ -108,11 +108,11 @@ jobs:
           name: debian packages
           path: ./artifacts/debian/*.*deb
 
-      - name: upload java artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: java artifacts
-          path: ./artifacts/java/*.jar
+#      - name: upload java artifacts
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: java artifacts
+#          path: ./artifacts/java/*.jar
 
       - name: upload js artifacts
         uses: actions/upload-artifact@v2
