@@ -1,0 +1,141 @@
+name: Run Script
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        type: boolean
+        default: true
+  
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+      image_name:
+        description: 'docker image name'
+        required: false
+        type: string
+        default: 'naevatec/kurento-media-server-siprtp'
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        type: string
+        default: '7.1.1'
+      create_docker_image:
+        description: 'Create docker image'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set environment variables
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "SIPRTP_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+            echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
+            echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_ENV
+            echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+            echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_ENV
+          else
+            echo "SIPRTP_VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "FORCE_RELEASE=true" >> $GITHUB_ENV
+            echo "IMAGE_NAME=naevatec/kurento-media-server-siprtp" >> $GITHUB_ENV
+            echo "KURENTO_VERSION=7.1.1" >> $GITHUB_ENV
+            echo "CREATE_DOCKER_IMAGE=false" >> $GITHUB_ENV
+          fi
+
+      - name: Build artifacts
+        run: |
+          echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
+          echo "FORCE_RELEASE=${FORCE_RELEASE}"
+          cd ci-scripts/docker
+          docker build --no-cache \
+             --build-context sources=../../ \
+             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+             --build-arg DISTRIB_CODENAME=noble \
+             --build-arg UBUNTU_VERSION=24.04 \
+             --target siprtp_build \
+             -t siprtp_build .
+          cd ../..
+
+      - name: Build docker image
+        if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
+        run: |
+          cd ci-scripts/docker
+          docker build --no-cache \
+             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+             --build-arg DISTRIB_CODENAME=noble \
+             --build-arg UBUNTU_VERSION=24.04 \
+             -t $IMAGE_NAME:$SIPRTP_VERSION .
+          cd ../..
+
+      - name: Get artifacts
+        run: |
+          mkdir ./artifacts
+          mkdir ./artifacts/debian
+          mkdir ./artifacts/java
+          mkdir ./artifacts/js
+          docker create --name temp siprtp_build
+          docker cp temp:/artifacts/debian/*deb ./artifacts/debian
+          docker cp temp:/artifacts/java/*.jar ./artifacts/java
+          docker cp temp:/artifacts/js/*.tgz ./artifacts/js
+          docker rm -f temp
+
+      - name: upload debian artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: debian packages
+          path: ./artifacts/debian/*.*deb
+
+      - name: upload java artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: java artifacts
+          path: ./artifacts/java/*.jar
+
+      - name: upload js artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: js artifacts
+          path: ./artifacts/js/*.tgz
+
+      - name: Publish release
+        if: ${{ env.FORCE_RELEASE == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.SIPRTP_VERSION }}
+          name: ${{ env.SIPRTP_VERSION }}
+          body: 'Release of version ${{ env.SIPRTP_VERSION }}'
+          draft: false
+          prerelease: false
+          files: |
+            ./artifacts/debian/*.*deb
+            ./artifacts/java/*.jar
+            ./artifacts/js/*.tgz
+
+      - name: clenaup
+        run: |
+          rm -rf ./artifacts
+
+
