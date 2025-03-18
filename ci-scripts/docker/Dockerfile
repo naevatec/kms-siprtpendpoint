@@ -114,6 +114,11 @@ ARG UBUNTU_VERSION=24.04
 
 FROM kurento/kurento-media-server:${KURENTO_VERSION}
 
+ENV KURENTO_VERSION=${KURENTO_VERSION}
+ENV DISTRIB_CODENAME=${DISTRIB_CODENAME}
+ENV SIPRTP_VERSION=${SIPRTP_VERSION}
+ENV UBUNTU_VERSION=${UBUNTU_VERSION}
+
 # SipRtpEndpoint
 COPY --from=siprtp_build /artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
 COPY --from=siprtp_build /artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
