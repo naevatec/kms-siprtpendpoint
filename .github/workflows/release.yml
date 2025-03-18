@@ -103,19 +103,19 @@ jobs:
           docker rm -f temp
 
       - name: upload debian artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: debian packages
           path: ./artifacts/debian/*.*deb
 
       - name: upload java artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: java artifacts
           path: ./artifacts/java/*.jar
 
       - name: upload js artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: js artifacts
           path: ./artifacts/js/*.tgz
