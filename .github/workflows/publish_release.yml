@@ -29,7 +29,6 @@ jobs:
 
   publish-release:
     runs-on: self-hosted  
-    needs: build-artifacts
     steps:  
       - name: Checkout repository
         uses: actions/checkout@v2
