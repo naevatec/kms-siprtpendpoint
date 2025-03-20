@@ -5,9 +5,11 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       kurento_version:
         description: 'Kurento version'
+        type: string
         required: false
         default: '7.2.0'
 
@@ -15,9 +17,11 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       kurento_version:
         description: 'Kurento version'
+        type: string
         required: false
         default: '7.2.0'
 

@@ -5,6 +5,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
@@ -16,6 +17,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
