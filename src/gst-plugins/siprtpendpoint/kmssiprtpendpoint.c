@@ -1142,11 +1142,15 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 static GstPad*
 kms_sip_rtp_endpoint_get_ssrc_pad (KmsSipRtpEndpoint *self, GstElement *track_selector, guint ssrc)
 {
-	GstIterator *it = gst_element_iterate_sink_pads(track_selector);
+	GstIterator *it;
 	GValue item = G_VALUE_INIT;
 	gboolean done = FALSE;
 	GstPad *track_pad = NULL;
 
+	if (track_selector == NULL) {
+		return NULL;
+	}
+	it = gst_element_iterate_sink_pads(track_selector);
 	while (!done) {
 		switch (gst_iterator_next(it, &item)) {
 			case GST_ITERATOR_OK: {
