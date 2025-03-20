@@ -45,9 +45,9 @@ jobs:
           ARTIFACT_PATH="${{ steps.copy-artifacts.outputs.download-path }}"
           mkdir -p ./artifacts
           ls -la ${ARTIFACT_PATH}
-          cp  ${ARTIFACT_PATH}/*.*deb ./artifacts
-          cp  ${ARTIFACT_PATH}/*.jar ./artifacts
-          cp  ${ARTIFACT_PATH}/*.tgz ./artifacts
+          cp  ${ARTIFACT_PATH}/debian\ packages/*.*deb ./artifacts
+          cp  ${ARTIFACT_PATH}/java\ artifacts/*.jar ./artifacts
+          cp  ${ARTIFACT_PATH}/js\ artifacts/*.tgz ./artifacts
 
       - name: Publish release
         if: ${{ env.FORCE_RELEASE == 'true' }}
