@@ -1,0 +1,68 @@
+name: Compile and release
+
+on: 
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+
+  publish-release:
+    runs-on: self-hosted  
+    needs: build-artifacts
+    steps:  
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      # Action: https://github.com/actions/download-artifact
+      - name: "Copy artifacts from previous jobs"
+        id: "copy-artifacts"
+        uses: "actions/download-artifact@v4"
+        with:
+          path: "artifacts"
+
+      - name: "Get artifacts"
+        run: |
+          ARTIFACT_PATH="${{ steps.copy-artifacts.outputs.download-path }}"
+          mkdir -p ./artifacts
+          cp  ${ARTIFACT_PATH}/*.*deb ./artifacts
+          cp  ${ARTIFACT_PATH}/*.jar ./artifacts
+          cp  ${ARTIFACT_PATH}/*.tgz ./artifacts
+
+      - name: Publish release
+        if: ${{ env.FORCE_RELEASE == 'true' }}
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ env.SIPRTP_VERSION }}
+          name: ${{ env.SIPRTP_VERSION }}
+          body: 'Release of version ${{ env.SIPRTP_VERSION }}'
+          draft: false
+          prerelease: false
+          files: |
+            ./artifacts/*.*deb
+            ./artifacts/*.jar
+            ./artifacts/*.tgz
+
+      - name: cleanup
+        run: |
+          rm -rf ./artifacts
+
+

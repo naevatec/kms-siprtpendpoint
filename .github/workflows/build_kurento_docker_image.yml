@@ -1,0 +1,98 @@
+name: Compile and release
+
+on:  
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+      image_name:
+        description: 'docker image name'
+        required: false
+        type: string
+        default: 'naevatec/kurento-media-server-siprtp'
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        type: string
+        default: '7.1.1'
+      create_docker_image:
+        description: 'Create docker image'
+        required: false
+        type: boolean
+        default: false
+
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+      image_name:
+        description: 'docker image name'
+        required: false
+        type: string
+        default: 'naevatec/kurento-media-server-siprtp'
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        type: string
+        default: '7.1.1'
+      create_docker_image:
+        description: 'Create docker image'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build_docker_image:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set environment variables
+        run: |
+          version=${{ github.event.inputs.version }}
+          if [[ $version == v* ]]; then
+            version=${version:1}
+          fi
+          echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_ENV
+          echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+          echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_ENV
+
+      - name: Build docker image
+        if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
+        run: |
+          cd ci-scripts/docker
+          docker build \
+             --build-context sources=../../ \
+             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+             --build-arg DISTRIB_CODENAME=noble \
+             --build-arg UBUNTU_VERSION=ubuntu1 \
+             -t $IMAGE_NAME:$SIPRTP_VERSION .
+          cd ../..
+
+      - name: Export docker image
+        if: ${{ env.FORCE_RELEASE == 'true' }}
+        run: |
+          docker save $IMAGE_NAME:$SIPRTP_VERSION | gzip > $IMAGE_NAME_$SIPRTP_VERSION.tgz
+
+      - name: Upload docker image artifact
+        if: ${{ env.FORCE_RELEASE == 'true' }}
+        uses: actions/upload-artifact@v2
+        with:
+          name: docker-image
+          path: $IMAGE_NAME_$SIPRTP_VERSION.tgz

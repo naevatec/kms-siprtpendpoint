@@ -3,7 +3,7 @@ ARG DISTRIB_CODENAME=noble
 ARG SIPRTP_VERSION=1.7.0
 ARG UBUNTU_VERSION=ubuntu1
 
-FROM ubuntu:noble AS build_base
+FROM kurento/kurento-ci-buildtools:${DISTRIB_CODENAME} AS build_module
 
 ARG KURENTO_VERSION
 ARG DISTRIB_CODENAME
@@ -15,14 +15,14 @@ ENV DISTRIB_CODENAME=${DISTRIB_CODENAME}
 ENV SIPRTP_VERSION=${SIPRTP_VERSION}
 ENV UBUNTU_VERSION=${UBUNTU_VERSION}
 
-RUN apt update && apt install -y --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    cmake \
-    git \
-    gnupg \
-    gdb \ 
-    curl
+WORKDIR /app
+
+COPY --from=sources ./debian debian
+COPY --from=sources ./src src
+COPY --from=sources ./tests tests
+COPY --from=sources ./CMakeLists.txt .
+COPY --from=sources ./config.h.cmake .
+COPY --from=sources ./README.md .
 
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 5AFA7A83
 
@@ -37,52 +37,22 @@ RUN apt install -y --no-install-recommends \
     kurento-media-server-dev
 
 RUN apt install -y equivs devscripts wget
-    
-WORKDIR /app
 
 RUN wget -O /app/kurento-buildpackage.sh https://github.com/Kurento/kurento/raw/refs/tags/${KURENTO_VERSION}/ci-scripts/kurento-buildpackage.sh  && chmod a+x /app/kurento-buildpackage.sh
 RUN wget -O /app/bash.conf.sh https://github.com/Kurento/kurento/raw/refs/tags/${KURENTO_VERSION}/ci-scripts/bash.conf.sh  && chmod a+x /app/bash.conf.sh
 
-RUN wget https://download.java.net/java/GA/jdk22.0.1/c7ec1332f7bb44aeba2eb341ae18aca4/8/GPL/openjdk-22.0.1_linux-x64_bin.tar.gz
+FROM build_module AS siprtp_build
 
-RUN tar xvf openjdk-22.0.1_linux-x64_bin.tar.gz
- 
-RUN mv jdk-22.0.1 /usr/lib/jvm
-    
-RUN update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/jdk-22.0.1/bin/javac 2211
-RUN update-alternatives --install /usr/bin/java java /usr/lib/jvm/jdk-22.0.1/bin/java 2211
-    
-RUN rm openjdk-22.0.1_linux-x64_bin.tar.gz
+RUN /app/kurento-buildpackage.sh --release
 
-RUN apt install -y --no-install-recommends \
-    kurento-media-server-dev
+RUN mkdir -p /artifacts && \
+    cp /app/*.deb /artifacts
 
-RUN apt install -y equivs devscripts wget
-
-ENV NODE_OPTIONS="--dns-result-order=ipv4first"
-
-RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
-
-RUN apt install -y nodejs && npm install -g bower
-
-
-FROM build_base AS siprtp_build
-
-COPY --from=sources ./debian debian
-COPY --from=sources ./src src
-COPY --from=sources ./tests tests
-COPY --from=sources ./CMakeLists.txt .
-COPY --from=sources ./config.h.cmake .
-COPY --from=sources ./README.md .
-
-RUN ./kurento-buildpackage.sh --release
-
-RUN mkdir -p /artifacts/debian && cp /app/*.deb /artifacts/debian
-
+FROM build_module AS siprtp_build_java
 
 RUN mkdir ./build && \
     cd ./build && \
-    cmake -DCMAKE_BUILD_TYPE=Release -DGENERATE_JAVA_CLIENT_PROJECT=TRUE -DGENERATE_JS_CLIENT_PROJECT=TRUE .. 
+    cmake -DCMAKE_BUILD_TYPE=Release -DGENERATE_JAVA_CLIENT_PROJECT=TRUE .. 
 
 RUN cd build && \
     make java_install && \
@@ -91,9 +61,16 @@ RUN cd build && \
     cd target/reports/apidocs && \
     ls -la && jar cvf ../../siprtp-javadoc-${SIPRTP_VERSION}.jar * && \
     cd ../.. && \
-    mkdir -p /artifacts/java && \
-    cp *.jar /artifacts/java && \
+    mkdir -p /artifacts && \
+    cp *.jar /artifacts && \
     cd ../.. 
+
+FROM build_module AS siprtp_build_js
+
+RUN mkdir ./build && \
+    cd ./build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DGENERATE_JS_CLIENT_PROJECT=TRUE .. 
+
 
 RUN cd build/js && \
     npm install --save-dev grunt grunt-browserify grunt-contrib-clean grunt-jsdoc grunt-npm2bower-sync minifyify && \
@@ -102,8 +79,8 @@ RUN cd build/js && \
     cd js && \
     ./node_modules/grunt/bin/grunt jsdoc && \
     tar cvfz kurento-module-siprtp-${SIPRTP_VERSION}-jsdoc.tgz doc && \
-    mkdir -p /artifacts/js && \
-    cp *.tgz /artifacts/js && \
+    mkdir -p /artifacts && \
+    cp *.tgz /artifacts && \
     cd ..
 
 
@@ -120,8 +97,8 @@ ENV SIPRTP_VERSION=${SIPRTP_VERSION}
 ENV UBUNTU_VERSION=${UBUNTU_VERSION}
 
 # SipRtpEndpoint
-COPY --from=siprtp_build /artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
-COPY --from=siprtp_build /artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
+COPY --from=siprtp_build /artifacts/kms-siprtpendpoint_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
+COPY --from=siprtp_build /artifacts/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}${UBUNTU_VERSION}_amd64.deb /tmp
 
 # For debugging purposes
 COPY tracedump_gdb.sh /

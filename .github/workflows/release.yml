@@ -40,136 +40,39 @@ on:
         default: false
 
 jobs:
-  build-artifacts:
-    runs-on: self-hosted
+  build-kurento-module:
+    uses: "./.github/workflows/build_kurento_module.yaml"
+    with:
+      version: '${{ github.event.inputs.version || github.ref_name }}'
+      kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+  build-kurento-js-client:
+    needs: build-kurento-module
+    uses: "./.github/workflows/build_kurento_js_client.yaml"
+    with:
+      version: '${{ github.event.inputs.version || github.ref_name }}'
+      kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
-      - name: Set environment variables
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "SIPRTP_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
-            echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
-            echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_ENV
-            echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
-            echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_ENV
-          else
-            echo "SIPRTP_VERSION=${{ github.ref_name }}" >> $GITHUB_ENV
-            echo "FORCE_RELEASE=true" >> $GITHUB_ENV
-            echo "IMAGE_NAME=naevatec/kurento-media-server-siprtp" >> $GITHUB_ENV
-            echo "KURENTO_VERSION=7.1.1" >> $GITHUB_ENV
-            echo "CREATE_DOCKER_IMAGE=false" >> $GITHUB_ENV
-          fi
-
-      - name: Build artifacts
-        run: |
-          echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
-          echo "FORCE_RELEASE=${FORCE_RELEASE}"
-          echo "IMAGE_NAME=${IMAGE_NAME}"
-          echo "KURENTO_VERSION=${KURENTO_VERSION}"
-          echo "CREATE_DOCKER_IMAGE=${CREATE_DOCKER_IMAGE}"
-          cd ci-scripts/docker
-          docker build --no-cache \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             --target siprtp_build \
-             -t siprtp_build .
-          cd ../..
-
-      - name: Get artifacts
-        run: |
-          mkdir ./artifacts
-          mkdir ./artifacts/debian
-          mkdir ./artifacts/java
-          mkdir ./artifacts/js
-          docker create --name temp siprtp_build
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/debian/kms-siprtpendpoint-dev_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts/debian
-          docker cp temp:/artifacts/java/siprtp-${SIPRTP_VERSION}.jar ./artifacts/java
-          docker cp temp:/artifacts/java/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts/java
-          docker cp temp:/artifacts/js/kurento-module-siprtp-${SIPRTP_VERSION}.tgz ./artifacts/js
-          docker cp temp:/artifacts/js/kurento-module-siprtp-${SIPRTP_VERSION}-jsdoc.tgz ./artifacts/js
-          docker rm -f temp
-
-      - name: upload debian artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: debian packages
-          path: ./artifacts/debian/*.*deb
-
-      - name: upload java artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: java artifacts
-          path: ./artifacts/java/*.jar
-
-      - name: upload js artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: js artifacts
-          path: ./artifacts/js/*.tgz
-
-      - name: Build docker image
-        if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
-        run: |
-          cd ci-scripts/docker
-          docker build \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             -t $IMAGE_NAME:$SIPRTP_VERSION .
-          cd ../..
-
-
+  build-kurento-java-client:
+    needs: build-kurento-module
+    uses: "./.github/workflows/build_kurento_java_client.yaml"
+    with:
+      version: '${{ github.event.inputs.version || github.ref_name }}'
+      kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
   publish-release:
-    runs-on: self-hosted  
-    needs: build-artifacts
-    steps:  
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      
-      # Action: https://github.com/actions/download-artifact
-      - name: "Copy artifacts from previous jobs"
-        id: "copy-artifacts"
-        uses: "actions/download-artifact@v4"
-        with:
-          path: "artifacts"
+    needs: [build-kurento-module, build-kurento-js-client, build-kurento-java-client]
+    uses: "./.github/workflows/publish_release.yaml"
+    with:
+      version: '${{ github.event.inputs.version || github.ref_name }}'
+      force_release: '${{ github.event.inputs.force_release || "7.2.0" }}'
 
-      - name: "Get artifacts"
-        run: |
-          ARTIFACT_PATH="${{ steps.copy-artifacts.outputs.download-path }}"
-          mkdir -p ./artifacts/debian
-          cp  ${ARTIFACT_PATH}/debian/*.*deb ./artifacts/debian
-          mkdir -p ./artifacts/java
-          cp  ${ARTIFACT_PATH}/java/*.jar ./artifacts/java
-          mkdir -p ./artifacts/js
-          cp  ${ARTIFACT_PATH}/js/*.tgz ./artifacts/js
-
-      - name: Publish release
-        if: ${{ env.FORCE_RELEASE == 'true' }}
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ env.SIPRTP_VERSION }}
-          name: ${{ env.SIPRTP_VERSION }}
-          body: 'Release of version ${{ env.SIPRTP_VERSION }}'
-          draft: false
-          prerelease: false
-          files: |
-            ./artifacts/debian/*.*deb
-            ./artifacts/java/*.jar
-            ./artifacts/js/*.tgz
-
-      - name: clenaup
-        run: |
-          rm -rf ./artifacts
-
-
+  build-docker-image:
+    needs: build-kurento-module
+    uses: "./.github/workflows/build_kurento_docker_image.yaml"
+    with:
+      version: '${{ github.event.inputs.version || github.ref_name }}'
+      force_release: '${{ github.event.inputs.force_release || true}}'
+      image_name: '${{ github.event.inputs.image_name || "naevatec/kurento-media-server-siprtp" }}'
+      kurento_version: '${{ github.event.inputs.kurento_version || "7.2.0" }}'
+      create_docker_image: '${{ github.event.inputs.create_docker_image || false }}'
