@@ -87,4 +87,4 @@ jobs:
       force_release: '${{ github.event.inputs.force_release }}'
       image_name: '${{ github.event.inputs.image_name }}'
       kurento_version: '${{ github.event.inputs.kurento_version }}'
-      force_release: '${{ github.event.inputs.force_release }}'
+      create_docker_image: '${{ github.event.inputs.create_docker_image }}'
