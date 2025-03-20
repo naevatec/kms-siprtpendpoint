@@ -88,7 +88,6 @@ jobs:
       image_name: '${{ github.event.inputs.image_name }}'
       kurento_version: '${{ github.event.inputs.kurento_version }}'
       create_docker_image: ${{ fromJson(github.event.inputs['create_docker_image']) }} 
-      create_docker_image: github.event.inputs.create_docker_image
 
   cleanup_docker:
     needs: build-docker-image
