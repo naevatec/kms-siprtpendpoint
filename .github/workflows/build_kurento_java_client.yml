@@ -1,24 +1,29 @@
 name: Build Kurento Java Client
 
-workflow_dispatch:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        type: string
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        type: string
+        required: false
+        default: '7.2.0'
 
-workflow_call:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        type: string
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        type: string
+        required: false
+        default: '7.2.0'
 
 jobs:
   build:
@@ -34,6 +39,7 @@ jobs:
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
           echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
       - name: Build artifacts
@@ -42,29 +48,29 @@ jobs:
           echo "KURENTO_VERSION=${KURENTO_VERSION}"
           cd ci-scripts/docker
           docker build \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             --target siprtp_build_java \
-             -t siprtp_build_java .
+            --build-context sources=../../ \
+            --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+            --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+            --build-arg DISTRIB_CODENAME=noble \
+            --build-arg UBUNTU_VERSION=ubuntu1 \
+            --target siprtp_build_java \
+            -t siprtp_build_java .
           cd ../..
 
       - name: Get artifacts
         run: |
           mkdir ./artifacts
           docker rm -f temp_java || true
-          docker create --name temp_js siprtp_build_java
-          docker cp temp:/artifacts/java/siprtp-${SIPRTP_VERSION}.jar ./artifacts/java
-          docker cp temp:/artifacts/java/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts/java
+          docker create --name temp_java siprtp_build_java
+          docker cp temp_java:/artifacts/siprtp-${SIPRTP_VERSION}.jar ./artifacts
+          docker cp temp_java:/artifacts/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts
           docker rm -f temp_java
 
       - name: upload java artifacts
         uses: actions/upload-artifact@v4
         with:
           name: java artifacts
-          path: ./artifacts/java/*.jar
+          path: ./artifacts/*.jar
 
 
 

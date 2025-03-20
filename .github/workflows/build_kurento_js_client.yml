@@ -1,24 +1,29 @@
 name: Build Kurento JS Client
 
-workflow_dispatch:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        type: string
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        type: string
+        required: false
+        default: '7.2.0'
 
-workflow_call:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        type: string
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        type: string
+        required: false
+        default: '7.2.0'
 
 jobs:
   build:
@@ -34,6 +39,7 @@ jobs:
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
           echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
       - name: Build artifacts
@@ -42,13 +48,13 @@ jobs:
           echo "KURENTO_VERSION=${KURENTO_VERSION}"
           cd ci-scripts/docker
           docker build \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             --target siprtp_build_js \
-             -t siprtp_build_js .
+            --build-context sources=../../ \
+            --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+            --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+            --build-arg DISTRIB_CODENAME=noble \
+            --build-arg UBUNTU_VERSION=ubuntu1 \
+            --target siprtp_build_js \
+            -t siprtp_build_js .
           cd ../..
 
       - name: Get artifacts
@@ -64,6 +70,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: js artifacts
-          path: ./artifacts/js/*.tgz
+          path: ./artifacts/*.tgz
 
 

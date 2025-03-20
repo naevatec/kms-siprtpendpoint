@@ -5,6 +5,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
@@ -16,6 +17,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
@@ -27,7 +29,6 @@ jobs:
 
   publish-release:
     runs-on: self-hosted  
-    needs: build-artifacts
     steps:  
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -43,9 +44,10 @@ jobs:
         run: |
           ARTIFACT_PATH="${{ steps.copy-artifacts.outputs.download-path }}"
           mkdir -p ./artifacts
-          cp  ${ARTIFACT_PATH}/*.*deb ./artifacts
-          cp  ${ARTIFACT_PATH}/*.jar ./artifacts
-          cp  ${ARTIFACT_PATH}/*.tgz ./artifacts
+          ls -la ${ARTIFACT_PATH}
+          cp  ${ARTIFACT_PATH}/debian\ packages/*.*deb ./artifacts
+          cp  ${ARTIFACT_PATH}/java\ artifacts/*.jar ./artifacts
+          cp  ${ARTIFACT_PATH}/js\ artifacts/*.tgz ./artifacts
 
       - name: Publish release
         if: ${{ env.FORCE_RELEASE == 'true' }}

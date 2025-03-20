@@ -5,6 +5,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
@@ -31,6 +32,7 @@ on:
     inputs:
       version:
         description: 'Version number'
+        type: string
         required: true
       force_release:
         description: 'Force release'
@@ -67,6 +69,7 @@ jobs:
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
           echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
           echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_ENV
           echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
@@ -92,7 +95,7 @@ jobs:
 
       - name: Upload docker image artifact
         if: ${{ env.FORCE_RELEASE == 'true' }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: $IMAGE_NAME_$SIPRTP_VERSION.tgz
