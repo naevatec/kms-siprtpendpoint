@@ -44,6 +44,7 @@ jobs:
         run: |
           ARTIFACT_PATH="${{ steps.copy-artifacts.outputs.download-path }}"
           mkdir -p ./artifacts
+          ls -la ${ARTIFACT_PATH}
           cp  ${ARTIFACT_PATH}/*.*deb ./artifacts
           cp  ${ARTIFACT_PATH}/*.jar ./artifacts
           cp  ${ARTIFACT_PATH}/*.tgz ./artifacts
