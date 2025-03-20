@@ -1,70 +1,71 @@
 name: Build Kurento Module
 
-workflow_dispatch:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        default: '7.2.0'
 
-workflow_call:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        default: '7.2.0'
 
-jobs:
-  build:
-    runs-on: self-hosted
+  jobs:
+    build:
+      runs-on: self-hosted
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
 
-      - name: Set environment variables
-        run: |
-          version=${{ github.event.inputs.version }}
-          if [[ $version == v* ]]; then
-            version=${version:1}
-          fi
-          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
-          echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+        - name: Set environment variables
+          run: |
+            version=${{ github.event.inputs.version }}
+            if [[ $version == v* ]]; then
+              version=${version:1}
+            fi
+            echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
+            echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
-      - name: Build artifacts
-        run: |
-          echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
-          echo "KURENTO_VERSION=${KURENTO_VERSION}"
-          cd ci-scripts/docker
-          docker build --no-cache \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             --target siprtp_build \
-             -t siprtp_build .
-          cd ../..
+        - name: Build artifacts
+          run: |
+            echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
+            echo "KURENTO_VERSION=${KURENTO_VERSION}"
+            cd ci-scripts/docker
+            docker build --no-cache \
+              --build-context sources=../../ \
+              --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+              --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+              --build-arg DISTRIB_CODENAME=noble \
+              --build-arg UBUNTU_VERSION=ubuntu1 \
+              --target siprtp_build \
+              -t siprtp_build .
+            cd ../..
 
-      - name: Get artifacts
-        run: |
-          mkdir ./artifacts
-          docker rm -f temp || true
-          docker create --name temp siprtp_build
-          docker cp temp:/artifacts/kms-siprtpendpoint_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
-          docker cp temp:/artifacts/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
-          docker cp temp:/artifacts/kms-siprtpendpoint-dev_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
-          docker rm -f temp
+        - name: Get artifacts
+          run: |
+            mkdir ./artifacts
+            docker rm -f temp || true
+            docker create --name temp siprtp_build
+            docker cp temp:/artifacts/kms-siprtpendpoint_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
+            docker cp temp:/artifacts/kms-siprtpendpoint-dbg_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
+            docker cp temp:/artifacts/kms-siprtpendpoint-dev_${SIPRTP_VERSION}ubuntu1_amd64.deb ./artifacts
+            docker rm -f temp
 
-      - name: upload debian artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: debian packages
-          path: ./artifacts/*.*deb
+        - name: upload debian artifacts
+          uses: actions/upload-artifact@v4
+          with:
+            name: debian packages
+            path: ./artifacts/*.*deb
 

@@ -1,69 +1,70 @@
 name: Build Kurento JS Client
 
-workflow_dispatch:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        default: '7.2.0'
 
-workflow_call:
-  inputs:
-    version:
-      description: 'Version number'
-      required: true
-    kurento_version:
-      description: 'Kurento version'
-      required: false
-      default: '7.2.0'
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        required: true
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        default: '7.2.0'
 
-jobs:
-  build:
-    runs-on: self-hosted
+  jobs:
+    build:
+      runs-on: self-hosted
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v2
 
-      - name: Set environment variables
-        run: |
-          version=${{ github.event.inputs.version }}
-          if [[ $version == v* ]]; then
-            version=${version:1}
-          fi
-          echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+        - name: Set environment variables
+          run: |
+            version=${{ github.event.inputs.version }}
+            if [[ $version == v* ]]; then
+              version=${version:1}
+            fi
+            echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
-      - name: Build artifacts
-        run: |
-          echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
-          echo "KURENTO_VERSION=${KURENTO_VERSION}"
-          cd ci-scripts/docker
-          docker build \
-             --build-context sources=../../ \
-             --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
-             --build-arg KURENTO_VERSION=$KURENTO_VERSION \
-             --build-arg DISTRIB_CODENAME=noble \
-             --build-arg UBUNTU_VERSION=ubuntu1 \
-             --target siprtp_build_js \
-             -t siprtp_build_js .
-          cd ../..
+        - name: Build artifacts
+          run: |
+            echo "SIPRTP_VERSION=${SIPRTP_VERSION}"
+            echo "KURENTO_VERSION=${KURENTO_VERSION}"
+            cd ci-scripts/docker
+            docker build \
+              --build-context sources=../../ \
+              --build-arg SIPRTP_VERSION=$SIPRTP_VERSION \
+              --build-arg KURENTO_VERSION=$KURENTO_VERSION \
+              --build-arg DISTRIB_CODENAME=noble \
+              --build-arg UBUNTU_VERSION=ubuntu1 \
+              --target siprtp_build_js \
+              -t siprtp_build_js .
+            cd ../..
 
-      - name: Get artifacts
-        run: |
-          mkdir ./artifacts
-          docker rm -f temp_js || true
-          docker create --name temp_js siprtp_build_js
-          docker cp temp_js:/artifacts/kurento-module-siprtp-${SIPRTP_VERSION}.tgz ./artifacts
-          docker cp temp_js:/artifacts/kurento-module-siprtp-${SIPRTP_VERSION}-jsdoc.tgz ./artifacts
-          docker rm -f temp_js
+        - name: Get artifacts
+          run: |
+            mkdir ./artifacts
+            docker rm -f temp_js || true
+            docker create --name temp_js siprtp_build_js
+            docker cp temp_js:/artifacts/kurento-module-siprtp-${SIPRTP_VERSION}.tgz ./artifacts
+            docker cp temp_js:/artifacts/kurento-module-siprtp-${SIPRTP_VERSION}-jsdoc.tgz ./artifacts
+            docker rm -f temp_js
 
-      - name: upload js artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: js artifacts
-          path: ./artifacts/js/*.tgz
+        - name: upload js artifacts
+          uses: actions/upload-artifact@v4
+          with:
+            name: js artifacts
+            path: ./artifacts/js/*.tgz
 
 
