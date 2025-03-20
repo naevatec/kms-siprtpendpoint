@@ -77,16 +77,17 @@ jobs:
     uses: "./.github/workflows/publish_release.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      force_release: github.event.inputs.force_release
+      force_release: ${{ fromJson(github.event.inputs['force_release']) }} 
 
   build-docker-image:
     needs: build-kurento-module
     uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      force_release: github.event.inputs.force_release
+      force_release: ${{ fromJson(github.event.inputs['force_release']) }} 
       image_name: '${{ github.event.inputs.image_name }}'
       kurento_version: '${{ github.event.inputs.kurento_version }}'
+      create_docker_image: ${{ fromJson(github.event.inputs['create_docker_image']) }} 
       create_docker_image: github.event.inputs.create_docker_image
 
   cleanup_docker:
