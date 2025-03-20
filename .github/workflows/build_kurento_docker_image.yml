@@ -1,4 +1,4 @@
-name: Compile and release
+name: Build Kurento Docker Image
 
 on:  
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Build Kurento Module
+name: Build Kurento Java Client
 
 workflow_dispatch:
   inputs:
