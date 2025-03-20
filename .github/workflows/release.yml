@@ -84,7 +84,7 @@ jobs:
     uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      force_release: '${{ github.event.inputs.force_release'
+      force_release: '${{ github.event.inputs.force_release }}'
       image_name: '${{ github.event.inputs.image_name }}'
       kurento_version: '${{ github.event.inputs.kurento_version }}'
       force_release: '${{ github.event.inputs.force_release }}'
