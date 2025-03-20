@@ -62,8 +62,8 @@ jobs:
           mkdir ./artifacts
           docker rm -f temp_java || true
           docker create --name temp_js siprtp_build_java
-          docker cp temp:/artifacts/java/siprtp-${SIPRTP_VERSION}.jar ./artifacts/java
-          docker cp temp:/artifacts/java/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts/java
+          docker cp temp_java:/artifacts/java/siprtp-${SIPRTP_VERSION}.jar ./artifacts/java
+          docker cp temp_java:/artifacts/java/siprtp-javadoc-${SIPRTP_VERSION}.jar ./artifacts/java
           docker rm -f temp_java
 
       - name: upload java artifacts

@@ -88,3 +88,16 @@ jobs:
       image_name: '${{ github.event.inputs.image_name }}'
       kurento_version: '${{ github.event.inputs.kurento_version }}'
       create_docker_image: '${{ github.event.inputs.create_docker_image }}'
+
+  cleanup_docker:
+    needs: build-docker-image
+    runs-on: self-hosted
+    steps:
+      - name: Cleanup docker
+        run: |
+          docker rm -f temp || true
+          docker rm -f temp_js || true
+          docker rm -f temp_java || true
+          docker rmi -f siprtp_build || true
+          docker rmi -f siprtp_build_js || true
+          docker rmi -f siprtp_build_java || true
