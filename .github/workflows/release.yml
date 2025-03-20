@@ -8,10 +8,26 @@ on:
       version:
         description: 'Version number'
         required: true
+        default: '${{ github.ref_name }}'
       force_release:
         description: 'Force release'
         type: boolean
         default: true
+      image_name:
+        description: 'docker image name'
+        required: false
+        type: string
+        default: 'naevatec/kurento-media-server-siprtp'
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        type: string
+        default: '7.1.1'
+      create_docker_image:
+        description: 'Create docker image'
+        required: false
+        type: boolean
+        default: false
   
   workflow_dispatch:
     inputs:
@@ -44,35 +60,35 @@ jobs:
     uses: "./.github/workflows/build_kurento_module.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      kurento_version: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event_name == 'push' && "7.2.0" }}'
+      kurento_version: '${{ github.event.inputs.kurento_version }}'
 
   build-kurento-js-client:
     needs: build-kurento-module
     uses: "./.github/workflows/build_kurento_js_client.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      kurento_version: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event_name == 'push' && "7.2.0" }}'
+      kurento_version: '${{ github.event.inputs.kurento_version }}'
 
   build-kurento-java-client:
     needs: build-kurento-module
     uses: "./.github/workflows/build_kurento_java_client.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      kurento_version: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event_name == 'push' && "7.2.0" }}'
+      kurento_version: '${{ github.event.inputs.kurento_version }}'
 
   publish-release:
     needs: [build-kurento-module, build-kurento-js-client, build-kurento-java-client]
     uses: "./.github/workflows/publish_release.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      force_release: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_docker_image || github.event_name == 'push' && false }}'
+      force_release: '${{ github.event.inputs.force_release }}'
 
   build-docker-image:
     needs: build-kurento-module
     uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
-      force_release: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_release || github.event_name == 'push' && true }}'
-      image_name: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.image_name || github.event_name == 'push' && "naevatec/kurento-media-server-siprtp" }}'
-      kurento_version: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version || github.event_name == 'push' && "7.2.0" }}'
-      force_release: '${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_docker_image || github.event_name == 'push' && false }}'
+      force_release: '${{ github.event.inputs.force_release'
+      image_name: '${{ github.event.inputs.image_name }}'
+      kurento_version: '${{ github.event.inputs.kurento_version }}'
+      force_release: '${{ github.event.inputs.force_release }}'
