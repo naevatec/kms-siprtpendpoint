@@ -41,35 +41,35 @@ on:
 
 jobs:
   build-kurento-module:
-    uses: "./.github/workflows/build_kurento_module.yaml"
+    uses: "./.github/workflows/build_kurento_module.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
       kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
   build-kurento-js-client:
     needs: build-kurento-module
-    uses: "./.github/workflows/build_kurento_js_client.yaml"
+    uses: "./.github/workflows/build_kurento_js_client.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
       kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
   build-kurento-java-client:
     needs: build-kurento-module
-    uses: "./.github/workflows/build_kurento_java_client.yaml"
+    uses: "./.github/workflows/build_kurento_java_client.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
       kurento_version: '${{ github.event.inputs.version || "7.2.0" }}'
 
   publish-release:
     needs: [build-kurento-module, build-kurento-js-client, build-kurento-java-client]
-    uses: "./.github/workflows/publish_release.yaml"
+    uses: "./.github/workflows/publish_release.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
       force_release: '${{ github.event.inputs.force_release || "7.2.0" }}'
 
   build-docker-image:
     needs: build-kurento-module
-    uses: "./.github/workflows/build_kurento_docker_image.yaml"
+    uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
       version: '${{ github.event.inputs.version || github.ref_name }}'
       force_release: '${{ github.event.inputs.force_release || true}}'
