@@ -1,4 +1,4 @@
-name: Compile and release
+name: Publish release
 
 on: 
   workflow_call:
