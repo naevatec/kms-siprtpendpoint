@@ -39,6 +39,7 @@ jobs:
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
           echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
       - name: Build artifacts
