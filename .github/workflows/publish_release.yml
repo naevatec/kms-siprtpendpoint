@@ -32,7 +32,16 @@ jobs:
     steps:  
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
+      - name: Set environment variables
+        run: |
+          version=${{ github.event.inputs.version }}
+          if [[ $version == v* ]]; then
+            version=${version:1}
+          fi
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV
+          echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
+
       # Action: https://github.com/actions/download-artifact
       - name: "Copy artifacts from previous jobs"
         id: "copy-artifacts"
@@ -56,9 +65,11 @@ jobs:
           tag: ${{ env.SIPRTP_VERSION }}
           name: ${{ env.SIPRTP_VERSION }}
           body: 'Release of version ${{ env.SIPRTP_VERSION }}'
-          draft: false
+          draft: true
           prerelease: false
-          files: |
+          allowUpdates: true
+          generateReleaseNotes: true
+          artifacts: |
             ./artifacts/*.*deb
             ./artifacts/*.jar
             ./artifacts/*.tgz
