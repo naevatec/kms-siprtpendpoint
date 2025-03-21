@@ -1,3 +1,9 @@
+kms-siprtpendpoint (1.6.1) RELEASED; urgency=medium
+
+  * release 1.6.1 bug fixing
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 20 March 2024 10:38:39 +0000
+
 kms-siprtpendpoint (1.6.0) RELEASED; urgency=medium
 
   * release 1.6.0 DSCP enhancement + traffic shaping feature
