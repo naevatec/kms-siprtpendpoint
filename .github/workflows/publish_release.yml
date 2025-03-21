@@ -39,7 +39,7 @@ jobs:
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
-          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV>> $GITHUB_ENV
+          echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV
           echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
 
       # Action: https://github.com/actions/download-artifact

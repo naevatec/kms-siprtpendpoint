@@ -79,17 +79,17 @@ jobs:
     uses: "./.github/workflows/publish_release.yml"
     with:
       version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      force_release: ${{ fromJson(needs.set-context.outputs['FORCE_RELEASE']) }} 
+      force_release: ${{ needs.set-context.outputs.FORCE_RELEASE }} 
 
   build-docker-image:
-    needs: [set-context,build-kurento-module]
+    needs: [set-context, build-kurento-module]
     uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
       version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      force_release: ${{ fromJson(needs.set-context.outputs['FORCE_RELEASE']) }} 
+      force_release: ${{ needs.set-context.outputs.FORCE_RELEASE }} 
       image_name: ${{ needs.set-context.outputs.IMAGE_NAME }} 
       kurento_version: '${{ needs.set-context.outputs.KURENTO_VERSION }}'
-      create_docker_image: ${{ fromJson(needs.set-context.outputs['CREATE_DOCKER_IMAGE']) }}
+      create_docker_image: ${{ needs.set-context.outputs.CREATE_DOCKER_IMAGE }}
 
   cleanup_docker:
     needs: build-docker-image
