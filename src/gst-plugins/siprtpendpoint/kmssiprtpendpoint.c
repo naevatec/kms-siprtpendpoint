@@ -1133,7 +1133,9 @@ kms_sip_rtp_endpoint_rtpbin_pad_added (GstElement * rtpbin, GstPad * pad,
 		output_agnosticbin = get_outputagnostic_from_depayloader (depayloader);
 		sscanf (pad_name, "recv_rtp_src_%u_%u_%u", &media_type, &ssrc, &pt);
 		kms_sip_rtp_endpoint_add_active_input_to_selector (self, depayloader, output_agnosticbin, media_type, ssrc, pt);
-		gst_object_unref(output_agnosticbin);
+		if (output_agnosticbin != NULL) {
+			gst_object_unref(output_agnosticbin);
+		}
 		gst_object_unref(depayloader);
  		GST_PAD_STREAM_UNLOCK (pad);
  	}
