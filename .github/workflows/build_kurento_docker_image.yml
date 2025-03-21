@@ -91,11 +91,12 @@ jobs:
       - name: Export docker image
         if: ${{ env.FORCE_RELEASE == 'true' }}
         run: |
-          docker save $IMAGE_NAME:$SIPRTP_VERSION | gzip > $IMAGE_NAME_$SIPRTP_VERSION.tgz
+          mkdir -p ./artifacts
+          docker save ${IMAGE_NAME}:${SIPRTP_VERSION} | gzip > ./artifacts/${IMAGE_NAME}_${SIPRTP_VERSION}.tgz
 
       - name: Upload docker image artifact
         if: ${{ env.FORCE_RELEASE == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: docker-image
-          path: $IMAGE_NAME_$SIPRTP_VERSION.tgz
+          path: ./artifacts/*.tgz

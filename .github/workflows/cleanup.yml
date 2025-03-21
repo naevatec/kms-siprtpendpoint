@@ -1,0 +1,16 @@
+name: Build and release
+
+on: [workflow_call, workflow_dispatch]
+
+jobs:
+  cleanup_docker:
+    runs-on: self-hosted
+    steps:
+      - name: Cleanup docker
+        run: |
+          docker rm -f temp || true
+          docker rm -f temp_js || true
+          docker rm -f temp_java || true
+          docker rmi -f siprtp_build || true
+          docker rmi -f siprtp_build_js || true
+          docker rmi -f siprtp_build_java || true
