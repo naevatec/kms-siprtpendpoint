@@ -1,4 +1,4 @@
-name: Build and release
+name: Cleanup docker
 
 on: [workflow_call, workflow_dispatch]
 
