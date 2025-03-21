@@ -92,7 +92,8 @@ jobs:
         if: ${{ env.FORCE_RELEASE == 'true' }}
         run: |
           mkdir -p ./artifacts
-          docker save ${IMAGE_NAME}:${SIPRTP_VERSION} | gzip > ./artifacts/${IMAGE_NAME}_${SIPRTP_VERSION}.tgz
+          image_file_name=$(echo ${IMAGE_NAME} | tr '/' '_')
+          docker save ${IMAGE_NAME}:${SIPRTP_VERSION} | gzip > ./artifacts/${image_file_name}_${SIPRTP_VERSION}.tgz
 
       - name: Upload docker image artifact
         if: ${{ env.FORCE_RELEASE == 'true' }}

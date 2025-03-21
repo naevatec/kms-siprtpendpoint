@@ -50,7 +50,8 @@ jobs:
             echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
             echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
             echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
-          else
+          fi 
+          if [ "${{ github.event_name }}" == "push" ]; then
             echo "SIPRTP_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
             echo "FORCE_RELEASE=true" >> $GITHUB_OUTPUT
             echo "IMAGE_NAME=naevatec/kurento-media-server-siprtp" >> $GITHUB_OUTPUT
