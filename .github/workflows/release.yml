@@ -35,28 +35,30 @@ jobs:
   set-context:
     runs-on: self-hosted
     outputs:
-      SIPRTP_VERSION: ${{ steps.get-parameters.outputs.SIPRTP_VERSION }}
-      FORCE_RELEASE: ${{ steps.get-parameters.outputs.FORCE_RELEASE }}
-      IMAGE_NAME: ${{ steps.get-parameters.outputs.IMAGE_NAME }}
-      KURENTO_VERSION: ${{ steps.get-parameters.outputs.KURENTO_VERSION }}
-      CREATE_DOCKER_IMAGE: ${{ steps.get-parameters.outputs.CREATE_DOCKER_IMAGE }}
+      version: ${{ steps.get-parameters.outputs.version }}
+      force: ${{ steps.get-parameters.outputs.force }}
+      image: ${{ steps.get-parameters.outputs.image }}
+      kurento: ${{ steps.get-parameters.outputs.kurento }}
+      docker: ${{ steps.get-parameters.outputs.docker }}
     steps:
       - name: Set input parameters
         id: get-parameters
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "SIPRTP_VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
-            echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
-            echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
-            echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
+            echo "workflow launched manually with version ${{ github.event.inputs.version }}"
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "force=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
+            echo "image=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
+            echo "kurento=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
+            echo "docker=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
           fi 
           if [ "${{ github.event_name }}" == "push" ]; then
-            echo "SIPRTP_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "FORCE_RELEASE=true" >> $GITHUB_OUTPUT
-            echo "IMAGE_NAME=naevatec/kurento-media-server-siprtp" >> $GITHUB_OUTPUT
-            echo "KURENTO_VERSION=7.2.0" >> $GITHUB_OUTPUT
-            echo "CREATE_DOCKER_IMAGE=false" >> $GITHUB_OUTPUT
+            echo "workflow launched by push with version ${{ github.ref_name }}"
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "force=true" >> $GITHUB_OUTPUT
+            echo "image=naevatec/kurento-media-server-siprtp" >> $GITHUB_OUTPUT
+            echo "kurento=7.2.0" >> $GITHUB_OUTPUT
+            echo "docker=false" >> $GITHUB_OUTPUT
           fi
 
 
@@ -64,39 +66,39 @@ jobs:
     needs: set-context
     uses: "./.github/workflows/build_kurento_module.yml"
     with:
-      version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      kurento_version: '${{ needs.set-context.outputs.KURENTO_VERSION }}'
+      version: '${{ needs.set-context.outputs.version }}'
+      kurento_version: '${{ needs.set-context.outputs.kurento }}'
 
   build-kurento-js-client:
     needs: [set-context, build-kurento-module]
     uses: "./.github/workflows/build_kurento_js_client.yml"
     with:
-      version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      kurento_version: '${{ needs.set-context.outputs.KURENTO_VERSION }}'
+      version: '${{ needs.set-context.outputs.version }}'
+      kurento_version: '${{ needs.set-context.outputs.kurento }}'
 
   build-kurento-java-client:
     needs: [set-context, build-kurento-module]
     uses: "./.github/workflows/build_kurento_java_client.yml"
     with:
-      version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      kurento_version: '${{ needs.set-context.outputs.KURENTO_VERSION }}'
+      version: '${{ needs.set-context.outputs.version }}'
+      kurento_version: '${{ needs.set-context.outputs.kurento }}'
 
   publish-release:
     needs: [set-context, build-kurento-module, build-kurento-js-client, build-kurento-java-client]
     uses: "./.github/workflows/publish_release.yml"
     with:
-      version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      force_release: ${{ fromJson(needs.set-context.outputs['FORCE_RELEASE']) }} 
+      version: '${{ needs.set-context.outputs.version }}'
+      force_release: ${{ fromJson(needs.set-context.outputs['force']) }} 
 
   build-docker-image:
     needs: [set-context, build-kurento-module]
     uses: "./.github/workflows/build_kurento_docker_image.yml"
     with:
-      version: '${{ needs.set-context.outputs.SIPRTP_VERSION }}'
-      force_release: ${{ fromJson(needs.set-context.outputs['FORCE_RELEASE']) }} 
-      image_name: ${{ needs.set-context.outputs.IMAGE_NAME }} 
-      kurento_version: '${{ needs.set-context.outputs.KURENTO_VERSION }}'
-      create_docker_image: ${{ fromJson(needs.set-context.outputs['CREATE_DOCKER_IMAGE']) }} 
+      version: '${{ needs.set-context.outputs.version }}'
+      force_release: ${{ fromJson(needs.set-context.outputs['force']) }} 
+      image_name: ${{ needs.set-context.outputs.image }} 
+      kurento_version: '${{ needs.set-context.outputs.kurento }}'
+      create_docker_image: ${{ fromJson(needs.set-context.outputs['docker']) }} 
 
   cleanup_docker:
     needs: build-docker-image
