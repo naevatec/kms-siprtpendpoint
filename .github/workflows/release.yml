@@ -72,11 +72,11 @@ jobs:
         id: get-parameters
         run: |
           echo "workflow launched with version ${{ github.event.inputs.version }}"
-          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          echo "force=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
-          echo "image=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
-          echo "kurento=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
-          echo "docker=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
+          echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          echo "force=${{ inputs.force_release }}" >> $GITHUB_OUTPUT
+          echo "image=${{ inputs.image_name }}" >> $GITHUB_OUTPUT
+          echo "kurento=${{ inputs.kurento_version }}" >> $GITHUB_OUTPUT
+          echo "docker=${{ inputs.create_docker_image }}" >> $GITHUB_OUTPUT
 
 
   build-kurento-module:
