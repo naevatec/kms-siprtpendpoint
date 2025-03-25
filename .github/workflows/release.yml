@@ -71,12 +71,12 @@ jobs:
       - name: Set input parameters
         id: get-parameters
         run: |
-          echo "workflow launched with version ${{ github.event.inputs.version }}"
-          echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          echo "force=${{ inputs.force_release }}" >> $GITHUB_OUTPUT
-          echo "image=${{ inputs.image_name }}" >> $GITHUB_OUTPUT
-          echo "kurento=${{ inputs.kurento_version }}" >> $GITHUB_OUTPUT
-          echo "docker=${{ inputs.create_docker_image }}" >> $GITHUB_OUTPUT
+          echo "workflow launched with version ${{ inputs.version || github.event.inputs.version || github.ref_name }}"
+          echo "version=${{ inputs.version || github.event.inputs.version || github.ref_name}}" >> $GITHUB_OUTPUT
+          echo "force=${{ inputs.force_release || github.event.inputs.force_release || 'false' }}" >> $GITHUB_OUTPUT
+          echo "image=${{ inputs.image_name || github.event.inputs.image_name || 'naevatec/kurento-media-server-siprtp' }}" >> $GITHUB_OUTPUT
+          echo "kurento=${{ inputs.kurento_version || github.event.inputs.kurento_version || '7.2.0' }}" >> $GITHUB_OUTPUT
+          echo "docker=${{ inputs.create_docker_image || github.event.inputs.create_docker_image || 'false' }}" >> $GITHUB_OUTPUT
 
 
   build-kurento-module:
