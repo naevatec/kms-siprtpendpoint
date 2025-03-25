@@ -35,12 +35,12 @@ jobs:
 
       - name: Set environment variables
         run: |
-          version=${{ github.event.inputs.version }}
+          version=${{ inputs.version || github.event.inputs.version }}
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
           echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV
-          echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+          echo "KURENTO_VERSION=${{ inputs.kurento_version || github.event.inputs.kurento_version }}" >> $GITHUB_ENV
 
       - name: Build artifacts
         run: |

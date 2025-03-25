@@ -65,15 +65,15 @@ jobs:
 
       - name: Set environment variables
         run: |
-          version=${{ github.event.inputs.version }}
+          version=${{ inputs.version || github.event.inputs.version }}
           if [[ $version == v* ]]; then
             version=${version:1}
           fi
           echo "SIPRTP_VERSION=$version" >> $GITHUB_ENV
-          echo "FORCE_RELEASE=${{ github.event.inputs.force_release }}" >> $GITHUB_ENV
-          echo "IMAGE_NAME=${{ github.event.inputs.image_name }}" >> $GITHUB_ENV
-          echo "KURENTO_VERSION=${{ github.event.inputs.kurento_version }}" >> $GITHUB_ENV
-          echo "CREATE_DOCKER_IMAGE=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_ENV
+          echo "FORCE_RELEASE=${{ inputs.force_release || github.event.inputs.force_release }}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=${{ inputs.image_name || github.event.inputs.image_name }}" >> $GITHUB_ENV
+          echo "KURENTO_VERSION=${{ inputs.kurento_version || github.event.inputs.kurento_version }}" >> $GITHUB_ENV
+          echo "CREATE_DOCKER_IMAGE=${{ inputs.create_docker_image || github.event.inputs.create_docker_image }}" >> $GITHUB_ENV
 
       - name: Build docker image
         if: ${{ env.CREATE_DOCKER_IMAGE == 'true' }}
