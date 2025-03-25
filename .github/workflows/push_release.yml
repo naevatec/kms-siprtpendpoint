@@ -10,7 +10,7 @@ jobs:
     uses: "./.github/workflows/release.yml"
     with:
       version: '${{ github.ref_name }}'
-      force: true
+      force_release: true
       image: 'naevatec/kurento-media-server-siprtp'
       kurento_version: '7.2.0'
       docker: false
