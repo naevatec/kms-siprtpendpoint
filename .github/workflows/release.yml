@@ -65,10 +65,13 @@ jobs:
       kurento: ${{ steps.get-parameters.outputs.kurento }}
       docker: ${{ steps.get-parameters.outputs.docker }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Set input parameters
         id: get-parameters
         run: |
-          echo "workflow launched manually with version ${{ github.event.inputs.version }}"
+          echo "workflow launched with version ${{ github.event.inputs.version }}"
           echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           echo "force=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
           echo "image=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
