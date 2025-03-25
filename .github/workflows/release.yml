@@ -21,7 +21,7 @@ on:
         description: 'Kurento version'
         required: false
         type: string
-        default: '7.1.1'
+        default: '7.2.0'
       create_docker_image:
         description: 'Create docker image'
         required: false
