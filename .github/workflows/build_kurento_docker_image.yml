@@ -89,15 +89,15 @@ jobs:
           cd ../..
 
       - name: Export docker image
-        if: ${{ env.FORCE_RELEASE == 'true' }}
+        if: ${{ env.FORCE_RELEASE == 'true' && env.CREATE_DOCKER_IMAGE == 'true' }}
         run: |
           mkdir -p ./artifacts
           image_file_name=$(echo ${IMAGE_NAME} | tr '/' '_')
           docker save ${IMAGE_NAME}:${SIPRTP_VERSION} | gzip > ./artifacts/${image_file_name}_${SIPRTP_VERSION}.tgz
 
       - name: Upload docker image artifact
-        if: ${{ env.FORCE_RELEASE == 'true' }}
-        uses: actions/upload-artifact@v4
+      if: ${{ env.FORCE_RELEASE == 'true' && env.CREATE_DOCKER_IMAGE == 'true' }}
+      uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: ./artifacts/*.tgz
