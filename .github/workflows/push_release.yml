@@ -1,0 +1,16 @@
+name: Build and release
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+  
+jobs:
+  release:
+    uses: "./.github/workflows/release.yml"
+    with:
+      version: '${{ github.ref_name }}'
+      force: true
+      image: 'naevatec/kurento-media-server-siprtp'
+      kurento_version: '7.2.0'
+      docker: false

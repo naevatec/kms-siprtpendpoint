@@ -1,14 +1,38 @@
 name: Build and release
 
 on:
-  push:
-    tags:
-      - '*.*.*'
-  
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version number'
+        type: string
+        required: true
+      force_release:
+        description: 'Force release'
+        required: true
+        type: boolean
+        default: false
+      image_name:
+        description: 'docker image name'
+        required: false
+        type: string
+        default: 'naevatec/kurento-media-server-siprtp'
+      kurento_version:
+        description: 'Kurento version'
+        required: false
+        type: string
+        default: '7.1.1'
+      create_docker_image:
+        description: 'Create docker image'
+        required: false
+        type: boolean
+        default: false
+
   workflow_dispatch:
     inputs:
       version:
         description: 'Version number'
+        type: string  
         required: true
       force_release:
         description: 'Force release'
@@ -44,22 +68,12 @@ jobs:
       - name: Set input parameters
         id: get-parameters
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "workflow launched manually with version ${{ github.event.inputs.version }}"
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "force=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
-            echo "image=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
-            echo "kurento=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
-            echo "docker=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
-          fi 
-          if [ "${{ github.event_name }}" == "push" ]; then
-            echo "workflow launched by push with version ${{ github.ref_name }}"
-            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-            echo "force=true" >> $GITHUB_OUTPUT
-            echo "image=naevatec/kurento-media-server-siprtp" >> $GITHUB_OUTPUT
-            echo "kurento=7.2.0" >> $GITHUB_OUTPUT
-            echo "docker=false" >> $GITHUB_OUTPUT
-          fi
+          echo "workflow launched manually with version ${{ github.event.inputs.version }}"
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          echo "force=${{ github.event.inputs.force_release }}" >> $GITHUB_OUTPUT
+          echo "image=${{ github.event.inputs.image_name }}" >> $GITHUB_OUTPUT
+          echo "kurento=${{ github.event.inputs.kurento_version }}" >> $GITHUB_OUTPUT
+          echo "docker=${{ github.event.inputs.create_docker_image }}" >> $GITHUB_OUTPUT
 
 
   build-kurento-module:
