@@ -23,6 +23,8 @@ function set_parameter() {
     fi
 }
 
+# Unset the KURENTO_VERSION environment variable if it exists
+unset KURENTO_VERSION || true
 
 WEBRTC_FILE="/etc/kurento/modules/kurento/WebRtcEndpoint.conf.ini"
 SIPRTP_FILE="/etc/kurento/modules/siprtp/SipRtpEndpoint.conf.ini"
