@@ -40,8 +40,6 @@
 #define DEFAULT_VIDEO_SSRC 0
 #define DEFAULT_QOS_DSCP -1
 
-#define SSRC_SWITCH_SAFE_PERIOD_MS 1000000
-
 
 #define GST_CAT_DEFAULT kms_sip_rtp_endpoint_debug
 GST_DEBUG_CATEGORY (GST_CAT_DEFAULT); 
@@ -94,9 +92,6 @@ struct _KmsSipRtpEndpointPrivate
 
   GstElement *audio_track_selector;
   GstElement *video_track_selector;
-
-  gint64 last_audio_ssrc_switch;
-  gint64 last_video_ssrc_switch;
 
   guint current_ssrc_audio_track;
   guint current_ssrc_video_track;
@@ -1182,14 +1177,36 @@ kms_sip_rtp_endpoint_get_ssrc_pad (KmsSipRtpEndpoint *self, GstElement *track_se
 
 	return track_pad;
 }
+static void
+switch_active_track (KmsSipRtpEndpoint *self, 
+					 guint ssrc, 
+					 guint current_ssrc, 
+					 guint media_type, 
+					 const gchar *media, 
+					 GstPad *active_track_pad,
+					 GstElement *track_selector)
+{
+	// switching ssrc, we must update timestamp of ssrc switch, current active track pad and change active pad on input selector.
+	GST_DEBUG_OBJECT(self, "Switching ssrc from %u to %u in %s track", current_ssrc, ssrc, media);
+	if (media_type == AUDIO_RTP_SESSION) {
+		self->priv->current_ssrc_audio_track = ssrc;
+	} else if (media_type == VIDEO_RTP_SESSION) {
+		self->priv->current_ssrc_video_track = ssrc;
+	}
+
+	// Get the pad in track_selector that has a metadata tagged as "ssrc" to the value of ssrc
+	active_track_pad = kms_sip_rtp_endpoint_get_ssrc_pad (self, track_selector, ssrc);
+	if ((track_selector != NULL) && (active_track_pad != NULL)) {
+		GST_DEBUG_OBJECT(self, "set_output_active_track: switching track selector %s  from ssrc %u to %u in pad %s", track_selector->object.name, current_ssrc, ssrc, active_track_pad->object.name);
+		g_object_set (track_selector, "active-pad", active_track_pad, NULL);
+	}
+}
 
 static gboolean
 set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
 {
-	gint64 now = g_get_real_time ();
 	GstElement *track_selector = NULL;
 	GstPad *active_track_pad = NULL;
-	gint64 last_ssrc_switch = 0;
 	gint current_ssrc;
 	const gchar  *media = (media_type == 0) ? "audio" : "video";
 
@@ -1211,36 +1228,11 @@ set_output_active_track (KmsSipRtpEndpoint *self, guint ssrc, guint media_type)
 
 	if (media_type == AUDIO_RTP_SESSION) {
 		track_selector = self->priv->audio_track_selector;
-		last_ssrc_switch = self->priv->last_audio_ssrc_switch;
-		track_selector = self->priv->audio_track_selector;
 	} else if (media_type == VIDEO_RTP_SESSION) {
 		track_selector = self->priv->video_track_selector;
-		last_ssrc_switch = self->priv->last_video_ssrc_switch;
-		track_selector = self->priv->video_track_selector;
 	}
 
-	// Check if last change was before enough or not (1 second)
-	if ((last_ssrc_switch != 0) && ((now-last_ssrc_switch) < SSRC_SWITCH_SAFE_PERIOD_MS )) {
-		KMS_ELEMENT_UNLOCK(self);
-		return FALSE;
-	}
-
-	// switching ssrc, we must update timestamp of ssrc switch, current active track pad and change active pad on input selector.
-	GST_DEBUG_OBJECT(self, "Switching ssrc from %u to %u in %s track", current_ssrc, ssrc, media);
-	if (media_type == AUDIO_RTP_SESSION) {
-		self->priv->last_audio_ssrc_switch = now;
-		self->priv->current_ssrc_audio_track = ssrc;
-	} else if (media_type == VIDEO_RTP_SESSION) {
-		self->priv->last_video_ssrc_switch = now;
-		self->priv->current_ssrc_video_track = ssrc;
-	}
-
-	// Get the pad in track_selector that has a metadata tagged as "ssrc" to the value of ssrc
-	active_track_pad = kms_sip_rtp_endpoint_get_ssrc_pad (self, track_selector, ssrc);
-	if ((track_selector != NULL) && (active_track_pad != NULL)) {
-		GST_DEBUG_OBJECT(self, "set_output_active_track: switching track selector %s  from ssrc %u to %u in pad %s", track_selector->object.name, current_ssrc, ssrc, active_track_pad->object.name);
-		g_object_set (track_selector, "active-pad", active_track_pad, NULL);
-	}
+	switch_active_track (self, ssrc, current_ssrc, media_type, media, active_track_pad, track_selector);
 
 	KMS_ELEMENT_UNLOCK(self);
 
@@ -1372,14 +1364,16 @@ kms_sip_rtp_endpoint_init (KmsSipRtpEndpoint * self)
 		self->priv->rtpbin = NULL;
 	}
 	self->priv->audio_track_selector = NULL;
-	self->priv->video_track_selector = NULL;self->priv->last_audio_ssrc_switch = 0;
-	self->priv->last_video_ssrc_switch = 0;
+	self->priv->video_track_selector = NULL;
 	self->priv->current_ssrc_video_track = 0;
 
 	self->priv->max_kbps = DEFAULT_MAX_KBPS;
 	self->priv->max_bucket_size = DEFAULT_MAX_BUCKET_SIZE;
 	self->priv->max_bucket_storage_size = DEFAULT_MAX_BUCKET_STORAGE;
 	
+	self->priv->current_ssrc_audio_track = 0;
+	self->priv->current_ssrc_video_track = 0;
+
 	kms_sip_rtp_endpoint_intercept_jitter_buffers (self);
 	if (self->priv->rtpbin != NULL) {
 		self->priv->pad_added_signal =  g_signal_connect_data (self->priv->rtpbin, "pad-added",

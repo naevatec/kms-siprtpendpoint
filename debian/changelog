@@ -1,3 +1,8 @@
+kms-siprtpendpoint (1.6.2) RELEASED; urgency=medium
+
+  * release 1.6.2 bug fixing about quick SSRC changes
+
+ -- Saul Pablo Labajo Izquierdo <slabajo@naevatec.com>  Thu, 20 March 2024 10:38:39 +0000
 kms-siprtpendpoint (1.6.1) RELEASED; urgency=medium
 
   * release 1.6.1 bug fixing
